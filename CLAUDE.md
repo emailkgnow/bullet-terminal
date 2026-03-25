@@ -1,0 +1,157 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What is bute?
+
+bute (BuTe — Bullet Terminal) is a CLI life management system based on the Bullet Journal methodology. Single user, local data, plain Markdown files. The name mirrors BuJo (Bullet Journal) — same family, different medium.
+
+## Development Commands
+
+```bash
+# Install all deps (dev + optional)
+uv sync --extra embeddings --extra ai --extra dev
+
+# Run tests
+uv run pytest                         # all tests
+uv run pytest tests/test_capture.py   # single module
+uv run pytest -m "not slow"           # skip embedding tests
+uv run pytest --cov=src/bute          # with coverage
+
+# Install globally (for manual testing)
+uv tool install --from . --with fastembed --with sqlite-vec --with openai bute --force --reinstall
+
+# Build
+uv build
+```
+
+## Architecture
+
+### CLI Dispatch (cli.py — ButeGroup)
+
+Custom Click group with 6-layer routing in `resolve_command()`:
+
+1. **Named commands** — standard Click (ls, dyts, plan, tasks, notes, etc.)
+2. **Letter shortcut** — `l` → linelog
+3. **Signifiers** — `t`, `n`, `j`, `c` (or full words: `task`, `note`, `journal`, `cal`)
+   - With text → **capture** (`bute t call dentist`)
+   - Without text → **view** (`bute t` → show Task Log)
+   - With only `@tag` → **filtered view** (`bute t @backend`)
+4. **Tag filter** — `@tagname` → cross-dimension filter
+5. **Number-action** — `1 done`, `2 3 drop` → action dispatch
+6. **Fallback** — Click error
+
+### Data Model
+
+- **Entry types**: task (`.`), note (`-`), journal (`=`), calendar (`o`)
+- **Task statuses**: `active`, `done`, `dropped` (no `migrated` — removed by design)
+- **IDs**: ULID (time-sortable, 26 chars)
+- **Storage**: one `.md` file per entry at `~/bute/entries/YYYY-MM/<ULID>.md`
+- **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter
+
+### Data Flow
+
+```
+User input → DwnGroup.resolve_command() → capture.py
+  → parser.py:parse_capture_tokens() — extracts signifier, body, key:value, @tags
+  → models.py:Entry.create() — generates ULID, sets timestamp
+  → storage.py:save_entry() — writes .md file with YAML frontmatter
+  → ai/embed_entry() — optional local embedding (fastembed + sqlite-vec)
+  → display.py:confirm_capture() — Rich panel output
+```
+
+### State Management
+
+`.state.json` stores the last displayed list as `{"view": "ls", "entries": ["ulid1", "ulid2"]}`. Display numbers (1, 2, 3) map to ULIDs. Numbers re-scope on each new view.
+
+### Key Modules
+
+| Module | Role |
+|--------|------|
+| `cli.py` | DwnGroup dispatch + command registration + help text |
+| `parser.py` | Signifier/metadata/@tag parsing, date/time resolution |
+| `models.py` | Entry dataclass, EntryType/TaskStatus enums, SIGNIFIER_MAP |
+| `storage.py` | Markdown file I/O, query by date/filter, handles legacy `migrated` status |
+| `display.py` | Rich rendering: `display_entry_list`, `display_entry_list_grouped`, confirmations |
+| `ritual_ops.py` | Pure functions for rituals (daily log, yesterday unresolved, schedule, active tasks, dump) |
+| `state.py` | View-to-action bridge, DYTS completion tracking |
+| `ai/llm.py` | Provider-agnostic OpenAI client, macOS Keychain API key resolution |
+| `ai/vectors.py` | sqlite-vec wrapper (upsert, search, delete) |
+| `ai/embeddings.py` | fastembed wrapper, lazy model loading |
+| `ai/prompts.py` | Prompt templates for AI features |
+
+### AI Architecture
+
+Three independent capability tiers — each degrades gracefully:
+1. **Embeddings** (local) — fastembed ONNX model, no API key needed
+2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bute rebuild`
+3. **LLM** (remote) — OpenAI-compatible API, provider-agnostic. API key via config or macOS Keychain
+
+AI is used for: `topic`, `review`, `nudges`, FFFF pipeline (`form`, `focus`, `finish`). Core capture/view/action loop works without AI.
+
+## CLI Grammar (Current)
+
+**Capture** — signifier + text:
+```
+bute t call dentist due:friday @backend    # single letter
+bute task call dentist due:friday @backend # full word
+bute t! fix prod bug                       # important modifier
+bute c dentist t:1430 d:0330               # calendar: Mar 30 at 2:30 PM
+bute c meeting t:0900                      # calendar: today at 9:00 AM
+bute c conference d:0415                   # calendar: Apr 15, all day
+```
+
+**Calendar metadata:**
+- `t:HHMM` — time in 24h (4 digits). No `t:` = all day.
+- `d:MMDD` — date (4 digits). No `d:` = today.
+- `due:` — deadline for tasks (supports: `tomorrow`, `friday`, `mar29`, `0329`)
+
+**Views** — signifier alone, or named commands:
+```
+bute t              # Task Log (active tasks)
+bute t @backend     # filtered by tag
+bute t -a           # all including done/dropped
+bute n / j / c      # notes / journals / calendar (grouped by date)
+bute l              # line log (monthly overview)
+bute ls             # today's daily log
+bute @tagname       # cross-dimension tag filter
+```
+
+**Actions** — number + command:
+```
+bute 1 done         # mark complete
+bute 2 3 drop       # consciously delete
+bute 4 delete       # permanently remove from disk
+bute 5 !            # toggle important
+bute 6 @tag         # add tag
+```
+
+**Rituals**:
+```
+bute                # entry point — DYTS if not done today, else daily log
+bute dyts           # morning ritual (Dump, Yesterday, Tasks, Schedule)
+bute plan           # dump tasks + select for the week
+bute habit <name>   # track habits
+```
+
+## Design Decisions
+
+- **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. DYTS Y phase handles yesterday's unfinished items.
+- **Tags use `@`** not `+` — e.g. `@backend`, `@ahmed`. Stored as plain strings in YAML.
+- **Linelog is derived** — no stored file, computed from journal + calendar entries. No AI compression.
+- **`bute` with no args** = DYTS entry point. If DYTS done today, shows daily log.
+- **Daily log (`bute ls`)** shows only: `@today` tasks, today's calendar events, all today's journals and notes. Other tasks stay in Task Log (`bute t`).
+- **`bute plan`** includes task dump phase — add tasks before selecting for the week.
+- **Display**: tasks = flat list, notes/journals/calendar = grouped by date (using `scheduled_date` for calendar events).
+- **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.
+- **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Legacy formats (`3pm`, `3:30pm`) normalized on read.
+- **API key**: resolved from config value, `keychain:<service>`, or auto-lookup in macOS Keychain.
+
+## Backlog
+
+- Add meaningful AI features
+- SQLite index for structured queries (type, date, status, tags) — currently all queries scan .md files, fine for now but won't scale past thousands of entries
+
+## Full Design Doc
+
+`/Users/khalidal-ghamdi/Documents/Obsidian/Home/dwn - AI Life Management System Design.md`

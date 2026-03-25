@@ -1,0 +1,48 @@
+"""Shared test fixtures for dwn."""
+
+from datetime import date
+
+import pytest
+from click.testing import CliRunner
+
+from bute.models import Entry, EntryType
+from bute.storage import save_entry
+
+
+@pytest.fixture
+def runner():
+    """Click CLI test runner."""
+    return CliRunner()
+
+
+@pytest.fixture
+def populated_data(tmp_data):
+    """Create sample entries for testing views and actions."""
+    entries = [
+        Entry.create(EntryType.TASK, "call dentist", tags=["health"], due=date.today()),
+        Entry.create(EntryType.TASK, "fix bug", important=True, tags=["backend"]),
+        Entry.create(EntryType.NOTE, "OAuth2 tokens last 30 days", tags=["api-v2"]),
+        Entry.create(EntryType.JOURNAL, "feeling good today"),
+    ]
+    for e in entries:
+        save_entry(e)
+    return entries
+
+
+@pytest.fixture
+def tmp_config(tmp_path, monkeypatch):
+    """Redirect config to a temp directory."""
+    config_dir = tmp_path / ".config" / "dwn"
+    config_dir.mkdir(parents=True)
+    config_file = config_dir / "config.toml"
+    monkeypatch.setattr("dwn.config.CONFIG_DIR", config_dir)
+    monkeypatch.setattr("dwn.config.CONFIG_FILE", config_file)
+    return config_dir
+
+
+@pytest.fixture
+def tmp_data(tmp_path, monkeypatch):
+    """Redirect data directory to a temp directory."""
+    data_dir = tmp_path / "dwn"
+    monkeypatch.setattr("dwn.config.DATA_DIR_DEFAULT", data_dir)
+    return data_dir
