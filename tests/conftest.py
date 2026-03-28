@@ -35,8 +35,8 @@ def tmp_config(tmp_path, monkeypatch):
     config_dir = tmp_path / ".config" / "dwn"
     config_dir.mkdir(parents=True)
     config_file = config_dir / "config.toml"
-    monkeypatch.setattr("dwn.config.CONFIG_DIR", config_dir)
-    monkeypatch.setattr("dwn.config.CONFIG_FILE", config_file)
+    monkeypatch.setattr("bute.config.CONFIG_DIR", config_dir)
+    monkeypatch.setattr("bute.config.CONFIG_FILE", config_file)
     return config_dir
 
 
@@ -44,5 +44,5 @@ def tmp_config(tmp_path, monkeypatch):
 def tmp_data(tmp_path, monkeypatch):
     """Redirect data directory to a temp directory."""
     data_dir = tmp_path / "dwn"
-    monkeypatch.setattr("dwn.config.DATA_DIR_DEFAULT", data_dir)
+    monkeypatch.setattr("bute.config.DATA_DIR_DEFAULT", data_dir)
     return data_dir

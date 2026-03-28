@@ -44,9 +44,9 @@ class TestParseCapture:
         assert result.important is True
 
     def test_tags(self):
-        result = parse_capture_tokens(("/t", "fix", "bug", "+backend", "+urgent"))
+        result = parse_capture_tokens(("/t", "fix", "bug", "@backend", "@urgent"))
         assert result.tags == ["backend", "urgent"]
-        assert result.body == "fix bug"
+        assert result.body == "fix bug backend urgent"
 
     def test_key_value(self):
         result = parse_capture_tokens(("/t", "call", "dentist", "due:tomorrow"))
@@ -62,11 +62,11 @@ class TestParseCapture:
 
     def test_mixed_input(self):
         result = parse_capture_tokens(
-            ("/c!", "1:1", "with", "Ahmed", "time:2pm", "date:mar29", "+work")
+            ("/c!", "1:1", "with", "Ahmed", "time:2pm", "date:mar29", "@work")
         )
         assert result.signifier == "/c"
         assert result.important is True
-        assert result.body == "1:1 with Ahmed"
+        assert result.body == "1:1 with Ahmed work"
         assert result.metadata == {"time": "2pm", "date": "mar29"}
         assert result.tags == ["work"]
 
@@ -91,8 +91,8 @@ class TestParseCapture:
         assert result.body == ""
 
     def test_body_with_only_tags_and_metadata(self):
-        result = parse_capture_tokens(("/t", "due:tomorrow", "+urgent"))
-        assert result.body == ""
+        result = parse_capture_tokens(("/t", "due:tomorrow", "@urgent"))
+        assert result.body == "urgent"
         assert result.metadata == {"due": "tomorrow"}
         assert result.tags == ["urgent"]
 

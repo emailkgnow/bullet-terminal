@@ -74,6 +74,14 @@ def handle_toggle_important(entry: Entry, args: list[str], config) -> None:
     update_entry(entry, config)
 
 
+def handle_mod(entry: Entry, args: list[str], config) -> None:
+    """Modify the body text of an entry."""
+    if not args:
+        raise InvalidActionError("mod requires new text. Usage: bute 1 mod new text here")
+    entry.body = " ".join(args)
+    update_entry(entry, config)
+
+
 def handle_add_tag(entry: Entry, tag: str, config) -> None:
     """Add a tag to an entry (no duplicates)."""
     if tag not in entry.tags:
@@ -87,6 +95,8 @@ ACTION_HANDLERS = {
     "drop": handle_drop,
     "delete": handle_delete,
     "!": handle_toggle_important,
+    "mod": handle_mod,
+    "modify": handle_mod,
 }
 
 

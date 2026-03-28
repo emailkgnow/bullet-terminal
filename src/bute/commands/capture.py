@@ -3,7 +3,7 @@
 import click
 
 from bute.display import confirm_capture
-from bute.models import SIGNIFIER_MAP, Entry
+from bute.models import SIGNIFIER_MAP, Entry, EntryType
 from bute.parser import (
     BULLET_RE,
     SIGNIFIER_RE,
@@ -16,9 +16,10 @@ from bute.storage import save_entry
 
 
 @click.command("capture", hidden=True)
+@click.option("--later", "-l", is_flag=True, help="Skip @thisweek — backlog only.")
 @click.argument("tokens", nargs=-1, required=True)
 @click.pass_context
-def capture_cmd(ctx, tokens):
+def capture_cmd(ctx, later, tokens):
     """Capture a new entry."""
     # Interactive fallback: if only the signifier is given, prompt for text
     if len(tokens) == 1 and (SIGNIFIER_RE.match(tokens[0]) or BULLET_RE.match(tokens[0]) or WORD_SIGNIFIER_RE.match(tokens[0])):
@@ -73,6 +74,10 @@ def capture_cmd(ctx, tokens):
         repeat=repeat,
         extra_meta=meta,
     )
+
+    # Auto-add @thisweek for tasks unless --later flag
+    if entry.type == EntryType.TASK and not later and "thisweek" not in entry.tags:
+        entry.tags.append("thisweek")
 
     config = ctx.obj.get("config")
     save_entry(entry, config)

@@ -42,6 +42,7 @@ dependencies = [
     { name = "rich" },
     { name = "rich-click" },
     { name = "tomlkit" },
+    { name = "typing-extensions" },
 ]
 
 [package.optional-dependencies]
@@ -71,6 +72,7 @@ requires-dist = [
     { name = "rich-click", specifier = ">=1.8" },
     { name = "sqlite-vec", marker = "extra == 'embeddings'", specifier = ">=0.1" },
     { name = "tomlkit", specifier = ">=0.13" },
+    { name = "typing-extensions", specifier = ">=4.0" },
 ]
 provides-extras = ["embeddings", "ai", "dev"]
 

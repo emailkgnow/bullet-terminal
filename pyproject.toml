@@ -15,6 +15,7 @@ dependencies = [
     "python-ulid>=3.0",
     "python-frontmatter>=1.1",
     "tomlkit>=0.13",
+    "typing_extensions>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -31,7 +32,7 @@ dev = [
 ]
 
 [project.scripts]
-bute = "bute.cli:main"
+bt = "bute.cli:main"
 
 [build-system]
 requires = ["hatchling"]

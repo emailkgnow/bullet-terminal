@@ -6,7 +6,7 @@ import click
 
 from bute.display import display_entry_list, display_entry_list_grouped
 from bute.models import EntryType, TaskStatus
-from bute.ritual_ops import get_daily_log
+from bute.ritual_ops import get_daily_log, get_weekly_active_tasks
 from bute.state import save_state
 from bute.storage import load_entries_by_filter
 
@@ -69,14 +69,11 @@ calendar_cmd = _dimension_command("calendar", EntryType.CALENDAR, "Calendar", gr
 @click.command("active")
 @click.pass_context
 def active_cmd(ctx):
-    """Show active tasks (weekly selection in future phases)."""
+    """Show this week's focus tasks (@thisweek). Falls back to all active if none tagged."""
     config = ctx.obj.get("config")
 
-    entries = load_entries_by_filter(
-        lambda e: e.type == EntryType.TASK and e.status == TaskStatus.ACTIVE,
-        config,
-    )
-    display_entry_list(entries, "Active Tasks")
+    entries = get_weekly_active_tasks(config)
+    display_entry_list(entries, "This Week")
     save_state("active", [e.id for e in entries], config)
 
 

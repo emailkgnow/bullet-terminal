@@ -1,4 +1,4 @@
-"""Start command — onboarding and the bute way."""
+"""Start command — onboarding and the bt way."""
 
 import click
 from rich.console import Console
@@ -11,19 +11,19 @@ console = Console()
 @click.command("start")
 @click.pass_context
 def start_cmd(ctx):
-    """Quick start guide — the bute way."""
+    """Quick start guide — the bt way."""
     console.print()
 
     # Header
     title = Text()
-    title.append(" bute ", style="bold")
-    title.append("(دوّن)", style="dim")
-    title.append(" — the bute way ", style="bold")
+    title.append(" bt ", style="bold")
+    title.append("(BuTe)", style="dim")
+    title.append(" — the bt way ", style="bold")
 
     intro = Text.from_markup(
-        "[bold]One rule:[/bold] start your day with [bold cyan]bute dyts[/bold cyan]\n"
+        "[bold]One rule:[/bold] start your day with [bold cyan]bt dp[/bold cyan]\n"
         "\n"
-        "DYTS walks you through four phases every morning:\n"
+        "Daily plan walks you through four phases every morning:\n"
         "\n"
         "  [bold cyan]D[/bold cyan] · Dump      Get everything out of your head\n"
         "  [bold cyan]Y[/bold cyan] · Yesterday  Deal with what you didn't finish\n"
@@ -38,36 +38,37 @@ def start_cmd(ctx):
     console.print()
     console.print("  [bold]Capture[/bold] — throughout the day, get things in fast:")
     console.print()
-    console.print("    [cyan]bute /t[/cyan]  call dentist             [dim]task[/dim]")
-    console.print("    [yellow]bute /n[/yellow]  OAuth tokens expire 30d   [dim]note[/dim]")
-    console.print("    [magenta]bute /j[/magenta]  rough morning              [dim]journal[/dim]")
-    console.print("    [green]bute /c[/green]  standup time:10am          [dim]event[/dim]")
+    console.print("    [cyan]bt t[/cyan]  call dentist             [dim]task[/dim]")
+    console.print("    [yellow]bt n[/yellow]  OAuth tokens expire 30d   [dim]note[/dim]")
+    console.print("    [magenta]bt j[/magenta]  rough morning              [dim]journal[/dim]")
+    console.print("    [green]bt c[/green]  standup time:10am          [dim]event[/dim]")
     console.print()
-    console.print("    [dim]Tip: type just the signifier (bute /j) to enter text[/dim]")
+    console.print("    [dim]Tip: type just the signifier (bt j) to enter text[/dim]")
     console.print("    [dim]interactively — no shell quoting needed.[/dim]")
 
     # Act
     console.print()
-    console.print("  [bold]Act[/bold] — use [bold]bute ls[/bold] to see today's log, then act by number:")
+    console.print("  [bold]Act[/bold] — use [bold]bt ls[/bold] to see today's log, then act by number:")
     console.print()
-    console.print("    [bold]bute 1 done[/bold]       mark complete")
-    console.print("    [bold]bute 2 drop[/bold]       consciously delete")
-    console.print("    [bold]bute 3 ![/bold]          toggle important")
-    console.print("    [bold]bute 1 @api[/bold]       add a tag")
+    console.print("    [bold]bt 1 done[/bold]       mark complete")
+    console.print("    [bold]bt 2 drop[/bold]       consciously delete")
+    console.print("    [bold]bt 3 ![/bold]          toggle important")
+    console.print("    [bold]bt 1 @api[/bold]       add a tag")
 
     # The rhythm
     console.print()
     console.print(Panel(
         Text.from_markup(
-            "  [bold cyan]morning[/bold cyan]   bute             [dim]— review & plan (DYTS)[/dim]\n"
-            "  [bold]all day[/bold]   bute /t /n /j /c  [dim]— capture fast[/dim]\n"
-            "  [bold cyan]evening[/bold cyan]   bute ls          [dim]— check your day[/dim]"
+            "  [bold cyan]morning[/bold cyan]   bt dp            [dim]— daily plan[/dim]\n"
+            "  [bold]all day[/bold]   bt t / n / j / c  [dim]— capture fast[/dim]\n"
+            "  [bold cyan]evening[/bold cyan]   bt ls            [dim]— check your day[/dim]\n"
+            "  [bold cyan]weekly[/bold cyan]    bt wp            [dim]— weekly plan[/dim]"
         ),
-        title=Text(" the daily rhythm ", style="bold"),
+        title=Text(" the rhythm ", style="bold"),
         border_style="dim",
         padding=(1, 2),
     ))
 
     console.print()
-    console.print("  [dim]Run[/dim] [bold cyan]bute dyts[/bold cyan] [dim]to begin.[/dim]")
+    console.print("  [dim]Run[/dim] [bold cyan]bt dp[/bold cyan] [dim]to begin.[/dim]")
     console.print()

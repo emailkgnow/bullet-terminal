@@ -6,7 +6,7 @@ import tomlkit
 
 CONFIG_DIR = Path.home() / ".config" / "bute"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
-DATA_DIR_DEFAULT = Path.home() / "bute"
+DATA_DIR_DEFAULT = Path.home() / "bullet-terminal"
 
 # Known AI provider presets
 PROVIDER_PRESETS = {
@@ -77,7 +77,7 @@ def default_config(
 
     core = tomlkit.table()
     core.add(tomlkit.comment("Where entry files are stored"))
-    core.add("data_dir", "~/bute")
+    core.add("data_dir", "~/bullet-terminal")
     doc.add("core", core)
     doc.add(tomlkit.nl())
 

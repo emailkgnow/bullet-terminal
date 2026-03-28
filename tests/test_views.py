@@ -34,7 +34,7 @@ def test_ls_tasks(runner, tmp_config, populated_data):
 def test_active(runner, tmp_config, populated_data):
     result = runner.invoke(main, ["active"])
     assert result.exit_code == 0
-    assert "Active Tasks" in result.output
+    assert "This Week" in result.output
 
 
 def test_tag_filter(runner, tmp_config, populated_data):

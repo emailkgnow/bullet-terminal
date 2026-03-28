@@ -12,14 +12,14 @@ def test_capture_task(runner, tmp_config, tmp_data):
 
 def test_capture_with_metadata(runner, tmp_config, tmp_data):
     result = runner.invoke(
-        main, ["/t!", "fix", "bug", "due:tomorrow", "+backend"]
+        main, ["/t!", "fix", "bug", "due:tomorrow", "@backend"]
     )
     assert result.exit_code == 0
     entries = list(tmp_data.rglob("*.md"))
     content = entries[0].read_text()
     assert "important: true" in content
     assert "backend" in content
-    assert "fix bug" in content
+    assert "fix bug backend" in content
 
 
 def test_capture_note(runner, tmp_config, tmp_data):
@@ -58,7 +58,7 @@ def test_capture_preserves_colon_in_body(runner, tmp_config, tmp_data):
 
 def test_capture_multiple_tags(runner, tmp_config, tmp_data):
     result = runner.invoke(
-        main, ["/t", "review", "PR", "+backend", "+code-review"]
+        main, ["/t", "review", "PR", "@backend", "@code-review"]
     )
     assert result.exit_code == 0
     entries = list(tmp_data.rglob("*.md"))

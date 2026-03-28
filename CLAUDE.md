@@ -151,6 +151,7 @@ bute habit <name>   # track habits
 
 - Add meaningful AI features
 - SQLite index for structured queries (type, date, status, tags) — currently all queries scan .md files, fine for now but won't scale past thousands of entries
+- Display `extra_meta` (custom key:value pairs) — saved to YAML frontmatter and round-trips correctly, but invisible in capture confirmation and all list views
 
 ## Full Design Doc
 

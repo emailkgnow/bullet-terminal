@@ -1,4 +1,4 @@
-"""Ritual commands for bute (dyts, plan, habit, review)."""
+"""Ritual commands for bute (dp/dailyplan, wp/weeklyplan, habit, review)."""
 
 from datetime import date
 
@@ -20,6 +20,7 @@ from bute.ritual_ops import (
     clear_weekly_selection,
     get_all_active_tasks,
     get_today_schedule,
+    get_weekly_active_tasks,
     get_yesterday_unresolved,
     process_dump_line,
     set_weekly_selection,
@@ -67,13 +68,13 @@ def habit_cmd(ctx, name, not_done, date_str):
     console.print(f"  {icon} {name} — {target.strftime('%a %b %d')}")
 
 
-# --- DYTS (Morning Ritual) ---
+# --- Daily Plan (Morning Ritual) ---
 
 
-@click.command("dyts")
+@click.command("dp")
 @click.option("-y", "--non-interactive", is_flag=True, help="Skip prompts.")
 @click.pass_context
-def dyts_cmd(ctx, non_interactive):
+def dp_cmd(ctx, non_interactive):
     """Morning ritual — Dump, Yesterday, Tasks, Schedule."""
     config = ctx.obj.get("config")
 
@@ -96,7 +97,7 @@ def dyts_cmd(ctx, non_interactive):
                 if dump_count == 0:
                     console.print("  [dim]Nothing to dump — clear head. Moving on.[/dim]")
                 break
-            entry = process_dump_line(line, config)
+            entry = process_dump_line(line, config, auto_tags=["thisweek"])
             if entry:
                 confirm_capture(entry)
                 dump_count += 1
@@ -134,11 +135,11 @@ def dyts_cmd(ctx, non_interactive):
     display_ritual_header("T · Tasks", "Pick your focus for today")
 
     clear_daily_focus(config)
-    active = get_all_active_tasks(config)
+    active = get_weekly_active_tasks(config)
     if not active:
         console.print("  [dim]No active tasks.[/dim]")
         if not non_interactive:
-            console.print("  [dim]Capture some with[/dim] [cyan]bute t <task>[/cyan] [dim]or add them now:[/dim]")
+            console.print("  [dim]Capture some with[/dim] [cyan]bt t <task>[/cyan] [dim]or add them now:[/dim]")
             while True:
                 try:
                     line = click.prompt("", prompt_suffix="  t > ", default="", show_default=False)
@@ -146,10 +147,10 @@ def dyts_cmd(ctx, non_interactive):
                     break
                 if not line.strip():
                     break
-                entry = process_dump_line(f"t {line}", config)
+                entry = process_dump_line(f"t {line}", config, auto_tags=["thisweek"])
                 if entry:
                     confirm_capture(entry)
-            active = get_all_active_tasks(config)
+            active = get_weekly_active_tasks(config)
     else:
         display_entry_list(active, "")
         save_state("dyts_tasks", [e.id for e in active], config)
@@ -331,13 +332,13 @@ def linelog_cmd(ctx, period):
         console.print()
 
 
-# --- Plan (Weekly Ritual) ---
+# --- Weekly Plan ---
 
 
-@click.command("plan")
+@click.command("wp")
 @click.option("-y", "--non-interactive", is_flag=True, help="Skip prompts.")
 @click.pass_context
-def plan_cmd(ctx, non_interactive):
+def wp_cmd(ctx, non_interactive):
     """Weekly ritual — dump tasks, then select for the week."""
     config = ctx.obj.get("config")
 
@@ -362,7 +363,7 @@ def plan_cmd(ctx, non_interactive):
                 break
             if not line.strip():
                 break
-            entry = process_dump_line(f"t {line}", config)
+            entry = process_dump_line(f"t {line}", config, auto_tags=["thisweek"])
             if entry:
                 confirm_capture(entry)
                 added += 1

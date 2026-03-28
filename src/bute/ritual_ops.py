@@ -75,6 +75,21 @@ def get_daily_log(config=None) -> list[Entry]:
             # Notes and journals — all of today's
             result.append(e)
 
+    # Also include tasks tagged @today but created on a different day
+    today_tasks = load_entries_by_filter(
+        lambda e: (
+            e.type == EntryType.TASK
+            and "today" in e.tags
+            and e.created.date() != today
+        ),
+        config,
+    )
+    seen = {e.id for e in result}
+    for e in today_tasks:
+        if e.id not in seen:
+            seen.add(e.id)
+            result.append(e)
+
     # Also include calendar events scheduled for today but created on a different day
     scheduled_today = load_entries_by_filter(
         lambda e: (
@@ -84,9 +99,9 @@ def get_daily_log(config=None) -> list[Entry]:
         ),
         config,
     )
-    seen = {e.id for e in result}
     for e in scheduled_today:
         if e.id not in seen:
+            seen.add(e.id)
             result.append(e)
 
     def _daily_sort_key(e):
@@ -108,8 +123,30 @@ def get_all_active_tasks(config=None) -> list[Entry]:
     )
 
 
-def process_dump_line(line: str, config=None) -> Entry | None:
-    """Parse a dump line and save it. Defaults to j if no signifier."""
+def get_weekly_active_tasks(config=None) -> list[Entry]:
+    """Active tasks selected for this week (@thisweek tag).
+
+    Falls back to all active tasks if none are tagged @thisweek
+    (e.g. user hasn't run bt wp yet).
+    """
+    weekly = load_entries_by_filter(
+        lambda e: (
+            e.type == EntryType.TASK
+            and e.status == TaskStatus.ACTIVE
+            and "thisweek" in e.tags
+        ),
+        config,
+    )
+    if weekly:
+        return weekly
+    return get_all_active_tasks(config)
+
+
+def process_dump_line(line: str, config=None, auto_tags: list[str] | None = None) -> Entry | None:
+    """Parse a dump line and save it. Defaults to j if no signifier.
+
+    auto_tags: tags to auto-add to task entries (e.g. ["thisweek"]).
+    """
     from bute.parser import BULLET_RE, SIGNIFIER_RE, WORD_SIGNIFIER_RE
 
     line = line.strip()
@@ -143,6 +180,13 @@ def process_dump_line(line: str, config=None) -> Entry | None:
         scheduled_time=scheduled_time,
         extra_meta=meta,
     )
+
+    # Auto-tag tasks (e.g. @thisweek during rituals)
+    if auto_tags and entry.type == EntryType.TASK:
+        for tag in auto_tags:
+            if tag not in entry.tags:
+                entry.tags.append(tag)
+
     save_entry(entry, config)
     from bute.ai import embed_entry
     embed_entry(entry.id, entry.body, config)
