@@ -100,7 +100,7 @@ def test_add_tag(runner, tmp_config, tmp_data):
     save_entry(entry)
     save_state("ls", [entry.id])
 
-    result = runner.invoke(main, ["1", "+work"])
+    result = runner.invoke(main, ["1", "@work"])
     assert result.exit_code == 0
 
     loaded = load_entry(entry_path_from_id(entry.id))
@@ -112,9 +112,34 @@ def test_add_tag_no_duplicate(runner, tmp_config, tmp_data):
     save_entry(entry)
     save_state("ls", [entry.id])
 
-    runner.invoke(main, ["1", "+work"])
+    runner.invoke(main, ["1", "@work"])
     loaded = load_entry(entry_path_from_id(entry.id))
     assert loaded.tags.count("work") == 1
+
+
+def test_untag(runner, tmp_config, tmp_data):
+    entry = Entry.create(EntryType.NOTE, "test note", tags=["work", "urgent"])
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "untag", "@work"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert "work" not in loaded.tags
+    assert "urgent" in loaded.tags
+
+
+def test_untag_without_at(runner, tmp_config, tmp_data):
+    entry = Entry.create(EntryType.NOTE, "test", tags=["backend"])
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "untag", "backend"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert "backend" not in loaded.tags
 
 
 def test_migrate_tomorrow(runner, tmp_config, tmp_data):

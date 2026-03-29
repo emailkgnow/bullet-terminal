@@ -170,7 +170,12 @@ def _print_help():
     console.print("    [bold]bt <n> delete[/bold]            Permanently remove from disk")
     console.print("    [bold]bt <n> ![/bold]                 Toggle important flag")
     console.print("    [bold]bt <n> mod[/bold] <text>        Replace entry text")
+    console.print("    [bold]bt <n> later[/bold]             Defer — remove from today's log")
+    console.print("    [bold]bt <n> edit[/bold]              Open in $EDITOR")
     console.print("    [bold]bt <n> @tag[/bold]              Add a tag")
+    console.print("    [bold]bt <n> untag @tag[/bold]        Remove a tag")
+    console.print("    [bold]bt <n> undo[/bold]              Undo last action on entry")
+    console.print("    [bold]bt undo[/bold]                  Undo last action globally")
     console.print("    [dim]Multiple entries:[/dim] [bold]bt 1 2 3 done[/bold]")
     console.print()
 
@@ -253,7 +258,7 @@ def main(ctx):
 # --- Register commands ---
 
 from bute.commands.capture import capture_cmd  # noqa: E402
-from bute.commands.action import action_cmd  # noqa: E402
+from bute.commands.action import action_cmd, undo_cmd  # noqa: E402
 from bute.commands.init_cmd import init_cmd  # noqa: E402
 from bute.commands.views import (  # noqa: E402
     active_cmd,
@@ -281,6 +286,7 @@ main.add_command(init_cmd)
 main.add_command(start_cmd)
 main.add_command(capture_cmd)
 main.add_command(action_cmd)
+main.add_command(undo_cmd)
 main.add_command(ls_cmd)
 main.add_command(tasks_cmd)
 main.add_command(notes_cmd)

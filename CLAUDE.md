@@ -124,6 +124,11 @@ bute 2 3 drop       # consciously delete
 bute 4 delete       # permanently remove from disk
 bute 5 !            # toggle important
 bute 6 @tag         # add tag
+bute 6 untag @tag   # remove tag
+bute 7 edit         # open in $EDITOR
+bute 3 later        # defer — remove from today's log
+bute undo           # undo last action
+bute 3 undo         # undo last action on entry 3
 ```
 
 **Rituals**:
@@ -151,14 +156,15 @@ bute habit <name>   # track habits
 
 ### Commands — High Value
 - `bt due` — show tasks by deadline (overdue + due today + due this week). `bt due all` for all tasks with due dates. Due metadata exists but has no dedicated view.
-- `bt <n> untag @tag` — remove a tag from an entry. Currently can only add tags, not remove them.
+- ~~`bt <n> untag @tag`~~ ✓ Done — `bt 1 untag @tag` or `bt 1 untag tag`
 - `bt <n> reopen` — reactivate a done/dropped task back to active. No way to undo accidental done/drop.
-- `bt edit <n>` — open entry in `$EDITOR` for full editing (tags, metadata, body). `mod` only replaces body text.
+- ~~`bt edit <n>`~~ ✓ Done — `bt <n> edit` opens entry in `$EDITOR` (falls back to `nano`)
 
 ### Commands — Medium Value
 - `bt streak` — habit streaks and trends (last 7/30 days, current streak count). Habit tracking exists but only shows today.
 - `bt reflect` — end-of-day prompt. Morning has `bt dp`, evening has nothing. Quick "what went well" journal + auto-review of today's tasks.
 - `bt week` — this week across all dimensions (tasks + journals + notes + events, Mon-Sun). `bt active` is tasks only; this gives the BuJo weekly spread.
+- **Notes as reference layer** — notes (`n`) become a searchable knowledge base, distinct from the journal timeline. Tag-based retrieval (`bt n @topic`), pinned notes that surface in context, AI-powered recall ("what do I know about..."), and linked references from tasks/journals.
 
 ### Commands — Nice to Have
 - `bt overdue` — shortcut for past-due tasks only. Quick "what am I behind on" accountability view.
@@ -166,9 +172,13 @@ bute habit <name>   # track habits
 - `bt stats` — personal analytics: done/dropped ratio, busiest days, most-used tags, capture frequency. Data is all in the markdown files.
 
 ### Infrastructure
+- **AI agent as mobile interface** — bt's CLI grammar is already agent-friendly. Via Claude desktop/mobile + MCP or remote dispatch, natural language commands can route to bt on the local machine. No mobile app, no REST API, no cloud sync needed — the AI agent is the frontend.
 - Add meaningful AI features
 - SQLite index for structured queries (type, date, status, tags) — currently all queries scan .md files, fine for now but won't scale past thousands of entries
 - Display `extra_meta` (custom key:value pairs) — saved to YAML frontmatter and round-trips correctly, but invisible in capture confirmation and all list views
+
+### Design Guardrail
+- **Stay BuJo, not Notion.** As bt grows into a PKM, resist becoming a general-purpose notes app. Every feature should serve the BuJo methodology — signifiers, rapid logging, rituals, migration. The CLI constraint and opinionated simplicity are features, not limitations. If a feature requires explaining, it probably doesn't belong.
 
 ## Full Design Doc
 
