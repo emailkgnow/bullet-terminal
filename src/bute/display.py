@@ -217,11 +217,55 @@ def display_habit_status(
         status = habits.get(name)
         if status is True:
             icon = "[green]●[/green]"
-        elif status is False:
-            icon = "[red].[/red]"
         else:
             icon = "[dim]○[/dim]"
         console.print(f"  {icon} {name}")
+
+
+def display_habit_line(
+    habits: dict[str, bool | None], configured: list[str], start_num: int = 0
+) -> None:
+    """Display numbered habit rows below entries.
+
+    start_num: first habit's display number (0 = unnumbered compact line).
+    """
+    if not configured:
+        return
+
+    console.print(f"  [dim]{'─' * 50}[/dim]")
+
+    if start_num == 0:
+        # Compact one-line (used in non-interactive/fallback)
+        parts = []
+        for name in configured:
+            status = habits.get(name)
+            if status is True:
+                parts.append(f"[green]●[/green] {name}")
+            else:
+                parts.append(f"[dim]○[/dim] {name}")
+        console.print(f"  [bold dim]Habits[/bold dim]   {'   '.join(parts)}")
+    else:
+        # Numbered rows (used in daily log)
+        table = Table(
+            show_header=False,
+            show_edge=False,
+            pad_edge=False,
+            box=None,
+            padding=(0, 1),
+        )
+        table.add_column("#", style="bold dim", width=4, justify="right")
+        table.add_column("", width=1)
+        table.add_column("", ratio=1)
+
+        for i, name in enumerate(configured):
+            status = habits.get(name)
+            if status is True:
+                icon = Text("●", style="green")
+            else:
+                icon = Text("○", style="dim")
+            table.add_row(str(start_num + i), icon, name)
+
+        console.print(table)
 
 
 def display_search_results(

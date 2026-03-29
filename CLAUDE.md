@@ -149,6 +149,23 @@ bute habit <name>   # track habits
 
 ## Backlog
 
+### Commands — High Value
+- `bt due` — show tasks by deadline (overdue + due today + due this week). `bt due all` for all tasks with due dates. Due metadata exists but has no dedicated view.
+- `bt <n> untag @tag` — remove a tag from an entry. Currently can only add tags, not remove them.
+- `bt <n> reopen` — reactivate a done/dropped task back to active. No way to undo accidental done/drop.
+- `bt edit <n>` — open entry in `$EDITOR` for full editing (tags, metadata, body). `mod` only replaces body text.
+
+### Commands — Medium Value
+- `bt streak` — habit streaks and trends (last 7/30 days, current streak count). Habit tracking exists but only shows today.
+- `bt reflect` — end-of-day prompt. Morning has `bt dp`, evening has nothing. Quick "what went well" journal + auto-review of today's tasks.
+- `bt week` — this week across all dimensions (tasks + journals + notes + events, Mon-Sun). `bt active` is tasks only; this gives the BuJo weekly spread.
+
+### Commands — Nice to Have
+- `bt overdue` — shortcut for past-due tasks only. Quick "what am I behind on" accountability view.
+- `bt move <n> due:friday` — update metadata fields without replacing body. Like `mod` but for due dates, tags, times.
+- `bt stats` — personal analytics: done/dropped ratio, busiest days, most-used tags, capture frequency. Data is all in the markdown files.
+
+### Infrastructure
 - Add meaningful AI features
 - SQLite index for structured queries (type, date, status, tags) — currently all queries scan .md files, fine for now but won't scale past thousands of entries
 - Display `extra_meta` (custom key:value pairs) — saved to YAML frontmatter and round-trips correctly, but invisible in capture confirmation and all list views

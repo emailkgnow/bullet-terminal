@@ -102,6 +102,6 @@ def default_config(
 def ensure_data_dirs(config: tomlkit.TOMLDocument | None = None) -> Path:
     """Create the data directory structure. Returns the data dir path."""
     data_dir = get_data_dir(config)
-    for subdir in ["entries", "collections", "linelog", "tasks", "habits", "archive", ".vectors"]:
+    for subdir in ["entries", "collections", "habits", ".vectors"]:
         (data_dir / subdir).mkdir(parents=True, exist_ok=True)
     return data_dir

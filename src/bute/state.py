@@ -13,11 +13,13 @@ def state_path(config=None) -> Path:
     return get_data_dir(config) / ".state.json"
 
 
-def save_state(view_name: str, entry_ids: list[str], config=None) -> Path:
-    """Write the current view state (number-to-ULID mapping)."""
+def save_state(view_name: str, entry_ids: list[str], config=None, habits: list[str] | None = None) -> Path:
+    """Write the current view state (number-to-ULID mapping, optional habits)."""
     path = state_path(config)
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {"view": view_name, "entries": entry_ids}
+    if habits:
+        data["habits"] = habits
     path.write_text(json.dumps(data))
     return path
 

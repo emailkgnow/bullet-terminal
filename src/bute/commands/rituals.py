@@ -1,4 +1,4 @@
-"""Ritual commands for bute (dp/dailyplan, wp/weeklyplan, habit, review)."""
+"""Ritual commands for bute (dp/dailyplan, wp/weeklyplan, review)."""
 
 from datetime import date
 
@@ -9,14 +9,10 @@ from bute.display import (
     confirm_capture,
     display_action_confirmation,
     display_entry_list,
-    display_habit_status,
     display_ritual_header,
 )
-from bute.errors import InvalidHabitError
-from bute.habit_storage import get_habit_summary, save_habit
 from bute.models import Entry, TaskStatus
 from bute.ritual_ops import (
-    clear_daily_focus,
     clear_weekly_selection,
     get_all_active_tasks,
     get_today_schedule,
@@ -29,43 +25,6 @@ from bute.state import save_state
 from bute.storage import update_entry
 
 console = Console()
-
-
-# --- Habit ---
-
-
-@click.command("habit")
-@click.argument("name", required=False, default=None)
-@click.option("--no", "not_done", is_flag=True, help="Log habit as not done.")
-@click.option("--date", "date_str", default=None, help="Date to log for (YYYY-MM-DD).")
-@click.pass_context
-def habit_cmd(ctx, name, not_done, date_str):
-    """Track a habit. No args = show status. With name = log done (or --no)."""
-    config = ctx.obj.get("config")
-    target = date.fromisoformat(date_str) if date_str else date.today()
-
-    # Get configured habits
-    configured = []
-    if config and "habits" in config and "list" in config["habits"]:
-        configured = list(config["habits"]["list"])
-
-    if name is None:
-        # Show status
-        habits = get_habit_summary(target, configured, config)
-        console.print(f"\n  [bold]Habits — {target.strftime('%a %b %d')}[/bold]")
-        display_habit_status(habits, configured)
-        return
-
-    # Validate
-    if configured and name not in configured:
-        raise InvalidHabitError(
-            f"'{name}' is not a configured habit. Options: {', '.join(configured)}"
-        )
-
-    done = not not_done
-    save_habit(name, done, target, config)
-    icon = "[green]●[/green]" if done else "[red].[/red]"
-    console.print(f"  {icon} {name} — {target.strftime('%a %b %d')}")
 
 
 # --- Daily Plan (Morning Ritual) ---
@@ -114,13 +73,16 @@ def dp_cmd(ctx, non_interactive):
             for i, entry in enumerate(yesterday, 1):
                 choice = click.prompt(
                     f"  {i}. {entry.body}",
-                    type=click.Choice(["k", "d", "x"], case_sensitive=False),
-                    prompt_suffix=" [k]eep [d]rop [x]done > ",
+                    type=click.Choice(["k", "d", "x", "l"], case_sensitive=False),
+                    prompt_suffix=" [k]eep [d]rop [x]done [l]ater > ",
                     default="k",
                     show_choices=False,
                 )
                 if choice == "k":
-                    display_action_confirmation(entry, "keep")
+                    if "today" not in entry.tags:
+                        entry.tags.append("today")
+                    update_entry(entry, config)
+                    display_action_confirmation(entry, "keep → today")
                 elif choice == "d":
                     entry.status = TaskStatus.DROPPED
                     update_entry(entry, config)
@@ -129,12 +91,16 @@ def dp_cmd(ctx, non_interactive):
                     entry.status = TaskStatus.DONE
                     update_entry(entry, config)
                     display_action_confirmation(entry, "done")
+                elif choice == "l":
+                    if "today" in entry.tags:
+                        entry.tags.remove("today")
+                        update_entry(entry, config)
+                    display_action_confirmation(entry, "later")
 
 
     # --- T: Task log ---
     display_ritual_header("T · Tasks", "Pick your focus for today")
 
-    clear_daily_focus(config)
     active = get_weekly_active_tasks(config)
     if not active:
         console.print("  [dim]No active tasks.[/dim]")
@@ -162,22 +128,32 @@ def dp_cmd(ctx, non_interactive):
                 import questionary
 
                 choices = [
-                    questionary.Choice(f"{e.body}", value=e.id)
+                    questionary.Choice(
+                        f"{e.body}" + (" [today]" if "today" in e.tags else ""),
+                        value=e.id,
+                        checked="today" in e.tags,
+                    )
                     for e in active
                 ]
                 selected = questionary.checkbox(
                     "Select tasks for today:", choices=choices
                 ).ask()
-                if selected:
+                if selected is not None:
                     from bute.storage import entry_path_from_id, load_entry
 
-                    for eid in selected:
-                        path = entry_path_from_id(eid, config)
-                        if path:
-                            e = load_entry(path)
-                            if "today" not in e.tags:
-                                e.tags.append("today")
-                            update_entry(e, config)
+                    # Tag newly selected, untag deselected
+                    selected_set = set(selected)
+                    for e in active:
+                        path = entry_path_from_id(e.id, config)
+                        if not path:
+                            continue
+                        entry = load_entry(path)
+                        if e.id in selected_set and "today" not in entry.tags:
+                            entry.tags.append("today")
+                            update_entry(entry, config)
+                        elif e.id not in selected_set and "today" in entry.tags:
+                            entry.tags.remove("today")
+                            update_entry(entry, config)
                     console.print(f"  [green]{len(selected)} tasks tagged for today[/green]")
             except ImportError:
                 console.print("  [dim]questionary not available — skipping selection[/dim]")
@@ -217,6 +193,39 @@ def dp_cmd(ctx, non_interactive):
             entry = process_dump_line(f"c {line}", config)
             if entry:
                 confirm_capture(entry)
+
+    # --- H: Habits ---
+    configured = []
+    if config and "habits" in config and "list" in config["habits"]:
+        configured = list(config["habits"]["list"])
+
+    if configured:
+        display_ritual_header("H · Habits", "Check in on your habits")
+
+        from bute.habit_storage import get_habit_summary, save_habit
+
+        habits = get_habit_summary(date.today(), configured, config)
+
+        if non_interactive:
+            from bute.display import display_habit_line
+            display_habit_line(habits, configured)
+        else:
+            for name in configured:
+                status = habits.get(name)
+                if status is True:
+                    console.print(f"  [green]●[/green] {name} [dim](done)[/dim]")
+                    continue
+
+                choice = click.prompt(
+                    f"  ○ {name}",
+                    type=click.Choice(["y", "s"], case_sensitive=False),
+                    prompt_suffix=" [y]es [s]kip > ",
+                    default="s",
+                    show_choices=False,
+                )
+                if choice == "y":
+                    save_habit(name, True, date.today(), config)
+                    console.print(f"  [green]●[/green] {name}")
 
     from bute.state import mark_dyts_done
     mark_dyts_done(config)

@@ -4,28 +4,33 @@ from datetime import date, datetime, timedelta, timezone
 
 from bute.models import Entry, EntryType, TaskStatus
 from bute.ritual_ops import (
-    carry_to_today,
     clear_daily_focus,
     clear_weekly_selection,
     get_all_active_tasks,
     get_today_schedule,
-    get_today_unresolved,
+    get_yesterday_unresolved,
     process_dump_line,
     set_weekly_selection,
 )
 from bute.storage import entry_path_from_id, load_entry, save_entry
 
 
-def test_get_today_unresolved(tmp_data):
+def test_get_yesterday_unresolved(tmp_data):
+    """Yesterday's active tasks show up; done tasks and notes don't."""
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+
     e1 = Entry.create(EntryType.TASK, "active task")
+    e1.created = yesterday
     e2 = Entry.create(EntryType.TASK, "done task")
     e2.status = TaskStatus.DONE
+    e2.created = yesterday
     e3 = Entry.create(EntryType.NOTE, "a note")
+    e3.created = yesterday
     save_entry(e1)
     save_entry(e2)
     save_entry(e3)
 
-    result = get_today_unresolved()
+    result = get_yesterday_unresolved()
     assert len(result) == 1
     assert result[0].body == "active task"
 
@@ -54,23 +59,8 @@ def test_get_all_active_tasks(tmp_data):
     assert len(result) == 2
 
 
-def test_carry_to_today(tmp_data):
-    entry = Entry.create(EntryType.TASK, "old task", tags=["backend"])
-    save_entry(entry)
-
-    new = carry_to_today(entry)
-    assert new.body == "old task"
-    assert new.status == TaskStatus.ACTIVE
-    assert "backend" in new.tags
-    assert new.id != entry.id  # new ULID
-
-    # Original should be migrated
-    loaded_original = load_entry(entry_path_from_id(entry.id))
-    assert loaded_original.status == TaskStatus.MIGRATED
-
-
 def test_process_dump_line_with_signifier(tmp_data):
-    entry = process_dump_line("/t call dentist")
+    entry = process_dump_line("t call dentist")
     assert entry is not None
     assert entry.type == EntryType.TASK
     assert entry.body == "call dentist"

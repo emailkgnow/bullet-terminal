@@ -19,7 +19,23 @@ def ls_cmd(ctx):
     entries = get_daily_log(config)
     title = f"Today — {date.today().strftime('%a %b %d')}"
     display_entry_list(entries, title)
-    save_state("ls", [e.id for e in entries], config)
+    habit_names = _show_habits(config, len(entries))
+    save_state("ls", [e.id for e in entries], config, habits=habit_names)
+
+
+def _show_habits(config, entry_count=0) -> list[str]:
+    """Show numbered habit rows if habits are configured. Returns habit names."""
+    configured = []
+    if config and "habits" in config and "list" in config["habits"]:
+        configured = list(config["habits"]["list"])
+    if not configured:
+        return []
+    from bute.display import display_habit_line
+    from bute.habit_storage import get_habit_summary
+    habits = get_habit_summary(date.today(), configured, config)
+    start_num = entry_count + 1 if entry_count > 0 else 0
+    display_habit_line(habits, configured, start_num=start_num)
+    return configured
 
 
 def _dimension_command(name, entry_type, label, group_by_date=False):

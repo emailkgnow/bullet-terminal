@@ -54,6 +54,21 @@ def save_habit(
     _save_month(target, data, config)
 
 
+def remove_habit_entry(
+    name: str, target_date: date | None = None, config=None
+) -> None:
+    """Remove a habit's entry for a specific day (undo)."""
+    target = target_date or date.today()
+    data = _load_month(target, config)
+    date_key = target.isoformat()
+
+    if date_key in data and name in data[date_key]:
+        del data[date_key][name]
+        if not data[date_key]:
+            del data[date_key]
+        _save_month(target, data, config)
+
+
 def get_habit_summary(
     target_date: date, configured_habits: list[str], config=None
 ) -> dict[str, bool | None]:

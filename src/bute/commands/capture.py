@@ -75,9 +75,12 @@ def capture_cmd(ctx, later, tokens):
         extra_meta=meta,
     )
 
-    # Auto-add @thisweek for tasks unless --later flag
-    if entry.type == EntryType.TASK and not later and "thisweek" not in entry.tags:
-        entry.tags.append("thisweek")
+    # Auto-add @thisweek and @today for tasks unless --later flag
+    if entry.type == EntryType.TASK and not later:
+        if "thisweek" not in entry.tags:
+            entry.tags.append("thisweek")
+        if "today" not in entry.tags:
+            entry.tags.append("today")
 
     config = ctx.obj.get("config")
     save_entry(entry, config)

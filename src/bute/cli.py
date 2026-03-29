@@ -39,11 +39,16 @@ class DwnGroup(click.Group):
         if cmd is not None:
             return cmd.name, cmd, rest
 
-        # 2. Single letter shortcut: l = linelog
+        # 2. Single letter shortcuts
         if first == "l":
             cmd = self.get_command(ctx, "linelog")
             if cmd is not None:
                 return "linelog", cmd, rest
+
+        if first in ("h", "habit"):
+            cmd = self.get_command(ctx, "habits")
+            if cmd is not None:
+                return "habits", cmd, rest
 
         # 3. Signifier (short: t, /t | bullet: . = - o | word: task, note, journal, cal)
         is_short = SIGNIFIER_PATTERN.match(first)
@@ -82,6 +87,34 @@ class DwnGroup(click.Group):
 
         # 5. Number-action — first token is a digit
         if first.isdigit():
+            try:
+                from bute.state import load_state
+                state = load_state()
+
+                # Pure habits view — all numbers are habits
+                if state.get("view") == "habits":
+                    cmd = self.get_command(ctx, "habits")
+                    if cmd is not None:
+                        return "habits", cmd, args
+
+                # Mixed view (ls) — check if number falls in habit range
+                habits = state.get("habits", [])
+                if habits:
+                    entry_count = len(state.get("entries", []))
+                    num = int(first)
+                    if num > entry_count:
+                        # Remap to habit-relative numbers for the habits command
+                        remapped = []
+                        for tok in args:
+                            if tok.isdigit() and int(tok) > entry_count:
+                                remapped.append(str(int(tok) - entry_count))
+                            else:
+                                remapped.append(tok)
+                        cmd = self.get_command(ctx, "habits")
+                        if cmd is not None:
+                            return "habits", cmd, remapped
+            except Exception:
+                pass
             cmd = self.get_command(ctx, "action")
             if cmd is not None:
                 return "action", cmd, args
@@ -141,11 +174,19 @@ def _print_help():
     console.print("    [dim]Multiple entries:[/dim] [bold]bt 1 2 3 done[/bold]")
     console.print()
 
+    # Habits
+    console.print("  [bold cyan]Habits[/bold cyan] — daily tracking")
+    console.print("    [bold]bt h[/bold]                  List habits with today's status")
+    console.print("    [bold]bt h[/bold] <name>           Add a new habit")
+    console.print("    [bold]bt h <n> done[/bold]         Mark habit done today")
+    console.print("    [bold]bt h <n> undo[/bold]         Clear today's entry")
+    console.print("    [bold]bt h <n> delete[/bold]       Remove habit permanently")
+    console.print()
+
     # Rituals
     console.print("  [bold cyan]Rituals[/bold cyan] — guided BuJo workflows")
     console.print("    [bold]bt dp[/bold]              Daily plan — morning ritual")
     console.print("    [bold]bt wp[/bold]              Weekly plan — select tasks for the week")
-    console.print("    [bold]bt habit[/bold] [name]    Track habits (done by default, --no for not done)")
     console.print()
 
     # AI
@@ -195,7 +236,12 @@ def main(ctx):
 
             entries = get_daily_log(config)
             display_entry_list(entries, f"Today — {date.today().strftime('%a %b %d')}")
-            save_state("ls", [e.id for e in entries], config)
+
+            # Show habits
+            from bute.commands.views import _show_habits
+            habit_names = _show_habits(config, len(entries))
+
+            save_state("ls", [e.id for e in entries], config, habits=habit_names)
 
             from rich.console import Console
             console = Console()
@@ -220,11 +266,11 @@ from bute.commands.views import (  # noqa: E402
 )
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
-    habit_cmd,
     linelog_cmd,
     wp_cmd,
     review_cmd,
 )
+from bute.commands.habits import habits_cmd  # noqa: E402
 from bute.commands.search import rebuild_cmd, search_cmd, similar_cmd  # noqa: E402
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
@@ -243,7 +289,7 @@ main.add_command(calendar_cmd)
 main.add_command(active_cmd)
 main.add_command(tag_filter_cmd)
 main.add_command(dp_cmd)
-main.add_command(habit_cmd)
+main.add_command(habits_cmd)
 main.add_command(linelog_cmd)
 main.add_command(wp_cmd)
 main.add_command(review_cmd)
