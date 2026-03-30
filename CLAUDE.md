@@ -163,7 +163,7 @@ bute habit <name>   # track habits
 ### Commands — Medium Value
 - ~~`bt streak`~~ Done — 7-day grid, current streak count, 30-day completion rate.
 - ~~`bt reflect`~~ Done as `bt recap` — end-of-day summary with structured display + AI coaching narrative.
-- `bt week` — this week across all dimensions (tasks + journals + notes + events, Mon-Sun). `bt active` is tasks only; this gives the BuJo weekly spread.
+- ~~`bt week`~~ Done — weekly spread across all dimensions, Mon-Sun. `bt week last` for previous week.
 - **Notes as reference layer** — notes (`n`) become a searchable knowledge base, distinct from the journal timeline. Tag-based retrieval (`bt n @topic`), pinned notes that surface in context, AI-powered recall ("what do I know about..."), and linked references from tasks/journals.
 
 ### Commands — Nice to Have
