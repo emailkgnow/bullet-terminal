@@ -204,3 +204,35 @@ def test_recap_marks_done(runner, tmp_config, tmp_data):
 
     from bute.state import is_recap_done_today
     assert is_recap_done_today()
+
+
+# --- Streak command tests ---
+
+
+def test_streak_shows_habits(runner, tmp_config, tmp_data):
+    _setup_config(tmp_config, tmp_data)
+
+    from datetime import date
+    from bute.habit_storage import save_habit
+    save_habit("quran", True, date(2026, 3, 29))
+    save_habit("walking", False, date(2026, 3, 29))
+
+    result = runner.invoke(main, ["streak"])
+    assert result.exit_code == 0
+    assert "quran" in result.output
+    assert "walking" in result.output
+    assert "streak" in result.output.lower()
+
+
+def test_streak_no_habits_configured(runner, tmp_config, tmp_data):
+    """Streak with no habits configured shows message."""
+    from bute.config import default_config, save_config
+    doc = default_config(provider="ollama")
+    doc["core"]["data_dir"] = str(tmp_data)
+    if "habits" in doc:
+        del doc["habits"]
+    save_config(doc)
+
+    result = runner.invoke(main, ["streak"])
+    assert result.exit_code == 0
+    assert "No habits configured" in result.output

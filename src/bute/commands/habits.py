@@ -1,6 +1,7 @@
 """Habit commands — bt h (list), bt h <text> (add), bt h <n> done/undo/delete."""
 
 import click
+from datetime import timedelta
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -160,3 +161,69 @@ def habits_cmd(ctx, tokens):
 
     # bt h <text> — add new habit
     handle_habit_add(" ".join(tokens), config)
+
+
+@click.command("streak")
+@click.pass_context
+def streak_cmd(ctx):
+    """Habit streaks — 7-day grid, current streak, 30-day rate."""
+    from datetime import date
+
+    from bute.habit_storage import compute_streak, get_habit_history
+
+    config = ctx.obj.get("config")
+    configured = _get_configured(config)
+
+    if not configured:
+        console.print("  [dim]No habits configured. Add with[/dim] [bold]bt h <name>[/bold]")
+        return
+
+    today = date.today()
+    history = get_habit_history(30, configured, target_date=today, config=config)
+
+    # Build 7-day range
+    days_7 = [today - timedelta(days=6 - i) for i in range(7)]
+    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    table = Table(
+        title="Habits — Last 7 Days",
+        title_style="bold",
+        show_header=True,
+        header_style="bold dim",
+        box=None,
+        pad_edge=False,
+        padding=(0, 1),
+        expand=True,
+    )
+    table.add_column("Habit", ratio=1)
+    for d in days_7:
+        table.add_column(weekdays[d.weekday()], width=3, justify="center")
+    table.add_column("Streak", justify="right", width=10)
+    table.add_column("30 days", justify="right", width=12)
+
+    for name in configured:
+        habit_data = history[name]
+        row = [name]
+
+        # 7-day dots
+        for d in days_7:
+            val = habit_data.get(d)
+            if val is True:
+                row.append("[green]●[/green]")
+            else:
+                row.append("[dim]○[/dim]")
+
+        # Streak
+        streak = compute_streak(history, name, target_date=today)
+        row.append(f"streak: {streak}")
+
+        # 30-day rate
+        days_30 = [today - timedelta(days=i) for i in range(30)]
+        done_count = sum(1 for d in days_30 if habit_data.get(d) is True)
+        pct = round(done_count / 30 * 100)
+        row.append(f"{done_count}/30 ({pct}%)")
+
+        table.add_row(*row)
+
+    console.print()
+    console.print(table)

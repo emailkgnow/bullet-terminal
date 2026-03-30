@@ -187,6 +187,7 @@ def _print_help():
     console.print("    [bold]bt h <n> done[/bold]         Mark habit done today")
     console.print("    [bold]bt h <n> undo[/bold]         Clear today's entry")
     console.print("    [bold]bt h <n> delete[/bold]       Remove habit permanently")
+    console.print("    [bold]bt streak[/bold]            Habit streaks, trends, and 30-day stats")
     console.print()
 
     # Rituals
@@ -279,7 +280,7 @@ from bute.commands.rituals import (  # noqa: E402
     review_cmd,
     wp_cmd,
 )
-from bute.commands.habits import habits_cmd  # noqa: E402
+from bute.commands.habits import habits_cmd, streak_cmd  # noqa: E402
 from bute.commands.search import rebuild_cmd, search_cmd, similar_cmd  # noqa: E402
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
@@ -301,6 +302,7 @@ main.add_command(tag_filter_cmd)
 main.add_command(tags_cmd)
 main.add_command(dp_cmd)
 main.add_command(habits_cmd)
+main.add_command(streak_cmd)
 main.add_command(linelog_cmd)
 main.add_command(wp_cmd)
 main.add_command(recap_cmd)
