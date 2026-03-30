@@ -1,6 +1,6 @@
 """View commands for bute (ls, tasks, notes, journals, calendar, active, tag filter)."""
 
-from datetime import date
+from datetime import date, datetime
 
 import click
 
@@ -26,6 +26,11 @@ def ls_cmd(ctx):
     display_entry_list(entries, title)
     habit_names = _show_habits(config, len(entries))
     save_state("ls", [e.id for e in entries], config, habits=habit_names)
+
+    # Evening reminder
+    from bute.state import is_recap_done_today
+    if datetime.now().hour >= 18 and not is_recap_done_today(config):
+        console.print("  [dim]Run[/dim] [bold]bt recap[/bold] [dim]for your day summary[/dim]")
 
 
 def _show_habits(config, entry_count=0) -> list[str]:
