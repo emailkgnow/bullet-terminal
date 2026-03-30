@@ -109,6 +109,19 @@ Output as a simple list:
 - task two"""
 
 
+def recap_prompt() -> str:
+    return f"""{SYSTEM_BASE}
+
+The user is reviewing their day. Produce a coaching-style summary in 3-5 sentences:
+
+1. Acknowledge what they accomplished — be specific, reference actual entries
+2. Note what's carrying forward without judgment
+3. Identify patterns (recurring tags, themes, type balance)
+4. End with one concrete, light suggestion for tomorrow
+
+Tone: warm coach, not a corporate report. Direct, not cheesy. No bullet points — flowing prose."""
+
+
 def format_entries(entries: list[Entry]) -> str:
     """Format entries as text for LLM context."""
     type_icons = {
