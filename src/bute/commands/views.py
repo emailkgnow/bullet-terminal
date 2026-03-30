@@ -4,11 +4,16 @@ from datetime import date
 
 import click
 
+from rich.console import Console
+from rich.table import Table
+
 from bute.display import display_entry_list, display_entry_list_grouped
 from bute.models import EntryType, TaskStatus
 from bute.ritual_ops import get_daily_log, get_weekly_active_tasks
 from bute.state import save_state
 from bute.storage import load_entries_by_filter
+
+console = Console()
 
 
 @click.command("ls")
@@ -106,3 +111,40 @@ def tag_filter_cmd(ctx, tag):
     )
     display_entry_list(entries, f"@{tag}")
     save_state("tag_filter", [e.id for e in entries], config)
+
+
+@click.command("tags")
+@click.pass_context
+def tags_cmd(ctx):
+    """List all tags with entry counts."""
+    config = ctx.obj.get("config")
+
+    entries = load_entries_by_filter(lambda e: bool(e.tags), config)
+
+    counts: dict[str, int] = {}
+    for entry in entries:
+        for tag in entry.tags:
+            counts[tag] = counts.get(tag, 0) + 1
+
+    if not counts:
+        console.print("  [dim]No tags found.[/dim]")
+        return
+
+    table = Table(
+        title="Tags",
+        title_style="bold",
+        show_header=True,
+        header_style="bold dim",
+        box=None,
+        pad_edge=False,
+        padding=(0, 1),
+        expand=True,
+    )
+    table.add_column("Tag", ratio=1)
+    table.add_column("#", justify="right", width=5)
+
+    for tag, count in sorted(counts.items(), key=lambda x: x[1], reverse=True):
+        table.add_row(f"@{tag}", str(count))
+
+    console.print()
+    console.print(table)

@@ -49,7 +49,7 @@ def save_habit(
 
     if date_key not in data:
         data[date_key] = {}
-    data[date_key][name] = done
+    data[date_key][str(name)] = done
 
     _save_month(target, data, config)
 

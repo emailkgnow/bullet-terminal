@@ -83,7 +83,7 @@ def handle_toggle_important(entry: Entry, args: list[str], config) -> None:
 def handle_mod(entry: Entry, args: list[str], config) -> None:
     """Modify the body text of an entry."""
     if not args:
-        raise InvalidActionError("mod requires new text. Usage: bute 1 mod new text here")
+        raise InvalidActionError("mod requires new text. Usage: bt 1 mod new text here")
     entry.body = " ".join(args)
     update_entry(entry, config)
 
@@ -207,7 +207,7 @@ def action_cmd(ctx, tokens):
     # Handle untag action: bt 1 untag @backend  or  bt 1 untag backend
     if action == "untag":
         if not args:
-            raise InvalidActionError("untag requires a tag. Usage: bute 1 untag @backend")
+            raise InvalidActionError("untag requires a tag. Usage: bt 1 untag @backend")
         tag = args[0].lstrip("@")
         for entry_id in entry_ids:
             path = entry_path_from_id(entry_id, config)

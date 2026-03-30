@@ -50,7 +50,7 @@ def search_similar(
 _LLM_INSTALL_MSG = (
     "  [yellow]AI features require the openai package and a configured provider.[/yellow]\n"
     "  Install: [bold]uv pip install 'bute\\[ai]'[/bold]\n"
-    "  Configure: [bold]bute init[/bold]"
+    "  Configure: [bold]bt init[/bold]"
 )
 
 

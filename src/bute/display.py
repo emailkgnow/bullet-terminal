@@ -70,6 +70,34 @@ STATUS_ICONS = {
 }
 
 
+def _build_entry_row(i: int, entry: Entry) -> tuple[str, Text, Text, str]:
+    """Build the common columns for an entry row: (#, icon, body, meta)."""
+    style = TYPE_STYLE[entry.type]
+
+    icon = Text(style["icon"], style=style["color"])
+
+    body = Text()
+    if entry.status == TaskStatus.DONE:
+        body.append(entry.body, style="strike dim")
+    elif entry.status == TaskStatus.DROPPED:
+        body.append(entry.body, style="dim")
+    else:
+        body.append(entry.body)
+    if entry.important:
+        body.append(" !", style="bold red")
+
+    meta_parts = []
+    if entry.due:
+        meta_parts.append(f"due:{entry.due}")
+    if entry.scheduled_time:
+        meta_parts.append(format_time_display(entry.scheduled_time))
+    if entry.tags:
+        meta_parts.extend(f"@{t}" for t in entry.tags)
+    meta = " ".join(meta_parts)
+
+    return str(i), icon, body, meta
+
+
 def display_entry_list(entries: list[Entry], title: str = "") -> None:
     """Render a numbered list of entries as a Rich Table."""
     if not entries:
@@ -77,60 +105,32 @@ def display_entry_list(entries: list[Entry], title: str = "") -> None:
         return
 
     table = Table(
-        show_header=False,
-        show_edge=False,
-        pad_edge=False,
+        title=title or None,
+        title_style="bold",
+        show_header=True,
+        header_style="bold dim",
         box=None,
+        pad_edge=False,
         padding=(0, 1),
+        expand=True,
     )
-    table.add_column("#", style="bold dim", width=4, justify="right")
-    table.add_column("", width=1)  # status/icon
-    table.add_column("", ratio=1)  # body
-    table.add_column("", style="dim")  # tags + metadata
+    table.add_column("#", style="bold dim", width=3, justify="right")
+    table.add_column("", width=1)  # type icon
+    table.add_column("Entry", ratio=1, overflow="fold")
+    table.add_column("Meta", style="dim")
 
     for i, entry in enumerate(entries, 1):
-        style = TYPE_STYLE[entry.type]
-        status_icon, status_color = STATUS_ICONS.get(entry.status, (" ", "dim"))
+        table.add_row(*_build_entry_row(i, entry))
 
-        # Icon column: type icon colored
-        icon = Text(style["icon"], style=style["color"])
-
-        # Body column
-        body = Text()
-        if entry.status == TaskStatus.DONE:
-            body.append(entry.body, style="strike dim")
-        elif entry.status == TaskStatus.DROPPED:
-            body.append(entry.body, style="dim")
-        else:
-            body.append(entry.body)
-        if entry.important:
-            body.append(" !", style="bold red")
-
-        # Meta column: tags + due
-        meta_parts = []
-        if entry.due:
-            meta_parts.append(f"due:{entry.due}")
-        if entry.scheduled_time:
-            meta_parts.append(format_time_display(entry.scheduled_time))
-        if entry.tags:
-            meta_parts.extend(f"@{t}" for t in entry.tags)
-        meta = " ".join(meta_parts)
-
-        table.add_row(str(i), icon, body, meta)
-
-    if title:
-        console.print(f"\n  [bold]{title}[/bold]")
+    console.print()
     console.print(table)
 
 
 def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
-    """Render a numbered list of entries grouped by date."""
+    """Render a numbered list of entries grouped by date in a single table."""
     if not entries:
         console.print(f"  [dim]No entries found.[/dim]")
         return
-
-    if title:
-        console.print(f"\n  [bold]{title}[/bold]")
 
     # Group entries by date (calendar events use scheduled_date if set)
     from collections import OrderedDict
@@ -144,47 +144,31 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
             grouped[date_key] = []
         grouped[date_key].append((i, entry))
 
-    for date_label, items in grouped.items():
-        console.print(f"\n  [bold dim]{date_label}[/bold dim]")
+    table = Table(
+        title=title or None,
+        title_style="bold",
+        show_header=True,
+        header_style="bold dim",
+        box=None,
+        pad_edge=False,
+        padding=(0, 1),
+        expand=True,
+    )
+    table.add_column("Date", style="bold", width=10)
+    table.add_column("#", style="bold dim", width=3, justify="right")
+    table.add_column("", width=1)  # type icon
+    table.add_column("Entry", ratio=1, overflow="fold")
+    table.add_column("Meta", style="dim")
 
-        table = Table(
-            show_header=False,
-            show_edge=False,
-            pad_edge=False,
-            box=None,
-            padding=(0, 1),
-        )
-        table.add_column("#", style="bold dim", width=4, justify="right")
-        table.add_column("", width=1)  # icon
-        table.add_column("", ratio=1)  # body
-        table.add_column("", style="dim")  # tags + metadata
+    for group_idx, (date_label, items) in enumerate(grouped.items()):
+        for row_idx, (i, entry) in enumerate(items):
+            num, icon, body, meta = _build_entry_row(i, entry)
+            date_col = date_label if row_idx == 0 else ""
+            table.add_row(date_col, num, icon, body, meta)
+        table.add_section()
 
-        for i, entry in items:
-            style = TYPE_STYLE[entry.type]
-            icon = Text(style["icon"], style=style["color"])
-
-            body = Text()
-            if entry.status == TaskStatus.DONE:
-                body.append(entry.body, style="strike dim")
-            elif entry.status == TaskStatus.DROPPED:
-                body.append(entry.body, style="dim")
-            else:
-                body.append(entry.body)
-            if entry.important:
-                body.append(" !", style="bold red")
-
-            meta_parts = []
-            if entry.due:
-                meta_parts.append(f"due:{entry.due}")
-            if entry.scheduled_time:
-                meta_parts.append(format_time_display(entry.scheduled_time))
-            if entry.tags:
-                meta_parts.extend(f"@{t}" for t in entry.tags)
-            meta = " ".join(meta_parts)
-
-            table.add_row(str(i), icon, body, meta)
-
-        console.print(table)
+    console.print()
+    console.print(table)
 
 
 def display_action_confirmation(entry: Entry, action: str) -> None:

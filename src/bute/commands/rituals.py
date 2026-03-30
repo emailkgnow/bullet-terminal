@@ -236,8 +236,8 @@ def dp_cmd(ctx, non_interactive):
 # --- Line Log ---
 
 
-def _render_month(target: date, config) -> list[str]:
-    """Render a month's linelog — derived directly from entries, no stored file."""
+def _build_month_data(target: date, config) -> dict[int, list[str]]:
+    """Build a month's linelog data — dict of day_num → list of entry strings."""
     import calendar
 
     from bute.parser import format_time_display
@@ -283,14 +283,38 @@ def _render_month(target: date, config) -> list[str]:
         time_str = f" {format_time_display(e.scheduled_time)}" if e.scheduled_time else ""
         lines_by_day.setdefault(day_num, []).append(f"o{time_str} {e.body}")
 
-    result = []
+    return lines_by_day
+
+
+def _render_month_table(target: date, lines_by_day: dict[int, list[str]], title: str | None = None) -> "Table":
+    """Render a month's linelog as a Rich Table."""
+    from rich.table import Table
+    from rich.text import Text
+
+    WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    table = Table(
+        title=title or f"Line Log — {target.strftime('%B %Y')}",
+        title_style="bold",
+        show_header=True,
+        header_style="bold dim",
+        box=None,
+        pad_edge=False,
+        padding=(0, 1),
+        expand=True,
+    )
+    table.add_column("Day", style="bold", width=3, justify="right")
+    table.add_column("", width=3)  # weekday
+    table.add_column("Entry", ratio=1, overflow="fold")
+
     for day_num in sorted(lines_by_day):
-        for i, line in enumerate(lines_by_day[day_num]):
-            if i == 0:
-                result.append(f"{day_num:2d}  {line}")
-            else:
-                result.append(f"    {line}")
-    return result
+        d = date(target.year, target.month, day_num)
+        weekday = WEEKDAYS[d.weekday()]
+        entries_text = "\n".join(lines_by_day[day_num])
+        table.add_row(str(day_num), f"[dim]{weekday}[/dim]", entries_text)
+        table.add_section()
+
+    return table
 
 
 @click.command("linelog")
@@ -306,19 +330,16 @@ def linelog_cmd(ctx, period):
         found_any = False
         for m in range(1, 13):
             target = date(year, m, 1)
-            lines = _render_month(target, config)
-            if lines:
+            data = _build_month_data(target, config)
+            if data:
                 if not found_any:
-                    console.print(f"\n  [bold]Line Log — {year}[/bold]")
+                    console.print()
                 found_any = True
-                console.print(f"\n  [bold dim]{target.strftime('%B')}[/bold dim]")
-                console.print(f"  [dim]{'─' * 50}[/dim]")
-                for line in lines:
-                    console.print(f"  {line}")
+                table = _render_month_table(target, data, title=f"Line Log — {target.strftime('%B %Y')}")
+                console.print(table)
+                console.print()
         if not found_any:
             console.print(f"  [dim]No line log entries for {year}.[/dim]")
-        else:
-            console.print()
     else:
         if period:
             try:
@@ -329,15 +350,14 @@ def linelog_cmd(ctx, period):
         else:
             target = date.today()
 
-        lines = _render_month(target, config)
-        if not lines:
+        data = _build_month_data(target, config)
+        if not data:
             console.print(f"  [dim]No line log entries for {target.strftime('%B %Y')}.[/dim]")
             return
 
-        console.print(f"\n  [bold]Line Log — {target.strftime('%B %Y')}[/bold]")
-        console.print(f"  [dim]{'─' * 50}[/dim]")
-        for line in lines:
-            console.print(f"  {line}")
+        console.print()
+        table = _render_month_table(target, data)
+        console.print(table)
         console.print()
 
 

@@ -30,7 +30,7 @@ PROVIDER_CHOICES = [
 @click.option("--base-url", type=str, default=None, help="Custom API base URL.")
 @click.pass_context
 def init_cmd(ctx, provider, model, base_url):
-    """Initialize bute — create config and data directories."""
+    """Initialize bt — create config and data directories."""
     config_path = get_config_path()
 
     if config_path.exists():

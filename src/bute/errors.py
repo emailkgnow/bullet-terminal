@@ -14,7 +14,7 @@ class ConfigNotFoundError(DwnError):
     """Raised when config.toml doesn't exist and is required."""
 
     def __init__(self):
-        super().__init__("bute is not initialized. Run 'bute init' first.")
+        super().__init__("bt is not initialized. Run 'bt init' first.")
 
 
 class EntryNotFoundError(DwnError):
@@ -33,7 +33,7 @@ class StateNotFoundError(DwnError):
     """Raised when no view state exists (no previous list displayed)."""
 
     def __init__(self):
-        super().__init__("No active view. Run 'bute ls' first to see entries.")
+        super().__init__("No active view. Run 'bt ls' first to see entries.")
 
 
 class InvalidActionError(DwnError):

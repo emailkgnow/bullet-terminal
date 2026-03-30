@@ -130,7 +130,7 @@ def _print_help():
 
     console = Console()
     console.print()
-    console.print("  [bold]bt[/bold] (BuTe) — AI-powered life management CLI")
+    console.print("  [bold]bt[/bold] (Bullet-Terminal) — AI-powered life management CLI")
     console.print()
 
     # Capture
@@ -151,7 +151,8 @@ def _print_help():
 
     # Views
     console.print("  [bold cyan]Views[/bold cyan] — same letters, no text = view")
-    console.print("    [bold]bt ls[/bold]              Today's log")
+    console.print("    [bold]bt[/bold]                 Daily plan if not done today, else today's log")
+    console.print("    [bold]bt ls[/bold]              Today's log (always)")
     console.print("    [bold]bt t[/bold] [@tag]        Active tasks (--all for done/dropped)")
     console.print("    [bold]bt n[/bold] [@tag]        All notes")
     console.print("    [bold]bt j[/bold] [@tag]        All journal entries")
@@ -219,10 +220,10 @@ def _print_help():
 
 
 @click.group(cls=DwnGroup, invoke_without_command=True)
-@click.version_option(version=__version__, prog_name="bute")
+@click.version_option(version=__version__, prog_name="bt")
 @click.pass_context
 def main(ctx):
-    """bute (BuTe) — AI-powered life management CLI based on Bullet Journal."""
+    """bt (BuTe) — AI-powered life management CLI based on Bullet Journal."""
     ctx.ensure_object(dict)
     from bute.config import load_config
 
@@ -267,6 +268,7 @@ from bute.commands.views import (  # noqa: E402
     ls_cmd,
     notes_cmd,
     tag_filter_cmd,
+    tags_cmd,
     tasks_cmd,
 )
 from bute.commands.rituals import (  # noqa: E402
@@ -294,6 +296,7 @@ main.add_command(journals_cmd)
 main.add_command(calendar_cmd)
 main.add_command(active_cmd)
 main.add_command(tag_filter_cmd)
+main.add_command(tags_cmd)
 main.add_command(dp_cmd)
 main.add_command(habits_cmd)
 main.add_command(linelog_cmd)
