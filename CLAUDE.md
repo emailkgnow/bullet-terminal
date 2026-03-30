@@ -158,11 +158,10 @@ bute habit <name>   # track habits
 ### Commands — High Value
 - `bt due` — show tasks by deadline (overdue + due today + due this week). `bt due all` for all tasks with due dates. Due metadata exists but has no dedicated view.
 - ~~`bt <n> untag @tag`~~ ✓ Done — `bt 1 untag @tag` or `bt 1 untag tag`
-- `bt <n> reopen` — reactivate a done/dropped task back to active. No way to undo accidental done/drop.
 - ~~`bt edit <n>`~~ ✓ Done — `bt <n> edit` opens entry in `$EDITOR` (falls back to `nano`)
 
 ### Commands — Medium Value
-- `bt streak` — habit streaks and trends (last 7/30 days, current streak count). Habit tracking exists but only shows today.
+- ~~`bt streak`~~ Done — 7-day grid, current streak count, 30-day completion rate.
 - ~~`bt reflect`~~ Done as `bt recap` — end-of-day summary with structured display + AI coaching narrative.
 - `bt week` — this week across all dimensions (tasks + journals + notes + events, Mon-Sun). `bt active` is tasks only; this gives the BuJo weekly spread.
 - **Notes as reference layer** — notes (`n`) become a searchable knowledge base, distinct from the journal timeline. Tag-based retrieval (`bt n @topic`), pinned notes that surface in context, AI-powered recall ("what do I know about..."), and linked references from tasks/journals.
