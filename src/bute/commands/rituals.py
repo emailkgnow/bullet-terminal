@@ -440,6 +440,90 @@ def wp_cmd(ctx, non_interactive):
         console.print("  [dim]questionary not available — skipping selection[/dim]")
 
 
+# --- Recap (End of Day) ---
+
+
+@click.command("recap")
+@click.option("-q", "--quiet", is_flag=True, help="Skip AI summary.")
+@click.pass_context
+def recap_cmd(ctx, quiet):
+    """End-of-day summary — what you did, what's carrying, AI coaching."""
+    from bute.habit_storage import get_habit_summary
+    from bute.ritual_ops import (
+        get_tasks_done_today,
+        get_tasks_dropped_today,
+        get_today_captured,
+    )
+    from bute.state import mark_recap_done
+    from bute.storage import load_entries_by_filter
+    from bute.models import EntryType, TaskStatus
+
+    config = ctx.obj.get("config")
+
+    done = get_tasks_done_today(config)
+    open_tasks = load_entries_by_filter(
+        lambda e: (
+            e.type == EntryType.TASK
+            and e.status == TaskStatus.ACTIVE
+            and "today" in e.tags
+        ),
+        config,
+    )
+    dropped = get_tasks_dropped_today(config)
+    captured = get_today_captured(config)
+
+    # Check habits
+    configured_habits = []
+    if config and "habits" in config and "list" in config["habits"]:
+        configured_habits = list(config["habits"]["list"])
+    habits = get_habit_summary(date.today(), configured_habits, config) if configured_habits else {}
+
+    has_content = done or open_tasks or dropped or captured or any(v is not None for v in habits.values())
+    if not has_content:
+        console.print("  [dim]Nothing to recap — quiet day.[/dim]")
+        mark_recap_done(config)
+        return
+
+    console.print()
+    console.print("  [bold]Recap[/bold]")
+    console.print(f"  [dim]{'─' * 50}[/dim]")
+
+    if done:
+        display_entry_list(done, "Done")
+
+    if open_tasks:
+        display_entry_list(list(open_tasks), "Open")
+
+    if dropped:
+        display_entry_list(dropped, "Dropped")
+
+    if captured:
+        display_entry_list(captured, "Captured")
+
+    if configured_habits:
+        from bute.display import display_habit_line
+        display_habit_line(habits, configured_habits)
+
+    # AI coaching narrative
+    if not quiet:
+        from bute.ai import is_llm_available, llm_send_with_entries
+        from bute.ai.prompts import recap_prompt
+
+        if is_llm_available(config):
+            all_entries = done + list(open_tasks) + dropped + captured
+            if all_entries:
+                console.print()
+                console.print("  [dim]Thinking...[/dim]")
+                response = llm_send_with_entries(
+                    recap_prompt(), all_entries, "Recap my day", config
+                )
+                console.print()
+                console.print(response)
+
+    mark_recap_done(config)
+    console.print()
+
+
 # --- Review (Phase 5 stub) ---
 
 

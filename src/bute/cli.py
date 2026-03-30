@@ -274,8 +274,9 @@ from bute.commands.views import (  # noqa: E402
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
     linelog_cmd,
-    wp_cmd,
+    recap_cmd,
     review_cmd,
+    wp_cmd,
 )
 from bute.commands.habits import habits_cmd  # noqa: E402
 from bute.commands.search import rebuild_cmd, search_cmd, similar_cmd  # noqa: E402
@@ -301,6 +302,7 @@ main.add_command(dp_cmd)
 main.add_command(habits_cmd)
 main.add_command(linelog_cmd)
 main.add_command(wp_cmd)
+main.add_command(recap_cmd)
 main.add_command(review_cmd)
 main.add_command(search_cmd)
 main.add_command(similar_cmd)
