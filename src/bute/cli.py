@@ -193,6 +193,7 @@ def _print_help():
     console.print("  [bold cyan]Rituals[/bold cyan] — guided BuJo workflows")
     console.print("    [bold]bt dp[/bold]              Daily plan — morning ritual")
     console.print("    [bold]bt wp[/bold]              Weekly plan — select tasks for the week")
+    console.print("    [bold]bt recap[/bold]           End-of-day summary (-q to skip AI)")
     console.print()
 
     # AI
