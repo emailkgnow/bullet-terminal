@@ -120,3 +120,25 @@ def get_habit_history(
             d += timedelta(days=1)
 
     return history
+
+
+def compute_streak(
+    history: dict[str, dict[date, bool | None]], name: str, target_date: date | None = None
+) -> int:
+    """Count consecutive true days backwards from yesterday.
+
+    Today is excluded (day isn't over). Streak = 0 if yesterday was not true.
+    """
+    end = target_date or date.today()
+    yesterday = end - timedelta(days=1)
+    habit_data = history.get(name, {})
+
+    streak = 0
+    d = yesterday
+    while True:
+        if habit_data.get(d) is not True:
+            break
+        streak += 1
+        d -= timedelta(days=1)
+
+    return streak

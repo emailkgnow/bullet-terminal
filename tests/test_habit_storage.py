@@ -89,3 +89,43 @@ def test_get_habit_history_empty(tmp_data):
     history = get_habit_history(7, ["quran"], target_date=date(2026, 3, 30))
     assert all(v is None for v in history["quran"].values())
     assert len(history["quran"]) == 7
+
+
+# --- compute_streak tests ---
+
+from bute.habit_storage import compute_streak
+
+
+def test_compute_streak_consecutive(tmp_data):
+    """Streak counts consecutive true days backwards from yesterday."""
+    save_habit("quran", True, date(2026, 3, 27))
+    save_habit("quran", True, date(2026, 3, 28))
+    save_habit("quran", True, date(2026, 3, 29))
+
+    history = get_habit_history(30, ["quran"], target_date=date(2026, 3, 30))
+    assert compute_streak(history, "quran", target_date=date(2026, 3, 30)) == 3
+
+
+def test_compute_streak_broken(tmp_data):
+    """Streak resets when a day is missed."""
+    save_habit("quran", True, date(2026, 3, 27))
+    save_habit("quran", False, date(2026, 3, 28))
+    save_habit("quran", True, date(2026, 3, 29))
+
+    history = get_habit_history(30, ["quran"], target_date=date(2026, 3, 30))
+    assert compute_streak(history, "quran", target_date=date(2026, 3, 30)) == 1
+
+
+def test_compute_streak_zero(tmp_data):
+    """Streak is 0 if yesterday was not done."""
+    save_habit("quran", True, date(2026, 3, 27))
+    save_habit("quran", False, date(2026, 3, 29))
+
+    history = get_habit_history(30, ["quran"], target_date=date(2026, 3, 30))
+    assert compute_streak(history, "quran", target_date=date(2026, 3, 30)) == 0
+
+
+def test_compute_streak_no_data(tmp_data):
+    """Streak is 0 with no history."""
+    history = get_habit_history(30, ["quran"], target_date=date(2026, 3, 30))
+    assert compute_streak(history, "quran", target_date=date(2026, 3, 30)) == 0
