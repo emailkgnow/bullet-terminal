@@ -115,6 +115,43 @@ def get_daily_log(config=None) -> list[Entry]:
     return sorted(result, key=_daily_sort_key)
 
 
+def get_tasks_done_today(config=None) -> list[Entry]:
+    """Tasks marked done with file mtime today (proxy for status-change date)."""
+    today = date.today()
+    from bute.storage import entry_path as _entry_path
+
+    done = load_entries_by_filter(
+        lambda e: e.type == EntryType.TASK and e.status == TaskStatus.DONE,
+        config,
+    )
+    return [
+        e for e in done
+        if date.fromtimestamp(_entry_path(e, config).stat().st_mtime) == today
+    ]
+
+
+def get_tasks_dropped_today(config=None) -> list[Entry]:
+    """Tasks marked dropped with file mtime today."""
+    today = date.today()
+    from bute.storage import entry_path as _entry_path
+
+    dropped = load_entries_by_filter(
+        lambda e: e.type == EntryType.TASK and e.status == TaskStatus.DROPPED,
+        config,
+    )
+    return [
+        e for e in dropped
+        if date.fromtimestamp(_entry_path(e, config).stat().st_mtime) == today
+    ]
+
+
+def get_today_captured(config=None) -> list[Entry]:
+    """Non-task entries created today (journals, notes, events)."""
+    today = date.today()
+    entries = load_entries_by_date(today, config)
+    return [e for e in entries if e.type != EntryType.TASK]
+
+
 def get_all_active_tasks(config=None) -> list[Entry]:
     """All active tasks across all dates."""
     return load_entries_by_filter(
