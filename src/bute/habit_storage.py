@@ -1,6 +1,6 @@
 """YAML-based habit tracking storage for bute."""
 
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import yaml
@@ -78,3 +78,45 @@ def get_habit_summary(
     """
     logged = load_habits_for_date(target_date, config)
     return {name: logged.get(name) for name in configured_habits}
+
+
+def get_habit_history(
+    days: int, configured_habits: list[str], target_date: date | None = None, config=None
+) -> dict[str, dict[date, bool | None]]:
+    """Get habit data for the last N days ending on target_date.
+
+    Returns {habit_name: {date: True/False/None}} for each configured habit.
+    None means no data recorded for that day.
+    """
+    end = target_date or date.today()
+    start = end - timedelta(days=days - 1)
+
+    # Collect all months we need to load
+    months_needed: set[tuple[int, int]] = set()
+    d = start
+    while d <= end:
+        months_needed.add((d.year, d.month))
+        if d.month == 12:
+            d = d.replace(year=d.year + 1, month=1, day=1)
+        else:
+            d = d.replace(month=d.month + 1, day=1)
+
+    # Load all needed months
+    month_data: dict[str, dict] = {}
+    for year, month in months_needed:
+        target = date(year, month, 1)
+        month_data[target.strftime("%Y-%m")] = _load_month(target, config)
+
+    # Build history per habit
+    history: dict[str, dict[date, bool | None]] = {}
+    for name in configured_habits:
+        history[name] = {}
+        d = start
+        while d <= end:
+            date_key = d.isoformat()
+            month_key = d.strftime("%Y-%m")
+            day_data = month_data.get(month_key, {}).get(date_key, {})
+            history[name][d] = day_data.get(name)
+            d += timedelta(days=1)
+
+    return history
