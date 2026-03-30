@@ -12,6 +12,7 @@ from bute.ritual_ops import (
     get_tasks_dropped_today,
     get_today_captured,
     get_today_schedule,
+    get_week_entries,
     get_yesterday_unresolved,
     process_dump_line,
     set_weekly_selection,
@@ -115,6 +116,33 @@ def test_clear_daily_focus(tmp_data):
 
     loaded = load_entry(entry_path_from_id(e.id))
     assert "today" not in loaded.tags
+
+
+def test_get_week_entries(tmp_data):
+    """Returns all entries from the current week."""
+    e1 = Entry.create(EntryType.TASK, "task one")
+    e2 = Entry.create(EntryType.JOURNAL, "a thought")
+    e3 = Entry.create(EntryType.NOTE, "a fact")
+    for e in [e1, e2, e3]:
+        save_entry(e)
+
+    result = get_week_entries()
+    assert len(result) == 3
+    bodies = [e.body for e in result]
+    assert "task one" in bodies
+    assert "a thought" in bodies
+    assert "a fact" in bodies
+
+
+def test_get_week_entries_includes_dropped(tmp_data):
+    """Dropped entries are included in weekly spread."""
+    e = Entry.create(EntryType.TASK, "dropped task")
+    e.status = TaskStatus.DROPPED
+    save_entry(e)
+
+    result = get_week_entries()
+    assert len(result) == 1
+    assert result[0].body == "dropped task"
 
 
 def test_get_tasks_done_today(tmp_data):

@@ -115,6 +115,23 @@ def get_daily_log(config=None) -> list[Entry]:
     return sorted(result, key=_daily_sort_key)
 
 
+def get_week_entries(target_date: date | None = None, config=None) -> list[Entry]:
+    """All entries for the Mon-Sun week containing target_date.
+
+    Includes all statuses (done, dropped, active) — the full picture.
+    """
+    d = target_date or date.today()
+    monday = d - timedelta(days=d.weekday())
+    sunday = monday + timedelta(days=6)
+    today = date.today()
+
+    entries = load_entries_by_filter(
+        lambda e: monday <= e.created.date() <= min(sunday, today),
+        config,
+    )
+    return sorted(entries, key=lambda e: e.created)
+
+
 def get_tasks_done_today(config=None) -> list[Entry]:
     """Tasks marked done with file mtime today (proxy for status-change date)."""
     today = date.today()

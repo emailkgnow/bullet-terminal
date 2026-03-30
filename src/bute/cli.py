@@ -159,6 +159,7 @@ def _print_help():
     console.print("    [bold]bt c[/bold] [@tag]        All events")
     console.print("    [bold]bt l[/bold]               Line log (monthly overview)")
     console.print("    [bold]bt active[/bold]          This week's selected tasks")
+    console.print("    [bold]bt week[/bold]            Weekly spread — all entries Mon-Sun")
     console.print("    [bold]bt @tagname[/bold]        Filter by tag across all dimensions")
     console.print("    [bold]bt search[/bold] <query>  Semantic search")
     console.print("    [bold]bt similar[/bold] <n>     Entries similar to #n")
@@ -272,6 +273,7 @@ from bute.commands.views import (  # noqa: E402
     tag_filter_cmd,
     tags_cmd,
     tasks_cmd,
+    week_cmd,
 )
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
@@ -300,6 +302,7 @@ main.add_command(calendar_cmd)
 main.add_command(active_cmd)
 main.add_command(tag_filter_cmd)
 main.add_command(tags_cmd)
+main.add_command(week_cmd)
 main.add_command(dp_cmd)
 main.add_command(habits_cmd)
 main.add_command(streak_cmd)

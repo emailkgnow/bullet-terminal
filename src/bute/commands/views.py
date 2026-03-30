@@ -9,7 +9,7 @@ from rich.table import Table
 
 from bute.display import display_entry_list, display_entry_list_grouped
 from bute.models import EntryType, TaskStatus
-from bute.ritual_ops import get_daily_log, get_weekly_active_tasks
+from bute.ritual_ops import get_daily_log, get_week_entries, get_weekly_active_tasks
 from bute.state import save_state
 from bute.storage import load_entries_by_filter
 
@@ -153,3 +153,31 @@ def tags_cmd(ctx):
 
     console.print()
     console.print(table)
+
+
+@click.command("week")
+@click.argument("period", required=False, default=None)
+@click.pass_context
+def week_cmd(ctx, period):
+    """Weekly spread — all entries Mon-Sun. 'bt week last' for last week."""
+    from datetime import date, timedelta
+
+    config = ctx.obj.get("config")
+    today = date.today()
+
+    if period == "last":
+        target = today - timedelta(weeks=1)
+    else:
+        target = today
+
+    monday = target - timedelta(days=target.weekday())
+    sunday = monday + timedelta(days=6)
+    title = f"Week of {monday.strftime('%b %d')} — {sunday.strftime('%b %d')}"
+
+    entries = get_week_entries(target, config)
+    if not entries:
+        console.print(f"  [dim]No entries for {title}.[/dim]")
+        return
+
+    display_entry_list_grouped(entries, title)
+    save_state("week", [e.id for e in entries], config)
