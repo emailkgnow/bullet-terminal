@@ -136,6 +136,7 @@ bute 3 undo         # undo last action on entry 3
 bute                # entry point — DYTS if not done today, else daily log
 bute dyts           # morning ritual (Dump, Yesterday, Tasks, Schedule)
 bute plan           # dump tasks + select for the week
+bute recap          # end-of-day summary (-q to skip AI)
 bute habit <name>   # track habits
 ```
 
@@ -162,7 +163,7 @@ bute habit <name>   # track habits
 
 ### Commands — Medium Value
 - `bt streak` — habit streaks and trends (last 7/30 days, current streak count). Habit tracking exists but only shows today.
-- `bt reflect` — end-of-day prompt. Morning has `bt dp`, evening has nothing. Quick "what went well" journal + auto-review of today's tasks.
+- ~~`bt reflect`~~ Done as `bt recap` — end-of-day summary with structured display + AI coaching narrative.
 - `bt week` — this week across all dimensions (tasks + journals + notes + events, Mon-Sun). `bt active` is tasks only; this gives the BuJo weekly spread.
 - **Notes as reference layer** — notes (`n`) become a searchable knowledge base, distinct from the journal timeline. Tag-based retrieval (`bt n @topic`), pinned notes that surface in context, AI-powered recall ("what do I know about..."), and linked references from tasks/journals.
 
