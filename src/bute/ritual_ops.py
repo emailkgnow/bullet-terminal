@@ -64,8 +64,8 @@ def get_daily_log(config=None) -> list[Entry]:
     result = []
     for e in today_entries:
         if e.type == EntryType.TASK:
-            # Only tasks tagged @today
-            if "today" in e.tags:
+            # Only active tasks tagged @today
+            if "today" in e.tags and e.status == TaskStatus.ACTIVE:
                 result.append(e)
         elif e.type == EntryType.CALENDAR:
             # Calendar events created today with no scheduled_date, or scheduled for today
@@ -75,10 +75,11 @@ def get_daily_log(config=None) -> list[Entry]:
             # Notes and journals — all of today's
             result.append(e)
 
-    # Also include tasks tagged @today but created on a different day
+    # Also include active tasks tagged @today but created on a different day
     today_tasks = load_entries_by_filter(
         lambda e: (
             e.type == EntryType.TASK
+            and e.status == TaskStatus.ACTIVE
             and "today" in e.tags
             and e.created.date() != today
         ),
