@@ -7,7 +7,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from bute.display import display_entry_list, display_entry_list_grouped
+from bute.display import _build_entry_row, display_entry_list, display_entry_list_grouped
 from bute.models import EntryType, TaskStatus
 from bute.ritual_ops import get_daily_log, get_week_entries, get_weekly_active_tasks
 from bute.state import save_state
@@ -181,3 +181,83 @@ def week_cmd(ctx, period):
 
     display_entry_list_grouped(entries, title)
     save_state("week", [e.id for e in entries], config)
+
+
+@click.command("due")
+@click.argument("scope", required=False, default=None)
+@click.pass_context
+def due_cmd(ctx, scope):
+    """Show tasks by deadline. 'bt due all' for all tasks with due dates."""
+    from datetime import timedelta
+
+    config = ctx.obj.get("config")
+    today = date.today()
+    end_of_week = today + timedelta(days=(6 - today.weekday()))
+
+    entries = load_entries_by_filter(
+        lambda e: (
+            e.type == EntryType.TASK
+            and e.status == TaskStatus.ACTIVE
+            and e.due is not None
+        ),
+        config,
+    )
+
+    if not entries:
+        console.print("  [dim]No tasks with due dates.[/dim]")
+        return
+
+    entries.sort(key=lambda e: e.due)
+
+    if scope == "all":
+        display_entry_list(entries, "All Due Tasks")
+        save_state("due", [e.id for e in entries], config)
+        return
+
+    overdue = [e for e in entries if e.due < today]
+    due_today = [e for e in entries if e.due == today]
+    due_week = [e for e in entries if today < e.due <= end_of_week]
+
+    filtered = overdue + due_today + due_week
+    if not filtered:
+        console.print("  [dim]Nothing due this week.[/dim]")
+        return
+
+    # Build grouped table
+    table = Table(
+        title="Due Tasks",
+        title_style="bold",
+        show_header=True,
+        header_style="bold dim",
+        box=None,
+        pad_edge=False,
+        padding=(0, 1),
+        expand=True,
+    )
+    table.add_column("", style="bold", width=10)
+    table.add_column("#", style="bold dim", width=3, justify="right")
+    table.add_column("", width=1)
+    table.add_column("Entry", ratio=1, overflow="fold")
+    table.add_column("Meta", style="dim")
+
+    all_entries = []
+    groups = [
+        ("Overdue", overdue, "bold red"),
+        ("Today", due_today, "bold yellow"),
+        ("This Week", due_week, ""),
+    ]
+
+    for label, group, style in groups:
+        if not group:
+            continue
+        for idx, entry in enumerate(group):
+            all_entries.append(entry)
+            num = len(all_entries)
+            _, icon, body, meta = _build_entry_row(num, entry)
+            group_label = f"[{style}]{label}[/{style}]" if style and idx == 0 else (label if idx == 0 else "")
+            table.add_row(group_label, str(num), icon, body, meta)
+        table.add_section()
+
+    console.print()
+    console.print(table)
+    save_state("due", [e.id for e in all_entries], config)

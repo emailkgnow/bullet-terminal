@@ -156,7 +156,7 @@ bute habit <name>   # track habits
 ## Backlog
 
 ### Commands — High Value
-- `bt due` — show tasks by deadline (overdue + due today + due this week). `bt due all` for all tasks with due dates. Due metadata exists but has no dedicated view.
+- ~~`bt due`~~ ✓ Done — overdue + due today + due this week. `bt due all` for all tasks with due dates.
 - ~~`bt <n> untag @tag`~~ ✓ Done — `bt 1 untag @tag` or `bt 1 untag tag`
 - ~~`bt edit <n>`~~ ✓ Done — `bt <n> edit` opens entry in `$EDITOR` (falls back to `nano`)
 

@@ -169,6 +169,7 @@ def _print_help():
     console.print("    [bold]bt j[/bold] [@tag]        All journal entries")
     console.print("    [bold]bt c[/bold] [@tag]        All events")
     console.print("    [bold]bt l[/bold] [period]      Line log ([dim]default: this month, YYYY-MM or YYYY[/dim])")
+    console.print("    [bold]bt due[/bold]              Tasks by deadline ([dim]bt due all[/dim] for all)")
     console.print("    [bold]bt active[/bold]          This week's selected tasks")
     console.print("    [bold]bt week[/bold] [last]     Weekly spread — all entries Mon-Sun")
     console.print("    [bold]bt tags[/bold]            List all tags with entry counts")
@@ -279,6 +280,7 @@ from bute.commands.init_cmd import init_cmd  # noqa: E402
 from bute.commands.views import (  # noqa: E402
     active_cmd,
     calendar_cmd,
+    due_cmd,
     journals_cmd,
     ls_cmd,
     notes_cmd,
@@ -315,6 +317,7 @@ main.add_command(active_cmd)
 main.add_command(tag_filter_cmd)
 main.add_command(tags_cmd)
 main.add_command(week_cmd)
+main.add_command(due_cmd)
 main.add_command(dp_cmd)
 main.add_command(habits_cmd)
 main.add_command(streak_cmd)
