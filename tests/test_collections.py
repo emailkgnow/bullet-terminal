@@ -1,11 +1,13 @@
 """Tests for collections storage and commands."""
 
+from bute.cli import main
 from bute.collection_storage import (
     append_to_collection,
     list_collections_with_meta,
     load_collection,
     save_collection,
 )
+from bute.config import default_config, save_config
 
 
 # --- Storage tests ---
@@ -91,3 +93,53 @@ def test_list_collections_with_meta(tmp_data):
     alpha = next(m for m in meta if m["name"] == "alpha")
     assert alpha["stage"] == "raw"
     assert alpha["item_count"] == 2
+
+
+# --- Capture integration tests ---
+
+
+def _setup(tmp_config, tmp_data):
+    doc = default_config(provider="anthropic")
+    doc["ai"]["api_key"] = "sk-test"
+    doc["core"]["data_dir"] = str(tmp_data)
+    save_config(doc)
+
+
+def test_capture_with_collection(runner, tmp_config, tmp_data):
+    """bt t fix faucet +home-reno → adds to collection, no entry created."""
+    _setup(tmp_config, tmp_data)
+    result = runner.invoke(main, ["t", "fix", "faucet", "+home-reno"])
+    assert result.exit_code == 0
+    assert "+home-reno" in result.output
+
+    coll = load_collection("home-reno")
+    assert coll is not None
+    assert "fix faucet" in coll["input_content"]
+
+    # No entry should be created
+    from bute.storage import load_entries_by_filter
+    entries = load_entries_by_filter(lambda e: True)
+    assert len(entries) == 0
+
+
+def test_capture_with_collection_preserves_signifier(runner, tmp_config, tmp_data):
+    """Signifier bullet is preserved in collection item."""
+    _setup(tmp_config, tmp_data)
+    runner.invoke(main, ["t", "fix", "faucet", "+test-coll"])
+    runner.invoke(main, ["n", "kitchen", "is", "12x15", "+test-coll"])
+
+    coll = load_collection("test-coll")
+    assert ". fix faucet" in coll["input_content"]
+    assert "- kitchen is 12x15" in coll["input_content"]
+
+
+def test_capture_with_collection_preserves_tags_and_meta(runner, tmp_config, tmp_data):
+    """Tags and metadata are preserved in the raw line."""
+    _setup(tmp_config, tmp_data)
+    runner.invoke(main, ["t", "fix", "faucet", "+test-coll", "@plumbing", "due:friday"])
+
+    coll = load_collection("test-coll")
+    content = coll["input_content"]
+    assert "fix faucet" in content
+    assert "@plumbing" in content
+    assert "due:friday" in content

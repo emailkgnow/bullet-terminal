@@ -50,6 +50,36 @@ def capture_cmd(ctx, later, tokens):
 
     parsed = parse_capture_tokens(tokens)
 
+    # Collection capture — add to collection, no entry created
+    if parsed.collection:
+        from bute.collection_storage import append_to_collection, load_collection
+        from rich.console import Console
+
+        console = Console()
+
+        # Map signifier to BuJo bullet
+        bullet_map = {"/t": ".", "/n": "-", "/j": "=", "/c": "o"}
+        bullet = bullet_map.get(parsed.signifier, ".")
+
+        # Reconstruct raw line: bullet + body + tags + metadata
+        parts = [bullet, parsed.body]
+        for tag in parsed.tags:
+            parts.append(f"@{tag}")
+        for key, value in parsed.metadata.items():
+            parts.append(f"{key}:{value}")
+        raw_line = " ".join(parts)
+
+        config = ctx.obj.get("config")
+        result = append_to_collection(parsed.collection, [f"- {raw_line}"], config=config)
+        if result is None:
+            console.print(f"  [red]Cannot add to +{parsed.collection} — already processed.[/red]")
+            return
+
+        coll = load_collection(parsed.collection, config=config)
+        count = coll["item_count"] if coll else 0
+        console.print(f"  [green]Added to +{parsed.collection} ({count} items)[/green]")
+        return
+
     entry_type = SIGNIFIER_MAP[parsed.signifier]
 
     # Extract and resolve known metadata keys
