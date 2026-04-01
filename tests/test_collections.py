@@ -163,3 +163,128 @@ def test_execute_prompt_contains_sequencing():
     prompt = execute_prompt()
     assert "sequen" in prompt.lower()
     assert "verb" in prompt.lower()
+
+
+# --- Command tests ---
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from bute.ai.llm import reset as reset_llm
+
+
+@pytest.fixture(autouse=True)
+def _reset_llm_state():
+    """Reset LLM client singleton between tests."""
+    reset_llm()
+    yield
+    reset_llm()
+
+
+def _mock_llm(response="**Theme A**\n- item one\n- item two"):
+    mock_resp = MagicMock()
+    mock_resp.choices = [MagicMock()]
+    mock_resp.choices[0].message.content = response
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = mock_resp
+    return patch("bute.ai.llm._get_client", return_value=mock_client)
+
+
+def test_analyze_raw_collection(runner, tmp_config, tmp_data):
+    _setup(tmp_config, tmp_data)
+    save_collection("test", "raw", {"input": "- . item one\n- . item two\n"})
+
+    with _mock_llm("**Theme A**\n- item one\n- item two"):
+        result = runner.invoke(main, ["+test", "analyze"], input="y\n")
+
+    assert result.exit_code == 0
+    coll = load_collection("test")
+    assert coll["stage"] == "analyzed"
+    assert coll["analysis_content"] is not None
+    assert coll["input_content"] is not None  # preserved
+
+
+def test_analyze_rejects_already_analyzed(runner, tmp_config, tmp_data):
+    _setup(tmp_config, tmp_data)
+    save_collection("test", "analyzed", {
+        "input": "- . item\n",
+        "analysis": "**Theme**\n- item\n",
+    })
+
+    result = runner.invoke(main, ["+test", "analyze"])
+    assert "already analyzed" in result.output.lower()
+
+
+def test_execute_analyzed_collection(runner, tmp_config, tmp_data):
+    _setup(tmp_config, tmp_data)
+    save_collection("test", "analyzed", {
+        "input": "- . item one\n",
+        "analysis": "**Theme A**\n- item one\n",
+    })
+
+    with _mock_llm("1. Create the landing page\n2. Write unit tests"):
+        result = runner.invoke(main, ["+test", "execute"], input="y\n")
+
+    assert result.exit_code == 0
+
+    # Verify tasks were created
+    from bute.models import EntryType
+    from bute.storage import load_entries_by_filter
+    tasks = load_entries_by_filter(lambda e: e.type == EntryType.TASK)
+    task_bodies = [t.body for t in tasks]
+    assert "Create the landing page" in task_bodies
+    assert "Write unit tests" in task_bodies
+
+    # Verify collection metadata on tasks
+    for t in tasks:
+        assert t.extra_meta.get("collection") == "test"
+        assert "test" in t.tags
+
+    # Verify collection stage
+    coll = load_collection("test")
+    assert coll["stage"] == "executed"
+    assert coll["tasks_content"] is not None
+
+
+def test_execute_raw_runs_analyze_first(runner, tmp_config, tmp_data):
+    """Execute on raw collection should analyze first, then generate tasks."""
+    _setup(tmp_config, tmp_data)
+    save_collection("test", "raw", {"input": "- . item one\n"})
+
+    # First call returns analysis, second returns tasks
+    analyze_response = "**Theme A**\n- item one"
+    task_response = "1. Do the thing"
+
+    mock_resp_1 = MagicMock()
+    mock_resp_1.choices = [MagicMock()]
+    mock_resp_1.choices[0].message.content = analyze_response
+
+    mock_resp_2 = MagicMock()
+    mock_resp_2.choices = [MagicMock()]
+    mock_resp_2.choices[0].message.content = task_response
+
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = [mock_resp_1, mock_resp_2]
+
+    with patch("bute.ai.llm._get_client", return_value=mock_client):
+        result = runner.invoke(main, ["+test", "execute"], input="y\ny\n")
+
+    assert result.exit_code == 0
+    coll = load_collection("test")
+    assert coll["stage"] == "executed"
+
+
+def test_collections_list(runner, tmp_config, tmp_data):
+    """bt collections shows all collections."""
+    _setup(tmp_config, tmp_data)
+    save_collection("alpha", "raw", {"input": "- . a\n- . b\n"})
+    save_collection("beta", "analyzed", {
+        "input": "- . c\n",
+        "analysis": "**Theme**\n- c\n",
+    })
+
+    result = runner.invoke(main, ["collections"])
+    assert result.exit_code == 0
+    assert "alpha" in result.output
+    assert "beta" in result.output

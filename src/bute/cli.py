@@ -304,6 +304,7 @@ from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
 from bute.commands.ffff import find_cmd, form_cmd, focus_cmd, finish_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
+from bute.commands.collections import collections_list_cmd  # noqa: E402
 
 main.add_command(init_cmd)
 main.add_command(start_cmd)
@@ -337,3 +338,4 @@ main.add_command(find_cmd)
 main.add_command(form_cmd)
 main.add_command(focus_cmd)
 main.add_command(finish_cmd)
+main.add_command(collections_list_cmd)
