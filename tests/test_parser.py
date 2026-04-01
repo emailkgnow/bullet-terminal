@@ -46,7 +46,7 @@ class TestParseCapture:
     def test_tags(self):
         result = parse_capture_tokens(("/t", "fix", "bug", "@backend", "@urgent"))
         assert result.tags == ["backend", "urgent"]
-        assert result.body == "fix bug backend urgent"
+        assert result.body == "fix bug"
 
     def test_key_value(self):
         result = parse_capture_tokens(("/t", "call", "dentist", "due:tomorrow"))
@@ -66,7 +66,7 @@ class TestParseCapture:
         )
         assert result.signifier == "/c"
         assert result.important is True
-        assert result.body == "1:1 with Ahmed work"
+        assert result.body == "1:1 with Ahmed"
         assert result.metadata == {"time": "2pm", "date": "mar29"}
         assert result.tags == ["work"]
 
@@ -92,9 +92,37 @@ class TestParseCapture:
 
     def test_body_with_only_tags_and_metadata(self):
         result = parse_capture_tokens(("/t", "due:tomorrow", "@urgent"))
-        assert result.body == "urgent"
+        assert result.body == ""
         assert result.metadata == {"due": "tomorrow"}
         assert result.tags == ["urgent"]
+
+
+class TestParseCollection:
+    def test_parse_collection_token(self):
+        result = parse_capture_tokens(["t", "fix", "faucet", "+home-reno"])
+        assert result.collection == "home-reno"
+        assert result.body == "fix faucet"
+        assert result.signifier == "/t"
+
+    def test_parse_collection_with_tags(self):
+        result = parse_capture_tokens(["t", "fix", "faucet", "+home-reno", "@plumbing"])
+        assert result.collection == "home-reno"
+        assert result.tags == ["plumbing"]
+        assert result.body == "fix faucet"
+
+    def test_parse_collection_with_metadata(self):
+        result = parse_capture_tokens(["t", "fix", "faucet", "+home-reno", "due:friday"])
+        assert result.collection == "home-reno"
+        assert result.metadata == {"due": "friday"}
+        assert result.body == "fix faucet"
+
+    def test_parse_no_collection(self):
+        result = parse_capture_tokens(["t", "fix", "faucet"])
+        assert result.collection is None
+
+    def test_parse_multiple_collections_first_wins(self):
+        result = parse_capture_tokens(["t", "fix", "+alpha", "+beta"])
+        assert result.collection == "alpha"
 
 
 class TestResolveDate:
