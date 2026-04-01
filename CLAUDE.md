@@ -29,17 +29,19 @@ uv build
 
 ### CLI Dispatch (cli.py — ButeGroup)
 
-Custom Click group with 6-layer routing in `resolve_command()`:
+Custom Click group with 7-layer routing in `resolve_command()`:
 
-1. **Named commands** — standard Click (ls, dyts, plan, tasks, notes, etc.)
+1. **Named commands** — standard Click (ls, dyts, plan, tasks, notes, collections, etc.)
 2. **Letter shortcut** — `l` → linelog
 3. **Signifiers** — `t`, `n`, `j`, `c` (or full words: `task`, `note`, `journal`, `cal`)
    - With text → **capture** (`bute t call dentist`)
+   - With text + `+collection` → **collection capture** (`bute t fix faucet +home-reno`)
    - Without text → **view** (`bute t` → show Task Log)
    - With only `@tag` → **filtered view** (`bute t @backend`)
 4. **Tag filter** — `@tagname` → cross-dimension filter
-5. **Number-action** — `1 done`, `2 3 drop` → action dispatch
-6. **Fallback** — Click error
+5. **Collection** — `+name` → view, `+name analyze` → AI analyze, `+name execute` → AI execute
+6. **Number-action** — `1 done`, `2 3 drop` → action dispatch
+7. **Fallback** — Click error
 
 ### Data Model
 
@@ -48,16 +50,15 @@ Custom Click group with 6-layer routing in `resolve_command()`:
 - **IDs**: ULID (time-sortable, 26 chars)
 - **Storage**: one `.md` file per entry at `~/bute/entries/YYYY-MM/<ULID>.md`
 - **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter
+- **Collections**: `+collection` syntax in CLI, stored as sectioned `.md` files at `~/bute/collections/`
 
 ### Data Flow
 
 ```
 User input → DwnGroup.resolve_command() → capture.py
-  → parser.py:parse_capture_tokens() — extracts signifier, body, key:value, @tags
-  → models.py:Entry.create() — generates ULID, sets timestamp
-  → storage.py:save_entry() — writes .md file with YAML frontmatter
-  → ai/embed_entry() — optional local embedding (fastembed + sqlite-vec)
-  → display.py:confirm_capture() — Rich panel output
+  → parser.py:parse_capture_tokens() — extracts signifier, body, key:value, @tags, +collection
+  → If +collection: append to collection_storage → confirm "Added to +name"
+  → Else: models.py:Entry.create() → storage.py:save_entry() → embed → confirm_capture()
 ```
 
 ### State Management
@@ -79,6 +80,8 @@ User input → DwnGroup.resolve_command() → capture.py
 | `ai/vectors.py` | sqlite-vec wrapper (upsert, search, delete) |
 | `ai/embeddings.py` | fastembed wrapper, lazy model loading |
 | `ai/prompts.py` | Prompt templates for AI features |
+| `commands/collections.py` | Collection view, analyze, execute, list commands |
+| `collection_storage.py` | Collection file I/O, sectioned Markdown (Input/Analysis/Tasks) |
 
 ### AI Architecture
 
@@ -87,7 +90,7 @@ Three independent capability tiers — each degrades gracefully:
 2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bute rebuild`
 3. **LLM** (remote) — OpenAI-compatible API, provider-agnostic. API key via config or macOS Keychain
 
-AI is used for: `topic`, `review`, `nudges`, FFFF pipeline (`form`, `focus`, `finish`). Core capture/view/action loop works without AI.
+AI is used for: `topic`, `review`, `nudges`, collection processing (`analyze`, `execute`). Core capture/view/action loop works without AI.
 
 ## CLI Grammar (Current)
 
@@ -131,6 +134,16 @@ bute undo           # undo last action
 bute 3 undo         # undo last action on entry 3
 ```
 
+**Collections** — ideas to action:
+```
+bute t fix faucet +home-reno        # add task to collection
+bute n kitchen is 12x15 +home-reno  # add note to collection
+bute +home-reno                     # view collection (full trail)
+bute +home-reno analyze             # AI clusters and organizes
+bute +home-reno execute             # AI generates sequenced tasks
+bute collections                    # list all collections
+```
+
 **Rituals**:
 ```
 bute                # entry point — DYTS if not done today, else daily log
@@ -143,7 +156,8 @@ bute habit <name>   # track habits
 ## Design Decisions
 
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. DYTS Y phase handles yesterday's unfinished items.
-- **Tags use `@`** not `+` — e.g. `@backend`, `@ahmed`. Stored as plain strings in YAML.
+- **Tags use `@`, collections use `+`** — `@backend` = flat label, `+home-reno` = collection funnel. Tags organize, collections process.
+- **Collections replace FFFF** — `+collection` capture syntax, two AI stages (analyze, execute) instead of four (find/form/focus/finish). Collections are super notes (analyzed) or super tasks (executed). Items live only in the collection until Execute generates real entries.
 - **Linelog is derived** — no stored file, computed from journal + calendar entries. No AI compression.
 - **`bute` with no args** = DYTS entry point. If DYTS done today, shows daily log.
 - **Daily log (`bute ls`)** shows only: `@today` tasks, today's calendar events, all today's journals and notes. Other tasks stay in Task Log (`bute t`).
@@ -164,7 +178,7 @@ bute habit <name>   # track habits
 - ~~`bt streak`~~ Done — 7-day grid, current streak count, 30-day completion rate.
 - ~~`bt reflect`~~ Done as `bt recap` — end-of-day summary with structured display + AI coaching narrative.
 - ~~`bt week`~~ Done — weekly spread across all dimensions, Mon-Sun. `bt week last` for previous week.
-- **Notes as reference layer** — notes (`n`) become a searchable knowledge base, distinct from the journal timeline. Tag-based retrieval (`bt n @topic`), pinned notes that surface in context, AI-powered recall ("what do I know about..."), and linked references from tasks/journals.
+- ~~**Notes as reference layer**~~ Partially addressed by collections — `+collection` with notes creates "super notes" (analyzed collections). Full PKM features (pinned notes, AI recall, linked references) remain future work.
 
 ### Commands — Nice to Have
 - `bt overdue` — shortcut for past-due tasks only. Quick "what am I behind on" accountability view.
