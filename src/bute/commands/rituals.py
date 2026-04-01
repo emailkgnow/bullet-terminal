@@ -323,7 +323,7 @@ def dump_cmd(ctx):
     """Rapid-fire task capture into the backlog."""
     config = ctx.obj.get("config")
 
-    display_ritual_header("Dump", "Get it out of your head — tasks go to backlog")
+    display_ritual_header("Dump", "Get it out of your head — tasks go to Task Log")
     console.print("  [dim]Enter tasks, one per line. Add[/dim] [bold]@today[/bold] [dim]or[/dim] [bold]@thisweek[/bold] [dim]to pull into focus.[/dim]")
     console.print("  [dim]Blank line when done.[/dim]")
 
@@ -349,7 +349,7 @@ def dump_cmd(ctx):
     if count == 0:
         console.print("  [dim]Nothing to dump — clear head.[/dim]")
     else:
-        console.print(f"\n  [bold]{count}[/bold] [dim]task{'s' if count != 1 else ''} captured to backlog.[/dim]")
+        console.print(f"\n  [bold]{count}[/bold] [dim]task{'s' if count != 1 else ''} captured to Task Log.[/dim]")
 
 
 @click.command("linelog")

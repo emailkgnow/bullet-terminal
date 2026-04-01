@@ -206,7 +206,7 @@ def _print_help():
 
     # Rituals
     console.print("  [bold cyan]Rituals[/bold cyan] — guided BuJo workflows")
-    console.print("    [bold]bt dump[/bold]             Rapid-fire tasks → backlog ([dim]add @today or @thisweek to focus[/dim])")
+    console.print("    [bold]bt dump[/bold]             Rapid-fire tasks → Task Log ([dim]add @today or @thisweek to focus[/dim])")
     console.print("    [bold]bt dp[/bold]              Daily plan — morning ritual ([dim]-y for non-interactive[/dim])")
     console.print("    [bold]bt wp[/bold]              Weekly plan — select tasks for the week ([dim]-y[/dim])")
     console.print("    [bold]bt recap[/bold]           End-of-day summary ([dim]-q to skip AI[/dim])")
