@@ -96,11 +96,39 @@ class DwnGroup(click.Group):
             if cmd is not None:
                 return "tag_filter", cmd, [first[1:]]
 
-        # 5. Number-action — first token is a digit
+        # 5. Collection — +name [subcommand]
+        if first.startswith("+") and len(first) > 1:
+            collection_name = first[1:]
+            subcommand = rest[0] if rest else None
+
+            if subcommand == "analyze":
+                cmd = self.get_command(ctx, "analyze_collection")
+                if cmd is not None:
+                    return "analyze_collection", cmd, [collection_name]
+            elif subcommand == "execute":
+                cmd = self.get_command(ctx, "execute_collection")
+                if cmd is not None:
+                    return "execute_collection", cmd, [collection_name]
+            else:
+                cmd = self.get_command(ctx, "view_collection")
+                if cmd is not None:
+                    return "view_collection", cmd, [collection_name]
+
+        # 6. Number-action — first token is a digit
         if first.isdigit():
             try:
                 from bute.state import load_state
                 state = load_state()
+
+                # Collections view — number selects a collection to view
+                if state.get("view") == "collections":
+                    entries_list = state.get("entries", [])
+                    num = int(first)
+                    if 1 <= num <= len(entries_list):
+                        collection_name = entries_list[num - 1]
+                        cmd = self.get_command(ctx, "view_collection")
+                        if cmd is not None:
+                            return "view_collection", cmd, [collection_name]
 
                 # Pure habits view — all numbers are habits
                 if state.get("view") == "habits":
@@ -157,6 +185,7 @@ def _print_help():
     console.print("    Add [bold]@tag[/bold] and [bold]key:value[/bold]: [dim]bt t fix bug @backend due:tomorrow[/dim]")
     console.print("    Calendar keys: [dim]t:HHMM (time)  d:MMDD (date)  — bt c meeting t:1430 d:0330[/dim]")
     console.print("    Just the signifier, no text: [dim]bt t → interactive prompt (no shell quoting)[/dim]")
+    console.print("    Add [bold]+collection[/bold] to collect: [dim]bt t fix faucet +home-reno[/dim]")
     console.print("    [dim]Tasks auto-get @thisweek (focus). Use -l/--later for backlog only.[/dim]")
     console.print()
 
@@ -219,12 +248,13 @@ def _print_help():
     console.print("    [bold]bt nudges[/bold]            AI-generated actionable suggestions")
     console.print()
 
-    # FFFF
-    console.print("  [bold cyan]FFFF Pipeline[/bold cyan] — ideas to action")
-    console.print("    [bold]bt find[/bold] <collection>    Gather raw material")
-    console.print("    [bold]bt form[/bold] <collection>    AI categorizes → user confirms")
-    console.print("    [bold]bt focus[/bold] <collection>   AI cuts to 20% → user confirms")
-    console.print("    [bold]bt finish[/bold] <collection>  AI generates tasks → user confirms")
+    # Collections
+    console.print("  [bold cyan]Collections[/bold cyan] — ideas to action")
+    console.print("    [bold]bt +[/bold]<name>                View collection (full trail)")
+    console.print("    [bold]bt +[/bold]<name> [bold]analyze[/bold]     AI clusters and organizes")
+    console.print("    [bold]bt +[/bold]<name> [bold]execute[/bold]     AI generates sequenced tasks")
+    console.print("    [bold]bt collections[/bold]           List all collections")
+    console.print("    Capture to collection: [dim]bt t fix faucet +home-reno[/dim]")
     console.print()
 
     # System
@@ -302,9 +332,13 @@ from bute.commands.habits import habits_cmd, streak_cmd  # noqa: E402
 from bute.commands.search import rebuild_cmd, search_cmd, similar_cmd  # noqa: E402
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
-from bute.commands.ffff import find_cmd, form_cmd, focus_cmd, finish_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
-from bute.commands.collections import collections_list_cmd  # noqa: E402
+from bute.commands.collections import (  # noqa: E402
+    analyze_collection_cmd,
+    collections_list_cmd,
+    execute_collection_cmd,
+    view_collection_cmd,
+)
 
 main.add_command(init_cmd)
 main.add_command(start_cmd)
@@ -334,8 +368,7 @@ main.add_command(similar_cmd)
 main.add_command(rebuild_cmd)
 main.add_command(topic_cmd)
 main.add_command(nudges_cmd)
-main.add_command(find_cmd)
-main.add_command(form_cmd)
-main.add_command(focus_cmd)
-main.add_command(finish_cmd)
+main.add_command(analyze_collection_cmd)
+main.add_command(execute_collection_cmd)
+main.add_command(view_collection_cmd)
 main.add_command(collections_list_cmd)
