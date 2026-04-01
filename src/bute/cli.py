@@ -206,6 +206,7 @@ def _print_help():
 
     # Rituals
     console.print("  [bold cyan]Rituals[/bold cyan] — guided BuJo workflows")
+    console.print("    [bold]bt dump[/bold]             Rapid-fire tasks → backlog ([dim]add @today or @thisweek to focus[/dim])")
     console.print("    [bold]bt dp[/bold]              Daily plan — morning ritual ([dim]-y for non-interactive[/dim])")
     console.print("    [bold]bt wp[/bold]              Weekly plan — select tasks for the week ([dim]-y[/dim])")
     console.print("    [bold]bt recap[/bold]           End-of-day summary ([dim]-q to skip AI[/dim])")
@@ -291,6 +292,7 @@ from bute.commands.views import (  # noqa: E402
 )
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
+    dump_cmd,
     linelog_cmd,
     recap_cmd,
     review_cmd,
@@ -319,6 +321,7 @@ main.add_command(tags_cmd)
 main.add_command(week_cmd)
 main.add_command(due_cmd)
 main.add_command(dp_cmd)
+main.add_command(dump_cmd)
 main.add_command(habits_cmd)
 main.add_command(streak_cmd)
 main.add_command(linelog_cmd)
