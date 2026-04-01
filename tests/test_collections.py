@@ -143,3 +143,23 @@ def test_capture_with_collection_preserves_tags_and_meta(runner, tmp_config, tmp
     assert "fix faucet" in content
     assert "@plumbing" in content
     assert "due:friday" in content
+
+
+# --- Prompt tests ---
+
+
+from bute.ai.prompts import analyze_prompt, execute_prompt
+
+
+def test_analyze_prompt_contains_signifier_key():
+    prompt = analyze_prompt()
+    assert ". = task" in prompt
+    assert "- = note" in prompt
+    assert "= = journal" in prompt
+    assert "o = calendar" in prompt
+
+
+def test_execute_prompt_contains_sequencing():
+    prompt = execute_prompt()
+    assert "sequen" in prompt.lower()
+    assert "verb" in prompt.lower()

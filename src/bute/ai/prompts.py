@@ -62,51 +62,37 @@ Analyze the user's recent entries and generate 3-5 actionable nudges. Types:
 Format each nudge as a single clear sentence. Be specific — reference actual entry content."""
 
 
-def form_prompt() -> str:
+def analyze_prompt() -> str:
     return f"""{SYSTEM_BASE}
 
-The user has gathered raw items for a project/topic. Categorize them into 3-5 groups.
+The user has gathered raw items for a collection. Each item has a signifier prefix indicating its type:
+  . = task idea or intention
+  - = note, reference, or fact
+  = = journal reflection or feeling
+  o = calendar event or commitment
 
-For each group, provide:
-- A short category name
-- The items that belong to it
+Cluster these items into coherent themes. For each theme:
+- Give it a clear, concise name
+- List the items that belong to it
+- Briefly note connections or tensions between items
 
-Output as a simple list:
-**Category Name**
-- item one
-- item two
-
-Be faithful to the original items — don't add, remove, or rephrase."""
+Be faithful to the original items — don't add, remove, or rephrase.
+Organize what's there. Use the item types as context (journals reveal feelings, notes are facts, tasks are intentions, events are commitments)."""
 
 
-def focus_prompt() -> str:
+def execute_prompt() -> str:
     return f"""{SYSTEM_BASE}
 
-The user has categorized items. Apply the 80/20 principle: identify the vital ~20% that matters most.
+The user has an analyzed collection — items clustered into themes. Generate a sequenced list of concrete, actionable tasks that would implement or address these themes.
 
-For each item you keep, explain in a few words why it's essential.
-For items you cut, briefly note why they're secondary.
+Requirements:
+- Each task starts with a verb
+- Tasks are specific enough to act on in a single session
+- Tasks are ordered sequentially — each builds on the previous
+- Number each task (1, 2, 3...)
+- Keep the total manageable (aim for 5-15 tasks)
 
-Output:
-**Keep (core)**
-- item: reason
-**Cut (supporting)**
-- item: reason"""
-
-
-def finish_prompt() -> str:
-    return f"""{SYSTEM_BASE}
-
-The user has focused on the core items. Generate concrete, actionable tasks from them.
-
-Each task should be:
-- One clear action (start with a verb)
-- Specific enough to act on today
-- Tagged with the collection name
-
-Output as a simple list:
-- task one
-- task two"""
+Output only the numbered task list, nothing else."""
 
 
 def recap_prompt() -> str:
