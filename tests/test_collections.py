@@ -288,3 +288,22 @@ def test_collections_list(runner, tmp_config, tmp_data):
     assert result.exit_code == 0
     assert "alpha" in result.output
     assert "beta" in result.output
+
+
+# --- Display tests ---
+
+
+def test_entry_row_shows_collection_meta():
+    from bute.display import _build_entry_row
+    from bute.models import Entry, EntryType
+
+    entry = Entry.create(
+        EntryType.TASK,
+        "fix faucet",
+        tags=["home-reno"],
+        extra_meta={"collection": "home-reno"},
+    )
+    _num, _icon, _body, meta = _build_entry_row(1, entry)
+    assert "+home-reno" in meta
+    # collection tag should NOT appear as @home-reno since it's shown as +home-reno
+    assert "@home-reno" not in meta
