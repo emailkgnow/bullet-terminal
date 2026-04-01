@@ -56,14 +56,20 @@ class DwnGroup(click.Group):
         is_word = WORD_SIGNIFIER_PATTERN.match(first)
 
         if is_short or is_bullet or is_word:
-            # Text follows → capture
-            has_text = rest and not (len(rest) == 1 and rest[0].startswith("@"))
+            # Check if rest is only view flags/options (not capture text)
+            view_flags = {"-a", "--all"}
+            is_view_args = rest and all(
+                r.startswith("@") or r in view_flags for r in rest
+            )
+
+            # Text follows (and not just @tag or view flags) → capture
+            has_text = rest and not is_view_args
             if has_text:
                 cmd = self.get_command(ctx, "capture")
                 if cmd is not None:
                     return "capture", cmd, args
 
-            # No text (or only @tag) → view
+            # No text (or only @tag / view flags) → view
             stripped = first.rstrip("!").lstrip("/")
             if is_word:
                 view_name = WORD_TO_VIEW.get(stripped)
@@ -75,9 +81,14 @@ class DwnGroup(click.Group):
             if view_name:
                 cmd = self.get_command(ctx, view_name)
                 if cmd is not None:
-                    # Pass @tag as argument if present
-                    tag_args = [rest[0][1:]] if rest and rest[0].startswith("@") else []
-                    return view_name, cmd, tag_args
+                    # Pass remaining args (strip @ from tags)
+                    view_args = []
+                    for r in rest:
+                        if r.startswith("@"):
+                            view_args.append(r[1:])
+                        elif r in view_flags:
+                            view_args.append(r)
+                    return view_name, cmd, view_args
 
         # 4. Tag filter — @tagname
         if first.startswith("@") and len(first) > 1:
@@ -153,13 +164,14 @@ def _print_help():
     console.print("  [bold cyan]Views[/bold cyan] — same letters, no text = view")
     console.print("    [bold]bt[/bold]                 Daily plan if not done today, else today's log")
     console.print("    [bold]bt ls[/bold]              Today's log (always)")
-    console.print("    [bold]bt t[/bold] [@tag]        Active tasks (--all for done/dropped)")
+    console.print("    [bold]bt t[/bold] [@tag]        Active tasks ([dim]-a/--all[/dim] for done/dropped)")
     console.print("    [bold]bt n[/bold] [@tag]        All notes")
     console.print("    [bold]bt j[/bold] [@tag]        All journal entries")
     console.print("    [bold]bt c[/bold] [@tag]        All events")
-    console.print("    [bold]bt l[/bold]               Line log (monthly overview)")
+    console.print("    [bold]bt l[/bold] [period]      Line log ([dim]default: this month, YYYY-MM or YYYY[/dim])")
     console.print("    [bold]bt active[/bold]          This week's selected tasks")
-    console.print("    [bold]bt week[/bold]            Weekly spread — all entries Mon-Sun")
+    console.print("    [bold]bt week[/bold] [last]     Weekly spread — all entries Mon-Sun")
+    console.print("    [bold]bt tags[/bold]            List all tags with entry counts")
     console.print("    [bold]bt @tagname[/bold]        Filter by tag across all dimensions")
     console.print("    [bold]bt search[/bold] <query>  Semantic search")
     console.print("    [bold]bt similar[/bold] <n>     Entries similar to #n")
@@ -193,14 +205,14 @@ def _print_help():
 
     # Rituals
     console.print("  [bold cyan]Rituals[/bold cyan] — guided BuJo workflows")
-    console.print("    [bold]bt dp[/bold]              Daily plan — morning ritual")
-    console.print("    [bold]bt wp[/bold]              Weekly plan — select tasks for the week")
-    console.print("    [bold]bt recap[/bold]           End-of-day summary (-q to skip AI)")
+    console.print("    [bold]bt dp[/bold]              Daily plan — morning ritual ([dim]-y for non-interactive[/dim])")
+    console.print("    [bold]bt wp[/bold]              Weekly plan — select tasks for the week ([dim]-y[/dim])")
+    console.print("    [bold]bt recap[/bold]           End-of-day summary ([dim]-q to skip AI[/dim])")
     console.print()
 
     # AI
     console.print("  [bold cyan]AI Features[/bold cyan] — requires configured provider (bt init)")
-    console.print("    [bold]bt review[/bold] [period]   AI summary (day/week/month)")
+    console.print("    [bold]bt review[/bold] [period]   AI summary ([dim]day, week, month[/dim])")
     console.print("    [bold]bt topic[/bold] <name>      Cross-dimension synthesis")
     console.print("    [bold]bt nudges[/bold]            AI-generated actionable suggestions")
     console.print()

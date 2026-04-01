@@ -106,12 +106,16 @@ def get_daily_log(config=None) -> list[Entry]:
             result.append(e)
 
     def _daily_sort_key(e):
-        """Sort: timed events first (by time), then everything else by creation."""
-        if e.type == EntryType.CALENDAR and e.scheduled_time:
-            return (0, e.scheduled_time, e.created)
-        if e.type == EntryType.CALENDAR:
-            return (1, "", e.created)
-        return (2, "", e.created)
+        """Sort: tasks first, then calendar (timed→untimed), notes, journals."""
+        type_order = {
+            EntryType.TASK: 0,
+            EntryType.CALENDAR: 1,
+            EntryType.NOTE: 2,
+            EntryType.JOURNAL: 3,
+        }
+        group = type_order.get(e.type, 4)
+        time_key = e.scheduled_time if e.type == EntryType.CALENDAR and e.scheduled_time else ""
+        return (group, time_key, e.created)
 
     return sorted(result, key=_daily_sort_key)
 
