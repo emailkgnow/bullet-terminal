@@ -454,6 +454,103 @@ def clear_all(config=None) -> None:
     db.commit()
 
 
+# ---------------------------------------------------------------------------
+# Tag stage operations
+# ---------------------------------------------------------------------------
+
+def upsert_tag_stage(
+    tag: str,
+    stage: str,
+    *,
+    analysis: str | None = None,
+    tasks_text: str | None = None,
+    config=None,
+) -> None:
+    """Insert or update a tag's processing stage."""
+    from datetime import datetime, timezone
+
+    db = get_connection(config)
+    now = datetime.now(timezone.utc).astimezone().isoformat()
+
+    existing = get_tag_stage(tag, config)
+    if existing is None:
+        db.execute(
+            """INSERT INTO tag_stages (tag, stage, analysis, tasks_text, analyzed_at, executed_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                tag,
+                stage,
+                analysis,
+                tasks_text,
+                now if stage in ("analyzed", "executed") else None,
+                now if stage == "executed" else None,
+            ),
+        )
+    else:
+        updates = ["stage = ?"]
+        params: list = [stage]
+        if analysis is not None:
+            updates.append("analysis = ?")
+            params.append(analysis)
+        if tasks_text is not None:
+            updates.append("tasks_text = ?")
+            params.append(tasks_text)
+        if stage in ("analyzed", "executed"):
+            updates.append("analyzed_at = ?")
+            params.append(existing["analyzed_at"] or now)
+        if stage == "executed":
+            updates.append("executed_at = ?")
+            params.append(now)
+        if stage == "analyzed":
+            updates.append("executed_at = ?")
+            params.append(None)
+            updates.append("tasks_text = ?")
+            params.append(None)
+            updates.append("analyzed_at = ?")
+            params.append(now)
+        params.append(tag)
+        db.execute(f"UPDATE tag_stages SET {', '.join(updates)} WHERE tag = ?", params)
+    db.commit()
+
+
+def get_tag_stage(tag: str, config=None) -> dict | None:
+    """Get a tag's processing stage. Returns dict or None."""
+    db = get_connection(config)
+    row = db.execute(
+        "SELECT tag, stage, analysis, tasks_text, analyzed_at, executed_at FROM tag_stages WHERE tag = ?",
+        (tag,),
+    ).fetchone()
+    if row is None:
+        return None
+    return {
+        "tag": row[0],
+        "stage": row[1],
+        "analysis": row[2],
+        "tasks_text": row[3],
+        "analyzed_at": row[4],
+        "executed_at": row[5],
+    }
+
+
+def get_all_tag_stages(config=None) -> list[dict]:
+    """Get all tag stage rows."""
+    db = get_connection(config)
+    rows = db.execute(
+        "SELECT tag, stage, analysis, tasks_text, analyzed_at, executed_at FROM tag_stages ORDER BY tag"
+    ).fetchall()
+    return [
+        {
+            "tag": r[0],
+            "stage": r[1],
+            "analysis": r[2],
+            "tasks_text": r[3],
+            "analyzed_at": r[4],
+            "executed_at": r[5],
+        }
+        for r in rows
+    ]
+
+
 def count(config=None) -> int:
     """Return the total number of entries in the index."""
     db = get_connection(config)

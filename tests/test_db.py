@@ -525,3 +525,45 @@ class TestCount:
         upsert_entry(entry)
         upsert_entry(entry)  # second upsert — same id
         assert count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Tag stage operations
+# ---------------------------------------------------------------------------
+
+class TestTagStages:
+    def test_upsert_tag_stage(self):
+        """upsert_tag_stage creates and updates tag stage rows."""
+        from bute.db import get_tag_stage, upsert_tag_stage
+
+        upsert_tag_stage("home-reno", "analyzed", analysis="Theme A\n- item one")
+        row = get_tag_stage("home-reno")
+        assert row is not None
+        assert row["stage"] == "analyzed"
+        assert row["analysis"] == "Theme A\n- item one"
+        assert row["analyzed_at"] is not None
+        assert row["executed_at"] is None
+
+        upsert_tag_stage("home-reno", "executed", tasks_text="1. Do thing")
+        row = get_tag_stage("home-reno")
+        assert row["stage"] == "executed"
+        assert row["tasks_text"] == "1. Do thing"
+        assert row["executed_at"] is not None
+        assert row["analysis"] == "Theme A\n- item one"
+
+    def test_get_tag_stage_missing(self):
+        """get_tag_stage returns None for unknown tags."""
+        from bute.db import get_tag_stage
+
+        assert get_tag_stage("nonexistent") is None
+
+    def test_get_all_tag_stages(self):
+        """get_all_tag_stages returns all rows."""
+        from bute.db import get_all_tag_stages, upsert_tag_stage
+
+        upsert_tag_stage("alpha", "analyzed", analysis="a")
+        upsert_tag_stage("beta", "raw")
+        rows = get_all_tag_stages()
+        tags = [r["tag"] for r in rows]
+        assert "alpha" in tags
+        assert "beta" in tags
