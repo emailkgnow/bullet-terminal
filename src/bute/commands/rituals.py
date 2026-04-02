@@ -243,7 +243,7 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
     from bute.parser import format_time_display
 
     from bute.models import EntryType
-    from bute.storage import load_entries_by_date, load_entries_by_filter
+    from bute.storage import load_entries_by_date, query_and_load
 
     _, last_day = calendar.monthrange(target.year, target.month)
     today = date.today()
@@ -268,16 +268,15 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
                 lines_by_day.setdefault(event_day, []).append(f"o{time_str} {e.body}")
 
     # Calendar events scheduled in this month but created in a different month
-    scheduled_events = load_entries_by_filter(
-        lambda e: (
-            e.type == EntryType.CALENDAR
-            and e.scheduled_date is not None
+    from bute.storage import query_and_load
+    scheduled_events = query_and_load(config, type="calendar")
+    scheduled_events = [
+        e for e in scheduled_events
+        if (e.scheduled_date is not None
             and e.scheduled_date.year == target.year
             and e.scheduled_date.month == target.month
-            and e.created.strftime("%Y-%m") != target.strftime("%Y-%m")
-        ),
-        config,
-    )
+            and e.created.strftime("%Y-%m") != target.strftime("%Y-%m"))
+    ]
     for e in scheduled_events:
         day_num = e.scheduled_date.day
         time_str = f" {format_time_display(e.scheduled_time)}" if e.scheduled_time else ""
@@ -490,20 +489,13 @@ def recap_cmd(ctx, quiet):
         get_today_captured,
     )
     from bute.state import mark_recap_done
-    from bute.storage import load_entries_by_filter
+    from bute.storage import query_and_load
     from bute.models import EntryType, TaskStatus
 
     config = ctx.obj.get("config")
 
     done = get_tasks_done_today(config)
-    open_tasks = load_entries_by_filter(
-        lambda e: (
-            e.type == EntryType.TASK
-            and e.status == TaskStatus.ACTIVE
-            and "today" in e.tags
-        ),
-        config,
-    )
+    open_tasks = query_and_load(config, type="task", status="active", tag="today")
     dropped = get_tasks_dropped_today(config)
     captured = get_today_captured(config)
 
@@ -578,7 +570,7 @@ def review_cmd(ctx, period):
 
     from datetime import timedelta
 
-    from bute.storage import load_entries_by_filter
+    from bute.storage import query_and_load
 
     today = date.today()
     if period == "day":
@@ -588,9 +580,7 @@ def review_cmd(ctx, period):
     else:  # week
         start = today - timedelta(days=today.weekday())
 
-    entries = load_entries_by_filter(
-        lambda e: e.created.date() >= start, config
-    )
+    entries = query_and_load(config, created_since=start.isoformat())
 
     if not entries:
         console.print(f"  [dim]No entries for this {period}.[/dim]")

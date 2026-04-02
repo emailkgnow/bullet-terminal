@@ -29,16 +29,14 @@ def topic_cmd(ctx, name):
         console.print(_LLM_INSTALL_MSG)
         return
 
-    from bute.storage import entry_path_from_id, load_entries_by_filter, load_entry
+    from bute.storage import entry_path_from_id, query_and_load, load_entry
 
     # Gather entries: by tag + semantic search
     seen_ids = set()
     entries = []
 
     # Tag matches
-    tag_entries = load_entries_by_filter(
-        lambda e: topic_name.lower() in [t.lower() for t in e.tags], config
-    )
+    tag_entries = query_and_load(config, tag=topic_name.lower())
     for e in tag_entries:
         if e.id not in seen_ids:
             entries.append(e)

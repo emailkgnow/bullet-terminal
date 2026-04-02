@@ -6,7 +6,6 @@ from bute.models import Entry, EntryType, TaskStatus
 from bute.parser import parse_capture_tokens
 from bute.storage import (
     load_entries_by_date,
-    load_entries_by_filter,
     save_entry,
     update_entry,
 )
@@ -30,14 +29,9 @@ def get_today_schedule(config=None) -> list[Entry]:
     today_calendar = [e for e in today_entries if e.type == EntryType.CALENDAR]
 
     # Entries scheduled for today but created on a different day
-    scheduled_today = load_entries_by_filter(
-        lambda e: (
-            e.type == EntryType.CALENDAR
-            and e.scheduled_date == today
-            and e.created.date() != today
-        ),
-        config,
-    )
+    from bute.storage import query_and_load
+    scheduled_today = query_and_load(config, type="calendar", scheduled_date=today.isoformat())
+    scheduled_today = [e for e in scheduled_today if e.created.date() != today]
 
     # Combine and deduplicate by ID
     seen = set()
@@ -76,15 +70,9 @@ def get_daily_log(config=None) -> list[Entry]:
             result.append(e)
 
     # Also include active tasks tagged @today but created on a different day
-    today_tasks = load_entries_by_filter(
-        lambda e: (
-            e.type == EntryType.TASK
-            and e.status == TaskStatus.ACTIVE
-            and "today" in e.tags
-            and e.created.date() != today
-        ),
-        config,
-    )
+    from bute.storage import query_and_load
+    today_tasks = query_and_load(config, type="task", status="active", tag="today")
+    today_tasks = [e for e in today_tasks if e.created.date() != today]
     seen = {e.id for e in result}
     for e in today_tasks:
         if e.id not in seen:
@@ -92,14 +80,8 @@ def get_daily_log(config=None) -> list[Entry]:
             result.append(e)
 
     # Also include calendar events scheduled for today but created on a different day
-    scheduled_today = load_entries_by_filter(
-        lambda e: (
-            e.type == EntryType.CALENDAR
-            and e.scheduled_date == today
-            and e.created.date() != today
-        ),
-        config,
-    )
+    scheduled_today = query_and_load(config, type="calendar", scheduled_date=today.isoformat())
+    scheduled_today = [e for e in scheduled_today if e.created.date() != today]
     for e in scheduled_today:
         if e.id not in seen:
             seen.add(e.id)
@@ -130,10 +112,8 @@ def get_week_entries(target_date: date | None = None, config=None) -> list[Entry
     sunday = monday + timedelta(days=6)
     today = date.today()
 
-    entries = load_entries_by_filter(
-        lambda e: monday <= e.created.date() <= min(sunday, today),
-        config,
-    )
+    from bute.storage import query_and_load
+    entries = query_and_load(config, created_since=monday.isoformat(), created_until=min(sunday, today).isoformat())
     return sorted(entries, key=lambda e: e.created)
 
 
@@ -142,10 +122,8 @@ def get_tasks_done_today(config=None) -> list[Entry]:
     today = date.today()
     from bute.storage import entry_path as _entry_path
 
-    done = load_entries_by_filter(
-        lambda e: e.type == EntryType.TASK and e.status == TaskStatus.DONE,
-        config,
-    )
+    from bute.storage import query_and_load
+    done = query_and_load(config, type="task", status="done")
     return [
         e for e in done
         if date.fromtimestamp(_entry_path(e, config).stat().st_mtime) == today
@@ -157,10 +135,8 @@ def get_tasks_dropped_today(config=None) -> list[Entry]:
     today = date.today()
     from bute.storage import entry_path as _entry_path
 
-    dropped = load_entries_by_filter(
-        lambda e: e.type == EntryType.TASK and e.status == TaskStatus.DROPPED,
-        config,
-    )
+    from bute.storage import query_and_load
+    dropped = query_and_load(config, type="task", status="dropped")
     return [
         e for e in dropped
         if date.fromtimestamp(_entry_path(e, config).stat().st_mtime) == today
@@ -176,10 +152,8 @@ def get_today_captured(config=None) -> list[Entry]:
 
 def get_all_active_tasks(config=None) -> list[Entry]:
     """All active tasks across all dates."""
-    return load_entries_by_filter(
-        lambda e: e.type == EntryType.TASK and e.status == TaskStatus.ACTIVE,
-        config,
-    )
+    from bute.storage import query_and_load
+    return query_and_load(config, type="task", status="active")
 
 
 def get_weekly_active_tasks(config=None) -> list[Entry]:
@@ -188,14 +162,8 @@ def get_weekly_active_tasks(config=None) -> list[Entry]:
     Falls back to all active tasks if none are tagged @thisweek
     (e.g. user hasn't run bt wp yet).
     """
-    weekly = load_entries_by_filter(
-        lambda e: (
-            e.type == EntryType.TASK
-            and e.status == TaskStatus.ACTIVE
-            and "thisweek" in e.tags
-        ),
-        config,
-    )
+    from bute.storage import query_and_load
+    weekly = query_and_load(config, type="task", status="active", tag="thisweek")
     if weekly:
         return weekly
     return get_all_active_tasks(config)
@@ -271,10 +239,8 @@ def set_weekly_selection(entry_ids: list[str], config=None) -> int:
 
 def clear_weekly_selection(config=None) -> int:
     """Remove +thisweek tag from all entries. Returns count cleared."""
-    entries = load_entries_by_filter(
-        lambda e: "thisweek" in e.tags,
-        config,
-    )
+    from bute.storage import query_and_load
+    entries = query_and_load(config, tag="thisweek")
     for entry in entries:
         entry.tags.remove("thisweek")
         update_entry(entry, config)
@@ -283,10 +249,8 @@ def clear_weekly_selection(config=None) -> int:
 
 def clear_daily_focus(config=None) -> int:
     """Remove +today tag from all entries. Returns count cleared."""
-    entries = load_entries_by_filter(
-        lambda e: "today" in e.tags,
-        config,
-    )
+    from bute.storage import query_and_load
+    entries = query_and_load(config, tag="today")
     for entry in entries:
         entry.tags.remove("today")
         update_entry(entry, config)

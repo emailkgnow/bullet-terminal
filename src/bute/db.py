@@ -220,11 +220,11 @@ def query_entries(
         params.append(created_date)
 
     if created_since is not None:
-        conditions.append("created >= ?")
+        conditions.append("date(created) >= ?")
         params.append(created_since)
 
     if created_until is not None:
-        conditions.append("created <= ?")
+        conditions.append("date(created) <= ?")
         params.append(created_until)
 
     if scheduled_date is not None:

@@ -11,7 +11,7 @@ from bute.display import _build_entry_row, display_entry_list, display_entry_lis
 from bute.models import EntryType, TaskStatus
 from bute.ritual_ops import get_daily_log, get_week_entries, get_weekly_active_tasks
 from bute.state import save_state
-from bute.storage import load_entries_by_filter
+from bute.storage import query_and_load
 
 console = Console()
 
@@ -58,16 +58,12 @@ def _dimension_command(name, entry_type, label, group_by_date=False):
     def cmd(ctx, tag, show_all):
         config = ctx.obj.get("config")
 
-        def predicate(e):
-            if e.type != entry_type:
-                return False
-            if tag and tag not in e.tags:
-                return False
-            if not show_all and entry_type == EntryType.TASK and e.status != TaskStatus.ACTIVE:
-                return False
-            return True
-
-        entries = load_entries_by_filter(predicate, config)
+        kwargs = {"type": entry_type.value}
+        if tag:
+            kwargs["tag"] = tag
+        if not show_all and entry_type == EntryType.TASK:
+            kwargs["status"] = "active"
+        entries = query_and_load(config, **kwargs)
 
         title_parts = [label]
         if tag:
@@ -92,6 +88,50 @@ journals_cmd = _dimension_command("journals", EntryType.JOURNAL, "Journals", gro
 calendar_cmd = _dimension_command("calendar", EntryType.CALENDAR, "Calendar", group_by_date=True)
 
 
+@click.command("important", hidden=True)
+@click.argument("entry_type", required=False, default=None)
+@click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
+@click.pass_context
+def important_cmd(ctx, entry_type, show_all):
+    """Show important entries. Optional type filter (task, note, journal, cal)."""
+    config = ctx.obj.get("config")
+
+    type_map = {
+        "task": EntryType.TASK, "t": EntryType.TASK,
+        "note": EntryType.NOTE, "n": EntryType.NOTE,
+        "journal": EntryType.JOURNAL, "j": EntryType.JOURNAL,
+        "cal": EntryType.CALENDAR, "c": EntryType.CALENDAR,
+    }
+    filter_type = type_map.get(entry_type) if entry_type else None
+
+    kwargs = {"important": True}
+    if filter_type:
+        kwargs["type"] = filter_type.value
+    if not show_all:
+        kwargs["exclude_status"] = "dropped"
+    entries = query_and_load(config, **kwargs)
+    # Post-filter for task-specific status
+    if not show_all:
+        entries = [
+            e for e in entries
+            if not (e.type == EntryType.TASK and e.status != TaskStatus.ACTIVE)
+        ]
+
+    if filter_type:
+        type_label = {
+            EntryType.TASK: "Tasks",
+            EntryType.NOTE: "Notes",
+            EntryType.JOURNAL: "Journals",
+            EntryType.CALENDAR: "Events",
+        }[filter_type]
+        title = f"{'All ' if show_all else ''}Important {type_label}"
+    else:
+        title = f"{'All ' if show_all else ''}Important"
+
+    display_entry_list(entries, title)
+    save_state("important", [e.id for e in entries], config)
+
+
 @click.command("active")
 @click.pass_context
 def active_cmd(ctx):
@@ -110,10 +150,7 @@ def tag_filter_cmd(ctx, tag):
     """Show all entries with a given tag."""
     config = ctx.obj.get("config")
 
-    entries = load_entries_by_filter(
-        lambda e: tag in e.tags,
-        config,
-    )
+    entries = query_and_load(config, tag=tag)
     display_entry_list(entries, f"@{tag}")
     save_state("tag_filter", [e.id for e in entries], config)
 
@@ -124,7 +161,7 @@ def tags_cmd(ctx):
     """List all tags with entry counts."""
     config = ctx.obj.get("config")
 
-    entries = load_entries_by_filter(lambda e: bool(e.tags), config)
+    entries = query_and_load(config, has_tags=True)
 
     counts: dict[str, int] = {}
     for entry in entries:
@@ -194,14 +231,7 @@ def due_cmd(ctx, scope):
     today = date.today()
     end_of_week = today + timedelta(days=(6 - today.weekday()))
 
-    entries = load_entries_by_filter(
-        lambda e: (
-            e.type == EntryType.TASK
-            and e.status == TaskStatus.ACTIVE
-            and e.due is not None
-        ),
-        config,
-    )
+    entries = query_and_load(config, type="task", status="active", has_due=True)
 
     if not entries:
         console.print("  [dim]No tasks with due dates.[/dim]")
@@ -236,7 +266,7 @@ def due_cmd(ctx, scope):
     )
     table.add_column("", style="bold", width=10)
     table.add_column("#", style="bold dim", width=3, justify="right")
-    table.add_column("", width=1)
+    table.add_column("", width=2)
     table.add_column("Entry", ratio=1, overflow="fold")
     table.add_column("Meta", style="dim")
 

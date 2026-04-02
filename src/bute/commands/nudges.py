@@ -22,12 +22,10 @@ def nudges_cmd(ctx, days):
         console.print(_LLM_INSTALL_MSG)
         return
 
-    from bute.storage import load_entries_by_filter
+    from bute.storage import query_and_load
 
     cutoff = date.today() - timedelta(days=days)
-    entries = load_entries_by_filter(
-        lambda e: e.created.date() >= cutoff, config
-    )
+    entries = query_and_load(config, created_since=cutoff.isoformat())
 
     if not entries:
         console.print(f"  [dim]No entries in the last {days} days.[/dim]")
