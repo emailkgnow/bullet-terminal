@@ -283,6 +283,7 @@ def _print_help():
     console.print("    [bold]bt start[/bold]           Quick start guide — the bt way")
     console.print("    [bold]bt init[/bold]            First-run setup (pick AI provider)")
     console.print("    [bold]bt rebuild[/bold]         Re-embed all entries for semantic search")
+    console.print("    [bold]bt export[/bold]          Export all data as a zip file ([dim]-o path[/dim])")
     console.print("    [bold]bt --version[/bold]       Show version")
     console.print()
 
@@ -351,6 +352,7 @@ from bute.commands.rituals import (  # noqa: E402
     wp_cmd,
 )
 from bute.commands.habits import habits_cmd, streak_cmd  # noqa: E402
+from bute.commands.export import export_cmd  # noqa: E402
 from bute.commands.search import find_cmd, rebuild_cmd, search_cmd, similar_cmd  # noqa: E402
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
@@ -390,6 +392,7 @@ main.add_command(search_cmd)
 main.add_command(find_cmd)
 main.add_command(similar_cmd)
 main.add_command(rebuild_cmd)
+main.add_command(export_cmd)
 main.add_command(topic_cmd)
 main.add_command(nudges_cmd)
 main.add_command(analyze_collection_cmd)

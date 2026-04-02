@@ -185,7 +185,7 @@ bute habit <name>   # track habits
 - `bt move <n> due:friday` — update metadata fields without replacing body. Like `mod` but for due dates, tags, times.
 - `bt stats` — personal analytics: done/dropped ratio, busiest days, most-used tags, capture frequency. Data is all in the markdown files.
 - ~~`bt find <keyword>`~~ ✓ Done — FTS5 body search + tag search, deduped. Flags: `-t` (tasks), `-n` (notes), `-j` (journals), `-c` (calendar). No flag = search all types.
-- `bt export` — export all `.md` files from `~/bute/entries/` into a timestamped zip (`bute-YYYY-MM-DD.zip`). `-o <path>` for custom output location. Gives users a portable backup of all entries. Referenced in rebuild messages to reassure users about data safety.
+- ~~`bt export`~~ ✓ Done — exports entries, collections, habits as `bullet-terminal-markdown-YYYY-MM-DD.zip` with README. `-o <path>` for custom output. Counter suffix for same-day duplicates.
 
 ### Infrastructure
 - **AI agent as mobile interface** — bt's CLI grammar is already agent-friendly. Via Claude desktop/mobile + MCP or remote dispatch, natural language commands can route to bt on the local machine. No mobile app, no REST API, no cloud sync needed — the AI agent is the frontend.
