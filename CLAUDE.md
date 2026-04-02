@@ -184,11 +184,13 @@ bute habit <name>   # track habits
 - `bt overdue` — shortcut for past-due tasks only. Quick "what am I behind on" accountability view.
 - `bt move <n> due:friday` — update metadata fields without replacing body. Like `mod` but for due dates, tags, times.
 - `bt stats` — personal analytics: done/dropped ratio, busiest days, most-used tags, capture frequency. Data is all in the markdown files.
+- `bt find <keyword>` — FTS5-powered full-text search across entry bodies. Flags: `-t` (tasks), `-n` (notes), `-j` (journals), `-c` (calendar). No flag = search all types. Enabled by the SQLite index infrastructure.
+- `bt export` — export all `.md` files from `~/bute/entries/` into a timestamped zip (`bute-YYYY-MM-DD.zip`). `-o <path>` for custom output location. Gives users a portable backup of all entries. Referenced in rebuild messages to reassure users about data safety.
 
 ### Infrastructure
 - **AI agent as mobile interface** — bt's CLI grammar is already agent-friendly. Via Claude desktop/mobile + MCP or remote dispatch, natural language commands can route to bt on the local machine. No mobile app, no REST API, no cloud sync needed — the AI agent is the frontend.
 - Add meaningful AI features
-- SQLite index for structured queries (type, date, status, tags) — currently all queries scan .md files, fine for now but won't scale past thousands of entries
+- ~~SQLite index for structured queries~~ In progress — see `docs/superpowers/specs/2026-04-02-sqlite-index-design.md`. Metadata + FTS5 + vectors in one DB, write-through sync, auto-rebuild.
 - Display `extra_meta` (custom key:value pairs) — saved to YAML frontmatter and round-trips correctly, but invisible in capture confirmation and all list views
 
 ### Design Guardrail
