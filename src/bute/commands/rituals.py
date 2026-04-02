@@ -590,4 +590,5 @@ def review_cmd(ctx, period):
     response = llm_send_with_entries(
         review_prompt(period), entries, f"Review my {period}", config
     )
-    console.print(f"\n{response}")
+    from bute.display import display_ai_response
+    display_ai_response(response)

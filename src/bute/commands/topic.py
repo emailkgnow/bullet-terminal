@@ -66,6 +66,7 @@ def topic_cmd(ctx, name):
         f"Synthesize everything about: {topic_name}",
         config,
     )
-    console.print(f"\n{response}")
+    from bute.display import display_ai_response
+    display_ai_response(response)
 
     save_state("topic", [e.id for e in entries], config)

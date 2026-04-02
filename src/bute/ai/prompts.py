@@ -24,42 +24,85 @@ def topic_prompt(name: str) -> str:
 
 The user is asking about the topic: "{name}"
 
-Synthesize across all three dimensions:
-1. **Heart**: What do they feel about this? What emotions or motivations surface?
-2. **Mind**: What do they know? What research, notes, or ideas exist?
-3. **Body**: What have they done or need to do? What tasks are active, done, or stalled?
+Synthesize across all three dimensions using this exact format:
 
-Then identify:
-- Connections between dimensions (feelings driving tasks, knowledge gaps blocking progress)
-- Gaps (tasks without research, feelings without reflection, knowledge without action)
-- One key insight or suggestion"""
+Heart
+- bullet point (what they feel, emotions, motivations)
+
+Mind
+- bullet point (what they know, research, notes, ideas)
+
+Body
+- bullet point (what they've done or need to do, tasks active/done/stalled)
+
+Connections
+- bullet point (feelings driving tasks, knowledge gaps blocking progress)
+
+Gaps
+- bullet point (tasks without research, feelings without reflection, etc.)
+
+Key Insight
+- one concrete suggestion or observation
+
+Rules:
+- Use plain section titles on their own line (no bold, no markdown, no numbering, no colons)
+- Use "- " bullet points under each section (2-4 bullets max)
+- Keep each bullet to one concise sentence
+- Be specific — reference actual entry content"""
 
 
 def review_prompt(period: str) -> str:
     return f"""{SYSTEM_BASE}
 
-Review the user's {period}. Produce a concise summary:
+Review the user's {period}. Produce a concise summary using this exact format:
 
-1. **Accomplishments**: What got done? What moved forward?
-2. **Sentiment**: How did they feel overall? Any emotional patterns?
-3. **Patterns**: What topics, tags, or themes recurred?
-4. **Stalled**: What was selected but not acted on? What carried over repeatedly?
-5. **Lessons**: What can be learned? One key takeaway.
-6. **Next {period}**: One suggestion for focus."""
+Accomplishments
+- bullet point (what got done, what moved forward)
+- bullet point
+
+Sentiment
+- bullet point (how they felt, emotional patterns)
+
+Patterns
+- bullet point (recurring topics, tags, themes)
+
+Stalled
+- bullet point (selected but not acted on, carried over)
+
+Lessons
+- bullet point (one key takeaway)
+
+Next {period}
+- bullet point (one suggestion for focus)
+
+Rules:
+- Use plain section titles on their own line (no bold, no markdown, no numbering, no colons)
+- Use "- " bullet points under each section (2-4 bullets max per section)
+- Keep each bullet to one concise sentence
+- Be specific — reference actual entry content
+- Skip a section entirely if there's nothing meaningful to say about it"""
 
 
 def nudges_prompt() -> str:
     return f"""{SYSTEM_BASE}
 
-Analyze the user's recent entries and generate 3-5 actionable nudges. Types:
+Analyze the user's recent entries and generate 3-5 actionable nudges using this exact format:
 
-- **Migration**: Tasks carried forward too long without action
-- **Pattern**: Recurring journal themes with no corresponding tasks
-- **Connection**: Related entries across dimensions the user might not see
-- **Gap**: Projects with tasks but no research, or vice versa
-- **Focus**: Tasks selected weekly but journal shows resistance or dread
+Nudges
+- one clear sentence per nudge (reference actual entry content)
+- another nudge
+- another nudge
 
-Format each nudge as a single clear sentence. Be specific — reference actual entry content."""
+Types to look for:
+Migration (tasks carried forward too long), Pattern (recurring themes with no tasks),
+Connection (related entries across dimensions), Gap (tasks without research or vice versa),
+Focus (tasks selected weekly but journal shows resistance).
+
+Rules:
+- Use "- " bullet points, one nudge per line
+- Keep each to one concise, specific sentence
+- No section titles per nudge type — just a flat list under "Nudges"
+- No bold, no markdown, no numbering"""
 
 
 def analyze_prompt() -> str:

@@ -38,4 +38,5 @@ def nudges_cmd(ctx, days):
     response = llm_send_with_entries(
         nudges_prompt(), entries, "Generate nudges", config
     )
-    console.print(f"\n{response}")
+    from bute.display import display_ai_response
+    display_ai_response(response)

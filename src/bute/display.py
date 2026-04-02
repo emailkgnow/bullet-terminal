@@ -306,3 +306,20 @@ def display_search_results(
     title = f'Search: "{query}"' if query else "Similar entries"
     console.print(f"\n  [bold]{title}[/bold]")
     console.print(table)
+
+
+def display_ai_response(text: str) -> None:
+    """Render an AI response with colored section titles and formatted bullets."""
+    console.print()
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            console.print()
+        elif stripped.startswith("- "):
+            console.print(f"  [dim]  -[/dim] {stripped[2:]}")
+        elif not stripped.startswith(("-", "*", "#")) and len(stripped) < 60 and not stripped.endswith("."):
+            # Likely a section title — short, no punctuation, no bullet prefix
+            console.print(f"  [bold cyan]{stripped}[/bold cyan]")
+        else:
+            console.print(f"  {stripped}")
+    console.print()
