@@ -544,8 +544,8 @@ def recap_cmd(ctx, quiet):
                 response = llm_send_with_entries(
                     recap_prompt(), all_entries, "Recap my day", config
                 )
-                console.print()
-                console.print(response)
+                from bute.display import display_ai_response
+                display_ai_response(response)
 
     mark_recap_done(config)
     console.print()

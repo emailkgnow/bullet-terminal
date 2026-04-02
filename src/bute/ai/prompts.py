@@ -141,14 +141,25 @@ Output only the numbered task list, nothing else."""
 def recap_prompt() -> str:
     return f"""{SYSTEM_BASE}
 
-The user is reviewing their day. Produce a coaching-style summary in 3-5 sentences:
+The user is reviewing their day. Produce a coaching-style summary using this exact format:
 
-1. Acknowledge what they accomplished — be specific, reference actual entries
-2. Note what's carrying forward without judgment
-3. Identify patterns (recurring tags, themes, type balance)
-4. End with one concrete, light suggestion for tomorrow
+Today
+- bullet point (what they accomplished, be specific)
+- bullet point
 
-Tone: warm coach, not a corporate report. Direct, not cheesy. No bullet points — flowing prose."""
+Carrying Forward
+- bullet point (what's still open, no judgment)
+
+Tomorrow
+- one concrete, light suggestion for focus
+
+Rules:
+- Use plain section titles on their own line (no bold, no markdown, no numbering, no colons)
+- Use "- " bullet points under each section (2-3 bullets max)
+- Keep each bullet to one concise sentence
+- Tone: warm coach, not corporate report. Direct, not cheesy.
+- Be specific — reference actual entry content
+- Skip a section if there's nothing meaningful to say"""
 
 
 def format_entries(entries: list[Entry]) -> str:
