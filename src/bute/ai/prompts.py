@@ -116,13 +116,28 @@ The user has tagged entries for a topic. Each entry has a type indicator and sta
   [done] = completed, [dropped] = consciously removed, [active] = still open
   ! = important
 
-Cluster these entries into coherent themes. For each theme:
-- Give it a clear, concise name
-- List the entries that belong to it
-- Briefly note connections or tensions between entries
+Cluster these entries into a text mind map. Format:
 
-Be faithful to the original entries — don't add, remove, or rephrase.
-Organize what's there. Use the entry types and statuses as context (done tasks show progress, journals reveal feelings, notes are facts, active tasks are intentions)."""
+Tag Name
+├── Theme A
+│   ├── entry text (type indicator)
+│   ├── entry text (type indicator)
+│   └── entry text (type indicator)
+├── Theme B
+│   ├── entry text (type indicator)
+│   └── entry text (type indicator)
+└── Tensions / Gaps
+    ├── observation about what's missing or conflicting
+    └── observation
+
+Rules:
+- Use box-drawing characters (├── └── │) for the tree structure
+- Theme names should be clear and concise
+- Each leaf is an actual entry — don't add, remove, or rephrase
+- Include the type indicator after each entry: (task), (note), (journal), (event)
+- Add [done] or [dropped] for non-active entries
+- The final branch is Tensions / Gaps — connections, contradictions, or missing pieces
+- Use the entry types and statuses as context (done tasks show progress, journals reveal feelings, notes are facts, active tasks are intentions)"""
 
 
 def execute_prompt() -> str:
