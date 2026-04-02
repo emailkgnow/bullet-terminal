@@ -258,14 +258,14 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
         entries = load_entries_by_date(d, config)
         for e in entries:
             if e.type == EntryType.JOURNAL:
-                lines_by_day.setdefault(day_num, []).append(f"= {e.body}")
+                lines_by_day.setdefault(day_num, []).append(f"[magenta]=[/magenta] {e.body}")
             elif e.type == EntryType.CALENDAR:
                 # Calendar events appear on their scheduled date, or creation date if no date set
                 event_day = e.scheduled_date.day if e.scheduled_date else day_num
                 if e.scheduled_date and (e.scheduled_date.year != target.year or e.scheduled_date.month != target.month):
                     continue  # scheduled for a different month
                 time_str = f" {format_time_display(e.scheduled_time)}" if e.scheduled_time else ""
-                lines_by_day.setdefault(event_day, []).append(f"o{time_str} {e.body}")
+                lines_by_day.setdefault(event_day, []).append(f"[green]o[/green][dim]{time_str}[/dim] {e.body}")
 
     # Calendar events scheduled in this month but created in a different month
     from bute.storage import query_and_load
@@ -280,7 +280,7 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
     for e in scheduled_events:
         day_num = e.scheduled_date.day
         time_str = f" {format_time_display(e.scheduled_time)}" if e.scheduled_time else ""
-        lines_by_day.setdefault(day_num, []).append(f"o{time_str} {e.body}")
+        lines_by_day.setdefault(day_num, []).append(f"[green]o[/green][dim]{time_str}[/dim] {e.body}")
 
     return lines_by_day
 
