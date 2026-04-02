@@ -87,6 +87,25 @@ class TestConnection:
         ).fetchone()
         assert row is not None
 
+    def test_tag_stages_table_exists(self):
+        """tag_stages table should be created by ensure_schema."""
+        db = get_connection()
+        db.execute(
+            "INSERT INTO tag_stages (tag, stage) VALUES (?, ?)",
+            ("test-tag", "raw"),
+        )
+        db.commit()
+        row = db.execute(
+            "SELECT tag, stage, analysis, tasks_text, analyzed_at, executed_at "
+            "FROM tag_stages WHERE tag = ?",
+            ("test-tag",),
+        ).fetchone()
+        assert row is not None
+        assert row[0] == "test-tag"
+        assert row[1] == "raw"
+        assert row[2] is None
+        assert row[3] is None
+
     def test_indexes_exist(self):
         conn = get_connection()
         names = {

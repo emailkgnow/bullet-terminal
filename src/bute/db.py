@@ -100,6 +100,15 @@ def ensure_schema(db: sqlite3.Connection) -> None:
             entry_id UNINDEXED,
             body
         );
+
+        CREATE TABLE IF NOT EXISTS tag_stages (
+            tag         TEXT PRIMARY KEY,
+            stage       TEXT NOT NULL DEFAULT 'raw',
+            analysis    TEXT,
+            tasks_text  TEXT,
+            analyzed_at TEXT,
+            executed_at TEXT
+        );
     """)
     # vec0 is optional — only create if sqlite-vec is loaded
     try:
