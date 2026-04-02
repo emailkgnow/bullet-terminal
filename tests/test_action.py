@@ -185,3 +185,20 @@ def test_batch_action(runner, tmp_config, tmp_data):
 
     assert load_entry(entry_path_from_id(e1.id)).status == TaskStatus.DONE
     assert load_entry(entry_path_from_id(e2.id)).status == TaskStatus.DONE
+
+
+def test_handle_delete_removes_from_db(tmp_data):
+    from bute.commands.action import handle_delete
+    from bute.db import close, get_connection
+
+    entry = Entry.create(EntryType.TASK, "to delete")
+    save_entry(entry)
+
+    handle_delete(entry, [], None)
+
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT entry_id FROM entries WHERE entry_id = ?", (entry.id,)
+    ).fetchone()
+    assert row is None
+    close()

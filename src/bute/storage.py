@@ -27,6 +27,17 @@ def save_entry(entry: Entry, config=None) -> Path:
         **entry.to_frontmatter_dict(),
     )
     path.write_text(frontmatter.dumps(post))
+
+    # Write-through to SQLite index
+    try:
+        from bute.db import upsert_entry
+        upsert_entry(entry, config)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).debug(
+            "Index write failed for %s", entry.id[:8], exc_info=True
+        )
+
     return path
 
 
@@ -95,6 +106,33 @@ def load_entries_by_filter(
             if predicate(entry):
                 entries.append(entry)
     return sorted(entries, key=lambda e: e.created, reverse=True)
+
+
+def query_and_load(config=None, sort_key=None, reverse=False, **kwargs) -> list[Entry]:
+    """Query the SQLite index and load matched entries from .md files.
+
+    Falls back to load_entries_by_filter if the DB is unavailable.
+    Keyword args are passed to db.query_entries().
+    """
+    try:
+        from bute.db import query_entries
+        results = query_entries(config=config, **kwargs)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).debug("DB query failed, falling back to file scan", exc_info=True)
+        return load_entries_by_filter(lambda e: True, config)
+
+    entries = []
+    for entry_id, _ in results:
+        path = entry_path_from_id(entry_id, config)
+        if path:
+            try:
+                entries.append(load_entry(path))
+            except Exception:
+                continue
+    if sort_key:
+        entries.sort(key=sort_key, reverse=reverse)
+    return entries
 
 
 def entry_path_from_id(entry_id: str, config=None) -> Path | None:

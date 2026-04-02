@@ -42,7 +42,9 @@ def tmp_config(tmp_path, monkeypatch):
 
 @pytest.fixture
 def tmp_data(tmp_path, monkeypatch):
-    """Redirect data directory to a temp directory."""
+    """Redirect data directory to a temp directory and reset DB connection after."""
     data_dir = tmp_path / "dwn"
     monkeypatch.setattr("bute.config.DATA_DIR_DEFAULT", data_dir)
-    return data_dir
+    yield data_dir
+    from bute.db import close
+    close()

@@ -64,13 +64,18 @@ def handle_drop(entry: Entry, args: list[str], config) -> None:
 
 
 def handle_delete(entry: Entry, args: list[str], config) -> None:
-    """Permanently delete an entry from disk and vector DB."""
+    """Permanently delete an entry from disk, vector DB, and index."""
     path = entry_path_from_id(entry.id, config)
     if path and path.exists():
         path.unlink()
     from bute.ai.vectors import is_available, delete as vec_delete
     if is_available():
         vec_delete(entry.id, config)
+    try:
+        from bute.db import delete_entry
+        delete_entry(entry.id, config)
+    except Exception:
+        pass
 
 
 def handle_toggle_important(entry: Entry, args: list[str], config) -> None:

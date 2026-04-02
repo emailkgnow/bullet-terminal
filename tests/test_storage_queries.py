@@ -7,6 +7,7 @@ from bute.storage import (
     entry_path_from_id,
     load_entries_by_date,
     load_entries_by_filter,
+    query_and_load,
     save_entry,
     update_entry,
 )
@@ -72,3 +73,37 @@ def test_entry_path_from_id_found(tmp_data):
 def test_entry_path_from_id_not_found(tmp_data):
     path = entry_path_from_id("01AAAAAAAAAAAAAAAAAAAAAAAA")
     assert path is None
+
+
+def test_query_and_load_by_type(populated_data):
+    from bute.db import close
+    entries = query_and_load(type="task", status="active")
+    assert len(entries) == 2
+    assert all(e.type == EntryType.TASK for e in entries)
+    close()
+
+
+def test_query_and_load_by_tag(populated_data):
+    from bute.db import close
+    entries = query_and_load(tag="backend")
+    assert len(entries) == 1
+    assert entries[0].body == "fix bug"
+    close()
+
+
+def test_query_and_load_returns_full_entries(populated_data):
+    from bute.db import close
+    entries = query_and_load(type="task", status="active")
+    for e in entries:
+        assert e.id is not None
+        assert e.body is not None
+        assert e.created is not None
+        assert isinstance(e.type, EntryType)
+    close()
+
+
+def test_query_and_load_empty(tmp_data):
+    from bute.db import close
+    entries = query_and_load(type="task")
+    assert entries == []
+    close()

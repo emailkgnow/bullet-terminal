@@ -92,3 +92,37 @@ def test_roundtrip_journal(tmp_data):
     loaded = load_entry(path)
     assert loaded.type == EntryType.JOURNAL
     assert loaded.body == "rough morning"
+
+
+def test_save_entry_writes_to_db(tmp_data):
+    from bute.db import close, get_connection
+
+    entry = Entry.create(EntryType.TASK, "test write-through")
+    save_entry(entry)
+
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT body FROM entries WHERE entry_id = ?", (entry.id,)
+    ).fetchone()
+    assert row is not None
+    assert row[0] == "test write-through"
+    close()
+
+
+def test_update_entry_updates_db(tmp_data):
+    from bute.db import close, get_connection
+    from bute.storage import update_entry
+
+    entry = Entry.create(EntryType.TASK, "original")
+    save_entry(entry)
+    entry.body = "updated"
+    entry.status = TaskStatus.DONE
+    update_entry(entry)
+
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT body, status FROM entries WHERE entry_id = ?", (entry.id,)
+    ).fetchone()
+    assert row[0] == "updated"
+    assert row[1] == "done"
+    close()
