@@ -158,7 +158,9 @@ def tag_filter_cmd(ctx, tag):
 @click.command("tags")
 @click.pass_context
 def tags_cmd(ctx):
-    """List all tags with entry counts."""
+    """List all tags with entry counts and processing stage."""
+    from bute.db import get_all_tag_stages
+
     config = ctx.obj.get("config")
 
     entries = query_and_load(config, has_tags=True)
@@ -172,6 +174,9 @@ def tags_cmd(ctx):
         console.print("  [dim]No tags found.[/dim]")
         return
 
+    stages = {s["tag"]: s["stage"] for s in get_all_tag_stages(config)}
+    stage_colors = {"raw": "dim", "analyzed": "yellow", "executed": "green"}
+
     table = Table(
         title="Tags",
         title_style="bold",
@@ -183,10 +188,13 @@ def tags_cmd(ctx):
         expand=True,
     )
     table.add_column("Tag", ratio=1)
+    table.add_column("Stage")
     table.add_column("#", justify="right", width=5)
 
     for tag, count in sorted(counts.items(), key=lambda x: x[1], reverse=True):
-        table.add_row(f"@{tag}", str(count))
+        stage = stages.get(tag, "raw")
+        color = stage_colors.get(stage, "dim")
+        table.add_row(f"@{tag}", f"[{color}]{stage}[/{color}]", str(count))
 
     console.print()
     console.print(table)

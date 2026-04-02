@@ -108,6 +108,22 @@ def test_execute_analyzed_tag(runner, tmp_config, tmp_data):
     assert stage["stage"] == "executed"
 
 
+def test_tags_list_shows_stage(runner, tmp_config, tmp_data):
+    """bt tags should show stage column with colors."""
+    from bute.db import upsert_tag_stage
+
+    _setup(tmp_config, tmp_data)
+    _create_tagged_entries("home-reno")
+
+    # Directly set stage in DB (avoids dependency on analyze command)
+    upsert_tag_stage("home-reno", "analyzed", analysis="Theme A\n- items")
+
+    result = runner.invoke(main, ["tags"])
+    assert result.exit_code == 0
+    assert "home-reno" in result.output
+    assert "analyzed" in result.output
+
+
 def test_execute_raw_tag_analyzes_first(runner, tmp_config, tmp_data):
     """Execute on un-analyzed tag should run analyze first."""
     _setup(tmp_config, tmp_data)
