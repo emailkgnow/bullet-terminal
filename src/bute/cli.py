@@ -108,11 +108,23 @@ class DwnGroup(click.Group):
             if cmd is not None:
                 return "important", cmd, rest
 
-        # 5. Tag filter — @tagname
+        # 5. Tag filter — @tagname [subcommand]
         if first.startswith("@") and len(first) > 1:
-            cmd = self.get_command(ctx, "tag_filter")
-            if cmd is not None:
-                return "tag_filter", cmd, [first[1:]]
+            tag_name = first[1:]
+            subcommand = rest[0] if rest else None
+
+            if subcommand == "analyze":
+                cmd = self.get_command(ctx, "analyze_tag")
+                if cmd is not None:
+                    return "analyze_tag", cmd, [tag_name]
+            elif subcommand == "execute":
+                cmd = self.get_command(ctx, "execute_tag")
+                if cmd is not None:
+                    return "execute_tag", cmd, [tag_name]
+            else:
+                cmd = self.get_command(ctx, "tag_filter")
+                if cmd is not None:
+                    return "tag_filter", cmd, [tag_name]
 
         # 6. Collection — +name [subcommand]
         if first.startswith("+") and len(first) > 1:
@@ -363,6 +375,7 @@ from bute.commands.collections import (  # noqa: E402
     execute_collection_cmd,
     view_collection_cmd,
 )
+from bute.commands.tags import analyze_tag_cmd, execute_tag_cmd  # noqa: E402
 
 main.add_command(init_cmd)
 main.add_command(start_cmd)
@@ -399,3 +412,5 @@ main.add_command(analyze_collection_cmd)
 main.add_command(execute_collection_cmd)
 main.add_command(view_collection_cmd)
 main.add_command(collections_list_cmd)
+main.add_command(analyze_tag_cmd)
+main.add_command(execute_tag_cmd)
