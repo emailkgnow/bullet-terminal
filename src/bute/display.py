@@ -95,14 +95,8 @@ def _build_entry_row(i: int, entry: Entry) -> tuple[str, Text, Text, str]:
         meta_parts.append(f"due:{entry.due}")
     if entry.scheduled_time:
         meta_parts.append(format_time_display(entry.scheduled_time))
-    # Show +collection if present (before tags, to distinguish)
-    collection = entry.extra_meta.get("collection")
-    if collection:
-        meta_parts.append(f"+{collection}")
     if entry.tags:
-        # Skip the collection tag in @tags since it's shown as +collection
-        collection_tag = collection.lower().replace(" ", "-") if collection else None
-        meta_parts.extend(f"@{t}" for t in entry.tags if t != collection_tag)
+        meta_parts.extend(f"@{t}" for t in entry.tags)
     meta = " ".join(meta_parts)
 
     return str(i), icon, body, meta
