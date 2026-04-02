@@ -118,6 +118,11 @@ bute n / j / c      # notes / journals / calendar (grouped by date)
 bute l              # line log (monthly overview)
 bute ls             # today's daily log
 bute @tagname       # cross-dimension tag filter
+bute !              # all important entries
+bute t!             # important tasks (also: n!, j!, c!)
+bute find <keyword> # keyword search in body + tags (-t -n -j -c to filter)
+bute search <query> # semantic search (AI embeddings)
+bute similar <n>    # entries similar to #n
 ```
 
 **Actions** — number + command:
@@ -151,6 +156,14 @@ bute dyts           # morning ritual (Dump, Yesterday, Tasks, Schedule)
 bute plan           # dump tasks + select for the week
 bute recap          # end-of-day summary (-q to skip AI)
 bute habit <name>   # track habits
+bute streak         # habit streaks and 30-day stats
+```
+
+**System**:
+```
+bute export         # zip backup of all data to cwd (-o path)
+bute rebuild        # rebuild search index from .md files
+bute init           # first-run setup (pick AI provider)
 ```
 
 ## Design Decisions
