@@ -188,7 +188,6 @@ def _print_help():
     console.print("    Add [bold]@tag[/bold] and [bold]key:value[/bold]: [dim]bt t fix bug @backend due:tomorrow[/dim]")
     console.print("    Calendar keys: [dim]t:HHMM (time)  d:MMDD (date)  — bt c meeting t:1430 d:0330[/dim]")
     console.print("    Just the signifier, no text: [dim]bt t → interactive prompt (no shell quoting)[/dim]")
-    console.print("    Add [bold]+collection[/bold] to collect: [dim]bt t fix faucet +home-reno[/dim]")
     console.print("    [dim]Tasks auto-get @thisweek (focus). Use -l/--later for backlog only.[/dim]")
     console.print()
 
@@ -204,7 +203,7 @@ def _print_help():
     console.print("    [bold]bt due[/bold]              Tasks by deadline ([dim]bt due all[/dim] for all)")
     console.print("    [bold]bt active[/bold]          This week's selected tasks")
     console.print("    [bold]bt week[/bold] [last]     Weekly spread — all entries Mon-Sun")
-    console.print("    [bold]bt tags[/bold]            List all tags with entry counts")
+    console.print("    [bold]bt tags[/bold]            List all tags with entry counts and stage")
     console.print("    [bold]bt ![/bold]               All important entries")
     console.print("    [bold]bt t![/bold]              Important tasks ([dim]also: n!, j!, c!, task!, .![/dim])")
     console.print("    [bold]bt @tagname[/bold]        Filter by tag across all dimensions")
@@ -254,13 +253,10 @@ def _print_help():
     console.print("    [bold]bt nudges[/bold]            AI-generated actionable suggestions")
     console.print()
 
-    # Collections
-    console.print("  [bold cyan]Collections[/bold cyan] — ideas to action")
-    console.print("    [bold]bt +[/bold]<name>                View collection (full trail)")
-    console.print("    [bold]bt +[/bold]<name> [bold]analyze[/bold]     AI clusters and organizes")
-    console.print("    [bold]bt +[/bold]<name> [bold]execute[/bold]     AI generates sequenced tasks")
-    console.print("    [bold]bt collections[/bold]           List all collections")
-    console.print("    Capture to collection: [dim]bt t fix faucet +home-reno[/dim]")
+    # Tag Processing
+    console.print("  [bold cyan]Tag Processing[/bold cyan] — ideas to action")
+    console.print("    [bold]bt @[/bold]<name> [bold]analyze[/bold]     AI clusters and organizes tagged entries")
+    console.print("    [bold]bt @[/bold]<name> [bold]execute[/bold]     AI generates sequenced tasks from analysis")
     console.print()
 
     # System
