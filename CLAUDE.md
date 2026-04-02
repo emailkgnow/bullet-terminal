@@ -200,6 +200,9 @@ bute init           # first-run setup (pick AI provider)
 - ~~`bt find <keyword>`~~ ✓ Done — FTS5 body search + tag search, deduped. Flags: `-t` (tasks), `-n` (notes), `-j` (journals), `-c` (calendar). No flag = search all types.
 - ~~`bt export`~~ ✓ Done — exports entries, collections, habits as `bullet-terminal-markdown-YYYY-MM-DD.zip` with README. `-o <path>` for custom output. Counter suffix for same-day duplicates.
 
+### Collections
+- **Mindmap output for `bt +collection analyze`** — after AI clusters and organizes a collection, render or export a mindmap visualization of the themes and their items. Could be ASCII art in the terminal, or generate a Mermaid/Markmap diagram that opens in a browser. Gives the user a spatial view of how their ideas relate before deciding to execute.
+
 ### Infrastructure
 - **AI agent as mobile interface** — bt's CLI grammar is already agent-friendly. Via Claude desktop/mobile + MCP or remote dispatch, natural language commands can route to bt on the local machine. No mobile app, no REST API, no cloud sync needed — the AI agent is the frontend.
 - Add meaningful AI features
