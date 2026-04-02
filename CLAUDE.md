@@ -29,19 +29,17 @@ uv build
 
 ### CLI Dispatch (cli.py — ButeGroup)
 
-Custom Click group with 7-layer routing in `resolve_command()`:
+Custom Click group with 6-layer routing in `resolve_command()`:
 
-1. **Named commands** — standard Click (ls, dyts, plan, tasks, notes, collections, etc.)
+1. **Named commands** — standard Click (ls, dp, tasks, notes, tags, etc.)
 2. **Letter shortcut** — `l` → linelog
 3. **Signifiers** — `t`, `n`, `j`, `c` (or full words: `task`, `note`, `journal`, `cal`)
    - With text → **capture** (`bute t call dentist`)
-   - With text + `+collection` → **collection capture** (`bute t fix faucet +home-reno`)
    - Without text → **view** (`bute t` → show Task Log)
    - With only `@tag` → **filtered view** (`bute t @backend`)
-4. **Tag filter** — `@tagname` → cross-dimension filter
-5. **Collection** — `+name` → view, `+name analyze` → AI analyze, `+name execute` → AI execute
-6. **Number-action** — `1 done`, `2 3 drop` → action dispatch
-7. **Fallback** — Click error
+4. **Tag filter** — `@tagname` → cross-dimension filter, `@tagname analyze` → AI analyze, `@tagname execute` → AI execute
+5. **Number-action** — `1 done`, `2 3 drop` → action dispatch
+6. **Fallback** — Click error
 
 ### Data Model
 
@@ -49,16 +47,14 @@ Custom Click group with 7-layer routing in `resolve_command()`:
 - **Task statuses**: `active`, `done`, `dropped` (no `migrated` — removed by design)
 - **IDs**: ULID (time-sortable, 26 chars)
 - **Storage**: one `.md` file per entry at `~/bute/entries/YYYY-MM/<ULID>.md`
-- **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter
-- **Collections**: `+collection` syntax in CLI, stored as sectioned `.md` files at `~/bute/collections/`
+- **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter. Tags have a dual role: organizing entries (label) and processing groups via AI (analyze/execute). Stage tracking in `tag_stages` SQLite table.
 
 ### Data Flow
 
 ```
 User input → DwnGroup.resolve_command() → capture.py
-  → parser.py:parse_capture_tokens() — extracts signifier, body, key:value, @tags, +collection
-  → If +collection: append to collection_storage → confirm "Added to +name"
-  → Else: models.py:Entry.create() → storage.py:save_entry() → embed → confirm_capture()
+  → parser.py:parse_capture_tokens() — extracts signifier, body, key:value, @tags
+  → models.py:Entry.create() → storage.py:save_entry() → embed → confirm_capture()
 ```
 
 ### State Management
@@ -80,8 +76,7 @@ User input → DwnGroup.resolve_command() → capture.py
 | `ai/vectors.py` | sqlite-vec wrapper (upsert, search, delete) |
 | `ai/embeddings.py` | fastembed wrapper, lazy model loading |
 | `ai/prompts.py` | Prompt templates for AI features |
-| `commands/collections.py` | Collection view, analyze, execute, list commands |
-| `collection_storage.py` | Collection file I/O, sectioned Markdown (Input/Analysis/Tasks) |
+| `commands/tags.py` | Tag processing: analyze (AI clusters entries), execute (AI generates tasks) |
 
 ### AI Architecture
 
@@ -90,7 +85,7 @@ Three independent capability tiers — each degrades gracefully:
 2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bute rebuild`
 3. **LLM** (remote) — OpenAI-compatible API, provider-agnostic. API key via config or macOS Keychain
 
-AI is used for: `topic`, `review`, `nudges`, collection processing (`analyze`, `execute`). Core capture/view/action loop works without AI.
+AI is used for: `topic`, `review`, `nudges`, tag processing (`@tag analyze`, `@tag execute`). Core capture/view/action loop works without AI.
 
 ## CLI Grammar (Current)
 
@@ -139,14 +134,11 @@ bute undo           # undo last action
 bute 3 undo         # undo last action on entry 3
 ```
 
-**Collections** — ideas to action:
+**Tag Processing** — ideas to action:
 ```
-bute t fix faucet +home-reno        # add task to collection
-bute n kitchen is 12x15 +home-reno  # add note to collection
-bute +home-reno                     # view collection (full trail)
-bute +home-reno analyze             # AI clusters and organizes
-bute +home-reno execute             # AI generates sequenced tasks
-bute collections                    # list all collections
+bute @home-reno analyze             # AI clusters and organizes tagged entries
+bute @home-reno execute             # AI generates sequenced tasks from analysis
+bute tags                           # list all tags with stage and count
 ```
 
 **Rituals**:
@@ -169,8 +161,7 @@ bute init           # first-run setup (pick AI provider)
 ## Design Decisions
 
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. DYTS Y phase handles yesterday's unfinished items.
-- **Tags use `@`, collections use `+`** — `@backend` = flat label, `+home-reno` = collection funnel. Tags organize, collections process.
-- **Collections replace FFFF** — `+collection` capture syntax, two AI stages (analyze, execute) instead of four (find/form/focus/finish). Collections are super notes (analyzed) or super tasks (executed). Items live only in the collection until Execute generates real entries.
+- **Tags have a dual role** — `@tag` as label (organizes entries) and `@tag` as goal (`analyze`/`execute` processes the group via AI). The `+collection` syntax was removed — tags absorbed collections. Stage tracking (raw → analyzed → executed) lives in the `tag_stages` SQLite table.
 - **Linelog is derived** — no stored file, computed from journal + calendar entries. No AI compression.
 - **`bute` with no args** = DYTS entry point. If DYTS done today, shows daily log.
 - **Daily log (`bute ls`)** shows only: `@today` tasks, today's calendar events, all today's journals and notes. Other tasks stay in Task Log (`bute t`).
@@ -191,19 +182,21 @@ bute init           # first-run setup (pick AI provider)
 - ~~`bt streak`~~ Done — 7-day grid, current streak count, 30-day completion rate.
 - ~~`bt reflect`~~ Done as `bt recap` — end-of-day summary with structured display + AI coaching narrative.
 - ~~`bt week`~~ Done — weekly spread across all dimensions, Mon-Sun. `bt week last` for previous week.
-- ~~**Notes as reference layer**~~ Partially addressed by collections — `+collection` with notes creates "super notes" (analyzed collections). Full PKM features (pinned notes, AI recall, linked references) remain future work.
+- ~~**Notes as reference layer**~~ Partially addressed by tag processing — `@tag analyze` clusters tagged notes. Full PKM features (pinned notes, AI recall, linked references) remain future work.
 
 ### Commands — Nice to Have
+- **Title lines for long-form notes** — when a note body is long (multi-line or beyond a threshold), auto-extract or prompt for a title line. Gives notes a scannable heading in list views instead of truncating the first line of a wall of text.
 - `bt overdue` — shortcut for past-due tasks only. Quick "what am I behind on" accountability view.
 - `bt move <n> due:friday` — update metadata fields without replacing body. Like `mod` but for due dates, tags, times.
 - `bt stats` — personal analytics: done/dropped ratio, busiest days, most-used tags, capture frequency. Data is all in the markdown files.
 - ~~`bt find <keyword>`~~ ✓ Done — FTS5 body search + tag search, deduped. Flags: `-t` (tasks), `-n` (notes), `-j` (journals), `-c` (calendar). No flag = search all types.
 - ~~`bt export`~~ ✓ Done — exports entries, collections, habits as `bullet-terminal-markdown-YYYY-MM-DD.zip` with README. `-o <path>` for custom output. Counter suffix for same-day duplicates.
 
-### Collections
-- **Mindmap output for `bt +collection analyze`** — after AI clusters and organizes a collection, render or export a mindmap visualization of the themes and their items. Could be ASCII art in the terminal, or generate a Mermaid/Markmap diagram that opens in a browser. Gives the user a spatial view of how their ideas relate before deciding to execute.
+### Tag Processing
+- **Mindmap output for `bt @tag analyze`** — after AI clusters and organizes tagged entries, render or export a mindmap visualization of the themes and their items. Could be ASCII art in the terminal, or generate a Mermaid/Markmap diagram that opens in a browser. Gives the user a spatial view of how their ideas relate before deciding to execute.
 
 ### Infrastructure
+- **`bt this` — capture Claude Code chat into bt** — add a Claude Code hook or slash command so `bt this` saves the current conversation's markdown export as a bt note. Turns ephemeral AI chats into searchable, tagged entries in the bt system.
 - **AI agent as mobile interface** — bt's CLI grammar is already agent-friendly. Via Claude desktop/mobile + MCP or remote dispatch, natural language commands can route to bt on the local machine. No mobile app, no REST API, no cloud sync needed — the AI agent is the frontend.
 - Add meaningful AI features
 - ~~SQLite index for structured queries~~ In progress — see `docs/superpowers/specs/2026-04-02-sqlite-index-design.md`. Metadata + FTS5 + vectors in one DB, write-through sync, auto-rebuild.
