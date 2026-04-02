@@ -208,7 +208,7 @@ def query_entries(
         params.append(status)
 
     if exclude_status is not None:
-        conditions.append("status != ?")
+        conditions.append("(status IS NULL OR status != ?)")
         params.append(exclude_status)
 
     if important is not None:
@@ -236,7 +236,7 @@ def query_entries(
         params.append(due_on)
 
     if due_before is not None:
-        conditions.append("due < ?")
+        conditions.append("due <= ?")
         params.append(due_before)
 
     if has_due:

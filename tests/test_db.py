@@ -307,6 +307,14 @@ class TestQueryEntries:
         results = query_entries(type="task", exclude_status="done")
         assert self._ids(results) == {self.t1.id, self.t3.id}
 
+    def test_exclude_status_preserves_null_status_entries(self):
+        """Notes/journals have NULL status — exclude_status must not drop them."""
+        results = query_entries(exclude_status="dropped")
+        ids = self._ids(results)
+        # n1 (note) and j1 (journal) have NULL status, must survive
+        assert self.n1.id in ids
+        assert self.j1.id in ids
+
     def test_filter_by_important(self):
         results = query_entries(important=True)
         assert self._ids(results) == {self.t2.id}
@@ -345,6 +353,11 @@ class TestQueryEntries:
     def test_due_before(self):
         results = query_entries(due_before="2026-01-01")
         assert self._ids(results) == {self.t3.id}
+
+    def test_due_before_inclusive(self):
+        """due_before means 'on or before' — boundary date must match."""
+        results = query_entries(due_before="2025-01-01")
+        assert self.t3.id in self._ids(results)
 
     def test_has_tags(self):
         results = query_entries(has_tags=True)
