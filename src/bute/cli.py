@@ -70,7 +70,19 @@ class DwnGroup(click.Group):
                     return "capture", cmd, args
 
             # No text (or only @tag / view flags) → view
+            has_bang = first.endswith("!") or (first.startswith("/") and first.endswith("!"))
             stripped = first.rstrip("!").lstrip("/")
+
+            # Signifier with ! and no text → important filtered view
+            if has_bang and not has_text:
+                cmd = self.get_command(ctx, "important")
+                if cmd is not None:
+                    view_args = [stripped]
+                    for r in rest:
+                        if r in view_flags:
+                            view_args.append(r)
+                    return "important", cmd, view_args
+
             if is_word:
                 view_name = WORD_TO_VIEW.get(stripped)
             elif is_bullet:
@@ -90,13 +102,19 @@ class DwnGroup(click.Group):
                             view_args.append(r)
                     return view_name, cmd, view_args
 
-        # 4. Tag filter — @tagname
+        # 4. Important filter — ! alone
+        if first == "!":
+            cmd = self.get_command(ctx, "important")
+            if cmd is not None:
+                return "important", cmd, rest
+
+        # 5. Tag filter — @tagname
         if first.startswith("@") and len(first) > 1:
             cmd = self.get_command(ctx, "tag_filter")
             if cmd is not None:
                 return "tag_filter", cmd, [first[1:]]
 
-        # 5. Collection — +name [subcommand]
+        # 6. Collection — +name [subcommand]
         if first.startswith("+") and len(first) > 1:
             collection_name = first[1:]
             subcommand = rest[0] if rest else None
@@ -114,7 +132,7 @@ class DwnGroup(click.Group):
                 if cmd is not None:
                     return "view_collection", cmd, [collection_name]
 
-        # 6. Number-action — first token is a digit
+        # 7. Number-action — first token is a digit
         if first.isdigit():
             try:
                 from bute.state import load_state
@@ -158,7 +176,7 @@ class DwnGroup(click.Group):
             if cmd is not None:
                 return "action", cmd, args
 
-        # 6. Unknown — let Click produce the error
+        # 8. Unknown — let Click produce the error
         return super().resolve_command(ctx, args)
 
 
@@ -202,6 +220,8 @@ def _print_help():
     console.print("    [bold]bt active[/bold]          This week's selected tasks")
     console.print("    [bold]bt week[/bold] [last]     Weekly spread — all entries Mon-Sun")
     console.print("    [bold]bt tags[/bold]            List all tags with entry counts")
+    console.print("    [bold]bt ![/bold]               All important entries")
+    console.print("    [bold]bt t![/bold]              Important tasks ([dim]also: n!, j!, c!, task!, .![/dim])")
     console.print("    [bold]bt @tagname[/bold]        Filter by tag across all dimensions")
     console.print("    [bold]bt search[/bold] <query>  Semantic search")
     console.print("    [bold]bt similar[/bold] <n>     Entries similar to #n")
@@ -312,6 +332,7 @@ from bute.commands.views import (  # noqa: E402
     active_cmd,
     calendar_cmd,
     due_cmd,
+    important_cmd,
     journals_cmd,
     ls_cmd,
     notes_cmd,
@@ -352,6 +373,7 @@ main.add_command(journals_cmd)
 main.add_command(calendar_cmd)
 main.add_command(active_cmd)
 main.add_command(tag_filter_cmd)
+main.add_command(important_cmd)
 main.add_command(tags_cmd)
 main.add_command(week_cmd)
 main.add_command(due_cmd)

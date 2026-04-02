@@ -24,12 +24,13 @@ def confirm_capture(entry: Entry) -> None:
     style = TYPE_STYLE[entry.type]
     color = style["color"]
 
-    # Title: icon + type label + optional important flag
+    # Title: optional ! + icon + type label
     title = Text()
-    title.append(f" {style['icon']} ", style=f"bold {color}")
-    title.append(style["label"], style=f"bold {color}")
+    title.append(" ", style=f"bold {color}")
     if entry.important:
-        title.append(" !", style="bold red")
+        title.append("!", style="bold red")
+    title.append(f"{style['icon']} ", style=f"bold {color}")
+    title.append(style["label"], style=f"bold {color}")
     title.append(" ")
 
     # Body
@@ -74,7 +75,12 @@ def _build_entry_row(i: int, entry: Entry) -> tuple[str, Text, Text, str]:
     """Build the common columns for an entry row: (#, icon, body, meta)."""
     style = TYPE_STYLE[entry.type]
 
-    icon = Text(style["icon"], style=style["color"])
+    icon = Text()
+    if entry.important:
+        icon.append("!", style="bold red")
+    else:
+        icon.append(" ")
+    icon.append(style["icon"], style=style["color"])
 
     body = Text()
     if entry.status == TaskStatus.DONE:
@@ -83,8 +89,6 @@ def _build_entry_row(i: int, entry: Entry) -> tuple[str, Text, Text, str]:
         body.append(entry.body, style="dim")
     else:
         body.append(entry.body)
-    if entry.important:
-        body.append(" !", style="bold red")
 
     meta_parts = []
     if entry.due:
@@ -121,7 +125,7 @@ def display_entry_list(entries: list[Entry], title: str = "") -> None:
         expand=True,
     )
     table.add_column("#", style="bold dim", width=3, justify="right")
-    table.add_column("", width=1)  # type icon
+    table.add_column("", width=2)  # type icon (e.g. .!)
     table.add_column("Entry", ratio=1, overflow="fold")
     table.add_column("Meta", style="dim")
 
@@ -162,7 +166,7 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
     )
     table.add_column("Date", style="bold", width=10)
     table.add_column("#", style="bold dim", width=3, justify="right")
-    table.add_column("", width=1)  # type icon
+    table.add_column("", width=2)  # type icon (e.g. .!)
     table.add_column("Entry", ratio=1, overflow="fold")
     table.add_column("Meta", style="dim")
 
@@ -274,18 +278,21 @@ def display_search_results(
         padding=(0, 1),
     )
     table.add_column("#", style="bold dim", width=4, justify="right")
-    table.add_column("", width=1)  # type icon
+    table.add_column("", width=2)  # type icon (e.g. .!)
     table.add_column("", ratio=1)  # body
     table.add_column("", style="dim")  # relevance + tags
 
     for i, (entry, dist) in enumerate(zip(entries, distances), 1):
         style = TYPE_STYLE[entry.type]
-        icon = Text(style["icon"], style=style["color"])
+        icon = Text()
+        if entry.important:
+            icon.append("!", style="bold red")
+        else:
+            icon.append(" ")
+        icon.append(style["icon"], style=style["color"])
 
         body = Text()
         body.append(entry.body)
-        if entry.important:
-            body.append(" !", style="bold red")
 
         # Relevance: lower distance = more similar
         relevance = max(0, 100 - int(dist * 50))

@@ -122,8 +122,8 @@ def format_entries(entries: list[Entry]) -> str:
         date_str = e.created.strftime("%Y-%m-%d")
         tags = " ".join(f"@{t}" for t in e.tags) if e.tags else ""
         status = f" [{e.status.value}]" if e.status else ""
-        important = " !" if e.important else ""
-        line = f"{icon} {date_str}{status}{important} {e.body}"
+        important = "!" if e.important else ""
+        line = f"{important}{icon} {date_str}{status} {e.body}"
         if tags:
             line += f" {tags}"
         lines.append(line)
