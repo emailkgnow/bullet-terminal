@@ -223,6 +223,7 @@ def _print_help():
     console.print("    [bold]bt ![/bold]               All important entries")
     console.print("    [bold]bt t![/bold]              Important tasks ([dim]also: n!, j!, c!, task!, .![/dim])")
     console.print("    [bold]bt @tagname[/bold]        Filter by tag across all dimensions")
+    console.print("    [bold]bt find[/bold] <keyword>  Keyword search in body and tags ([dim]-t -n -j -c[/dim])")
     console.print("    [bold]bt search[/bold] <query>  Semantic search")
     console.print("    [bold]bt similar[/bold] <n>     Entries similar to #n")
     console.print()
@@ -350,7 +351,7 @@ from bute.commands.rituals import (  # noqa: E402
     wp_cmd,
 )
 from bute.commands.habits import habits_cmd, streak_cmd  # noqa: E402
-from bute.commands.search import rebuild_cmd, search_cmd, similar_cmd  # noqa: E402
+from bute.commands.search import find_cmd, rebuild_cmd, search_cmd, similar_cmd  # noqa: E402
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
@@ -386,6 +387,7 @@ main.add_command(wp_cmd)
 main.add_command(recap_cmd)
 main.add_command(review_cmd)
 main.add_command(search_cmd)
+main.add_command(find_cmd)
 main.add_command(similar_cmd)
 main.add_command(rebuild_cmd)
 main.add_command(topic_cmd)

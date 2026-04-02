@@ -101,6 +101,57 @@ def similar_cmd(ctx, number, limit):
     save_state("similar", [e.id for e in entries], config)
 
 
+@click.command("find")
+@click.argument("query", nargs=-1, required=True)
+@click.option("-t", "type_filter", flag_value="task", help="Tasks only.")
+@click.option("-n", "type_filter", flag_value="note", help="Notes only.")
+@click.option("-j", "type_filter", flag_value="journal", help="Journals only.")
+@click.option("-c", "type_filter", flag_value="calendar", help="Calendar only.")
+@click.option("--limit", default=50, help="Max results.")
+@click.pass_context
+def find_cmd(ctx, query, type_filter, limit):
+    """Find entries by keyword in body text and tags."""
+    from bute.db import query_entries, search_text
+    from bute.storage import entry_path_from_id, load_entry
+
+    config = ctx.obj.get("config")
+    query_text = " ".join(query)
+
+    # FTS5 body search
+    body_results = search_text(query_text, type=type_filter, limit=limit, config=config)
+    # Tag search — match entries where any tag contains the query
+    tag_kwargs = {"tag": query_text.lower()}
+    if type_filter:
+        tag_kwargs["type"] = type_filter
+    tag_results = query_entries(config=config, **tag_kwargs)
+
+    # Deduplicate, body matches first
+    seen = set()
+    entries = []
+    for entry_id, _ in body_results:
+        if entry_id not in seen:
+            seen.add(entry_id)
+            path = entry_path_from_id(entry_id, config)
+            if path:
+                entries.append(load_entry(path))
+    for entry_id, _ in tag_results:
+        if entry_id not in seen:
+            seen.add(entry_id)
+            path = entry_path_from_id(entry_id, config)
+            if path:
+                entries.append(load_entry(path))
+
+    entries = entries[:limit]
+
+    if not entries:
+        console.print(f'  [dim]No entries found for "{query_text}".[/dim]')
+        return
+
+    from bute.display import display_entry_list
+    display_entry_list(entries, f'Find: "{query_text}"')
+    save_state("find", [e.id for e in entries], config)
+
+
 @click.command("rebuild")
 @click.pass_context
 def rebuild_cmd(ctx):
