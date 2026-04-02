@@ -20,7 +20,6 @@ WORD_SIGNIFIER_RE = re.compile(r"^(task|note|journal|cal)(!?)$")
 # Key must start with a letter — prevents "1:1" from being parsed as key:value
 KV_RE = re.compile(r"^([a-zA-Z]\w*):(.+)$")
 TAG_RE = re.compile(r"^@([a-zA-Z0-9_-]+)$")
-COLLECTION_RE = re.compile(r"^\+([a-zA-Z0-9_-]+)$")
 
 # Month name abbreviations for date parsing
 MONTH_ABBR = {
@@ -49,7 +48,6 @@ class ParsedInput:
     body_words: list[str] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)
     tags: list[str] = field(default_factory=list)
-    collection: str | None = None
 
     @property
     def body(self) -> str:
@@ -98,18 +96,11 @@ def parse_capture_tokens(tokens: tuple[str, ...] | list[str]) -> ParsedInput:
     body_words = []
     metadata = {}
     tags = []
-    collection = None
 
     for token in tokens[1:]:
         tag_match = TAG_RE.match(token)
         if tag_match:
             tags.append(tag_match.group(1))
-            continue
-
-        collection_match = COLLECTION_RE.match(token)
-        if collection_match:
-            if collection is None:
-                collection = collection_match.group(1)
             continue
 
         kv_match = KV_RE.match(token)
@@ -127,7 +118,6 @@ def parse_capture_tokens(tokens: tuple[str, ...] | list[str]) -> ParsedInput:
         body_words=body_words,
         metadata=metadata,
         tags=tags,
-        collection=collection,
     )
 
 

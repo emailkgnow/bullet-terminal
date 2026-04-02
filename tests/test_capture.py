@@ -65,3 +65,13 @@ def test_capture_multiple_tags(runner, tmp_config, tmp_data):
     content = entries[0].read_text()
     assert "backend" in content
     assert "code-review" in content
+
+
+def test_capture_plus_token_creates_entry(runner, tmp_config, tmp_data):
+    """bt t fix faucet +home-reno should create an entry (not redirect to collection)."""
+    result = runner.invoke(main, ["t", "fix", "faucet", "+home-reno"])
+    assert result.exit_code == 0
+    entries = list(tmp_data.rglob("*.md"))
+    assert len(entries) == 1
+    content = entries[0].read_text()
+    assert "fix faucet +home-reno" in content
