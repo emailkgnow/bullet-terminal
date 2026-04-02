@@ -104,46 +104,21 @@ def similar_cmd(ctx, number, limit):
 @click.command("rebuild")
 @click.pass_context
 def rebuild_cmd(ctx):
-    """Re-embed all entries. Rebuilds the vector database from Markdown files."""
+    """Rebuild the search index from Markdown files."""
     from bute.ai import is_embedding_available
-
-    if not is_embedding_available():
-        console.print(_INSTALL_MSG)
-        return
+    from bute.db import rebuild_from_files
 
     config = ctx.obj.get("config")
+    include_vectors = is_embedding_available()
 
-    from bute.ai.embeddings import embed_texts
-    from bute.ai.vectors import clear, upsert
-    from bute.config import get_data_dir
-    from bute.storage import load_entry
+    console.print("  [dim]Your entries are safe — all data lives in your .md files.[/dim]")
+    console.print("  [dim]Rebuilding search index...[/dim]")
 
-    data_dir = get_data_dir(config)
-    entries_dir = data_dir / "entries"
+    count = rebuild_from_files(config, include_vectors=include_vectors)
 
-    if not entries_dir.exists():
-        console.print("  [dim]No entries to embed.[/dim]")
-        return
-
-    md_files = sorted(entries_dir.rglob("*.md"))
-    if not md_files:
-        console.print("  [dim]No entries found.[/dim]")
-        return
-
-    console.print(f"  [dim]Found {len(md_files)} entries. Embedding...[/dim]")
-
-    entries = []
-    for path in md_files:
-        try:
-            entries.append(load_entry(path))
-        except Exception:
-            console.print(f"  [yellow]Skipped {path.name} (parse error)[/yellow]")
-
-    texts = [e.body for e in entries]
-    vectors = embed_texts(texts)
-
-    clear(config)
-    for entry, vector in zip(entries, vectors):
-        upsert(entry.id, vector, config)
-
-    console.print(f"  [green]Embedded {len(entries)} entries.[/green]")
+    if count == 0:
+        console.print("  [dim]No entries found to index.[/dim]")
+    else:
+        vec_msg = f", {count} vectors embedded" if include_vectors else " (vectors skipped — embeddings not installed)"
+        console.print(f"  [green]Rebuilt index: {count} entries indexed{vec_msg}.[/green]")
+        console.print("  [dim]Your .md files are untouched — they're always the source of truth.[/dim]")

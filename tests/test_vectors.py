@@ -4,7 +4,7 @@ import pytest
 
 sqlite_vec = pytest.importorskip("sqlite_vec")
 
-from bute.ai.vectors import clear, close, connect, count, delete, search, upsert
+from bute.ai.vectors import clear, count, delete, search, upsert
 
 DIM = 384
 
@@ -15,11 +15,13 @@ def _vec(val: float) -> list[float]:
 
 
 @pytest.fixture(autouse=True)
-def tmp_vecdb(tmp_path):
-    """Set up and tear down a temp vector DB for each test."""
-    db_path = tmp_path / ".vectors" / "test.db"
-    connect(db_path=db_path)
+def tmp_vecdb(tmp_path, monkeypatch):
+    """Use db.py shared connection for vector tests."""
+    db_path = tmp_path / ".index" / "test.db"
+    db_path.parent.mkdir(parents=True)
+    monkeypatch.setattr("bute.db._db_path_override", db_path)
     yield
+    from bute.db import close
     close()
 
 

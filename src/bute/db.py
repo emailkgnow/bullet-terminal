@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 import sqlite3
 from pathlib import Path
 from typing import Optional
@@ -39,14 +40,24 @@ def _db_path(config=None) -> Path:
 def get_connection(config=None) -> sqlite3.Connection:
     """Return the singleton connection, creating schema on first call."""
     global _connection
-    if _connection is None:
-        path = _db_path(config)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        db = sqlite3.connect(str(path))
-        db.row_factory = sqlite3.Row
-        _load_vec_extension(db)
-        ensure_schema(db)
-        _connection = db
+    if _connection is not None:
+        return _connection
+
+    if _db_path_override is None:
+        _migrate_from_vectors(config)
+
+    path = _db_path(config)
+    is_new_db = not path.exists()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(str(path))
+    db.row_factory = sqlite3.Row
+    _load_vec_extension(db)
+    ensure_schema(db)
+    _connection = db
+
+    if is_new_db and _db_path_override is None:
+        _auto_rebuild(config)
+
     return _connection
 
 
@@ -110,6 +121,118 @@ def close() -> None:
     if _connection is not None:
         _connection.close()
         _connection = None
+
+
+def _migrate_from_vectors(config=None) -> None:
+    """Move .vectors/bute.db to .index/bute.db if needed."""
+    data_dir = get_data_dir(config)
+    old_path = data_dir / ".vectors" / "bute.db"
+    new_dir = data_dir / ".index"
+    new_path = new_dir / "bute.db"
+
+    if new_path.exists() or not old_path.exists():
+        return
+
+    new_dir.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(old_path), str(new_path))
+
+    old_dir = data_dir / ".vectors"
+    if old_dir.exists() and not any(old_dir.iterdir()):
+        old_dir.rmdir()
+
+    logger.info("Migrated vector DB from .vectors/ to .index/")
+
+
+def _auto_rebuild(config=None) -> None:
+    """Rebuild index from .md files when DB is new."""
+    data_dir = get_data_dir(config)
+    entries_dir = data_dir / "entries"
+    if not entries_dir.exists():
+        return
+
+    md_files = list(entries_dir.rglob("*.md"))
+    if not md_files:
+        return
+
+    from rich.console import Console
+    console = Console()
+    console.print()
+    console.print("  [dim]Your entries are safe — all data lives in your .md files.[/dim]")
+    console.print("  [dim]Building search index for faster lookups...[/dim]")
+
+    indexed = rebuild_from_files(config, include_vectors=False, show_progress=True)
+
+    if indexed > 0:
+        console.print(f"  [green]Index built. {indexed} entries indexed.[/green]")
+        console.print("  [dim]Tip: You can export your entries anytime with[/dim] [bold]bt export[/bold][dim].[/dim]")
+    console.print()
+
+
+def rebuild_from_files(config=None, include_vectors: bool = False, show_progress: bool = True) -> int:
+    """Rebuild the entire index from .md files. Returns count indexed."""
+    from bute.storage import load_entry
+
+    data_dir = get_data_dir(config)
+    entries_dir = data_dir / "entries"
+
+    if not entries_dir.exists():
+        return 0
+
+    md_files = sorted(entries_dir.rglob("*.md"))
+    if not md_files:
+        return 0
+
+    entries = []
+    for path in md_files:
+        try:
+            entries.append(load_entry(path))
+        except Exception:
+            logger.debug("Skipped %s (parse error)", path.name, exc_info=True)
+
+    clear_all(config)
+
+    if include_vectors:
+        try:
+            from bute.ai.vectors import clear as vec_clear
+            vec_clear(config)
+        except Exception:
+            pass
+
+    vectors = None
+    if include_vectors:
+        try:
+            from bute.ai.embeddings import embed_texts, is_available
+            if is_available():
+                vectors = embed_texts([e.body for e in entries])
+        except Exception:
+            pass
+
+    if show_progress:
+        from rich.console import Console
+        from rich.progress import Progress
+        console = Console()
+        with Progress(console=console) as progress:
+            task = progress.add_task("  Indexing entries...", total=len(entries))
+            for i, entry in enumerate(entries):
+                upsert_entry(entry, config)
+                if include_vectors and vectors:
+                    try:
+                        from bute.ai.vectors import upsert as vec_upsert
+                        vec_upsert(entry.id, vectors[i], config)
+                    except Exception:
+                        pass
+                progress.advance(task)
+    else:
+        for i, entry in enumerate(entries):
+            upsert_entry(entry, config)
+            if include_vectors and vectors:
+                try:
+                    from bute.ai.vectors import upsert as vec_upsert
+                    vec_upsert(entry.id, vectors[i], config)
+                except Exception:
+                    pass
+
+    return len(entries)
 
 
 # ---------------------------------------------------------------------------
