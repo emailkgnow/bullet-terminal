@@ -126,39 +126,12 @@ class DwnGroup(click.Group):
                 if cmd is not None:
                     return "tag_filter", cmd, [tag_name]
 
-        # 6. Collection — +name [subcommand]
-        if first.startswith("+") and len(first) > 1:
-            collection_name = first[1:]
-            subcommand = rest[0] if rest else None
-
-            if subcommand == "analyze":
-                cmd = self.get_command(ctx, "analyze_collection")
-                if cmd is not None:
-                    return "analyze_collection", cmd, [collection_name]
-            elif subcommand == "execute":
-                cmd = self.get_command(ctx, "execute_collection")
-                if cmd is not None:
-                    return "execute_collection", cmd, [collection_name]
-            else:
-                cmd = self.get_command(ctx, "view_collection")
-                if cmd is not None:
-                    return "view_collection", cmd, [collection_name]
-
-        # 7. Number-action — first token is a digit
+        # 6. Number-action — first token is a digit
+        # (+collection routing was here — removed in tags-absorb-collections)
         if first.isdigit():
             try:
                 from bute.state import load_state
                 state = load_state()
-
-                # Collections view — number selects a collection to view
-                if state.get("view") == "collections":
-                    entries_list = state.get("entries", [])
-                    num = int(first)
-                    if 1 <= num <= len(entries_list):
-                        collection_name = entries_list[num - 1]
-                        cmd = self.get_command(ctx, "view_collection")
-                        if cmd is not None:
-                            return "view_collection", cmd, [collection_name]
 
                 # Pure habits view — all numbers are habits
                 if state.get("view") == "habits":
@@ -188,7 +161,7 @@ class DwnGroup(click.Group):
             if cmd is not None:
                 return "action", cmd, args
 
-        # 8. Unknown — let Click produce the error
+        # 7. Unknown — let Click produce the error
         return super().resolve_command(ctx, args)
 
 
@@ -369,12 +342,6 @@ from bute.commands.search import find_cmd, rebuild_cmd, search_cmd, similar_cmd 
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
-from bute.commands.collections import (  # noqa: E402
-    analyze_collection_cmd,
-    collections_list_cmd,
-    execute_collection_cmd,
-    view_collection_cmd,
-)
 from bute.commands.tags import analyze_tag_cmd, execute_tag_cmd  # noqa: E402
 
 main.add_command(init_cmd)
@@ -408,9 +375,5 @@ main.add_command(rebuild_cmd)
 main.add_command(export_cmd)
 main.add_command(topic_cmd)
 main.add_command(nudges_cmd)
-main.add_command(analyze_collection_cmd)
-main.add_command(execute_collection_cmd)
-main.add_command(view_collection_cmd)
-main.add_command(collections_list_cmd)
 main.add_command(analyze_tag_cmd)
 main.add_command(execute_tag_cmd)

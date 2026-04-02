@@ -67,3 +67,9 @@ def test_number_action_routes_to_action(runner, tmp_config, tmp_data):
 def test_unknown_command(runner):
     result = runner.invoke(main, ["foobar"])
     assert result.exit_code != 0
+
+
+def test_plus_syntax_removed(runner, tmp_config, tmp_data):
+    """bt +name should no longer route to collections."""
+    result = runner.invoke(main, ["+old-collection"])
+    assert result.exit_code != 0 or "no such command" in result.output.lower() or "error" in result.output.lower()
