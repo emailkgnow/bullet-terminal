@@ -108,25 +108,27 @@ Rules:
 def analyze_prompt() -> str:
     return f"""{SYSTEM_BASE}
 
-The user has gathered raw items for a collection. Each item has a signifier prefix indicating its type:
-  . = task idea or intention
-  - = note, reference, or fact
-  = = journal reflection or feeling
-  o = calendar event or commitment
+The user has tagged entries for a topic. Each entry has a type indicator and status:
+  . = task (action or intention)
+  - = note (reference or fact)
+  = = journal (reflection or feeling)
+  o = calendar (event or commitment)
+  [done] = completed, [dropped] = consciously removed, [active] = still open
+  ! = important
 
-Cluster these items into coherent themes. For each theme:
+Cluster these entries into coherent themes. For each theme:
 - Give it a clear, concise name
-- List the items that belong to it
-- Briefly note connections or tensions between items
+- List the entries that belong to it
+- Briefly note connections or tensions between entries
 
-Be faithful to the original items — don't add, remove, or rephrase.
-Organize what's there. Use the item types as context (journals reveal feelings, notes are facts, tasks are intentions, events are commitments)."""
+Be faithful to the original entries — don't add, remove, or rephrase.
+Organize what's there. Use the entry types and statuses as context (done tasks show progress, journals reveal feelings, notes are facts, active tasks are intentions)."""
 
 
 def execute_prompt() -> str:
     return f"""{SYSTEM_BASE}
 
-The user has an analyzed collection — items clustered into themes. Generate a sequenced list of concrete, actionable tasks that would implement or address these themes.
+The user has an analyzed set of tagged entries — clustered into themes. Generate a sequenced list of concrete, actionable tasks that would implement or address these themes.
 
 Requirements:
 - Each task starts with a verb
@@ -134,6 +136,7 @@ Requirements:
 - Tasks are ordered sequentially — each builds on the previous
 - Number each task (1, 2, 3...)
 - Keep the total manageable (aim for 5-15 tasks)
+- Account for already-done tasks — don't regenerate work that's complete
 
 Output only the numbered task list, nothing else."""
 
