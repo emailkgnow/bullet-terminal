@@ -423,12 +423,17 @@ def display_analyze_tree(tag: str, response: str) -> None:
     console.print()
 
 
-def _summarize_entry(text: str) -> str:
+def _summarize_entry(text: str, max_len: int = 35) -> str:
     """Strip BuJo signifier and summarize an entry for mind map display."""
     # Strip leading signifier (". ", "- ", "= ", "o ") and status markers
     stripped = re.sub(r'^[.\-=o]!?\s+', '', text)
     stripped = re.sub(r'\s*\[(done|dropped|active)\]', '', stripped)
-    return _first_sentence(stripped)
+    result = _first_sentence(stripped)
+    if len(result) > max_len:
+        # Truncate at last word boundary
+        truncated = result[:max_len].rsplit(" ", 1)[0]
+        return truncated + "…"
+    return result
 
 
 def display_analyze_map(tag: str, response: str) -> None:
