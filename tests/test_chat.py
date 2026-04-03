@@ -292,3 +292,51 @@ def test_handle_number_action_standard(tmp_data):
     from bute.storage import entry_path_from_id, load_entry
     loaded = load_entry(entry_path_from_id(e1.id))
     assert loaded.status.value == "done"
+
+
+def test_create_proposals_creates_entries(tmp_data):
+    from bute.commands.chat import ChatSession, create_proposals
+
+    anchor = Entry.create(EntryType.TASK, "anchor")
+    session = ChatSession.start(anchor, config=None)
+
+    proposals = [
+        {
+            "type": "task",
+            "important": False,
+            "body": "finalize tile selection",
+            "tags": ["home-reno"],
+            "metadata": {"due": "tomorrow"},
+        },
+        {
+            "type": "note",
+            "important": True,
+            "body": "contractor notes",
+            "tags": [],
+            "metadata": {},
+        },
+        {
+            "type": "calendar",
+            "important": False,
+            "body": "tile samples arriving",
+            "tags": ["home-reno"],
+            "metadata": {"d": "0404", "t": "1000"},
+        },
+    ]
+
+    created = create_proposals(proposals, session)
+    assert len(created) == 3
+
+    # Verify task
+    assert created[0].type == EntryType.TASK
+    assert created[0].body == "finalize tile selection"
+    assert "home-reno" in created[0].tags
+    assert created[0].due is not None
+
+    # Verify important note
+    assert created[1].type == EntryType.NOTE
+    assert created[1].important is True
+
+    # Verify calendar event
+    assert created[2].type == EntryType.CALENDAR
+    assert created[2].scheduled_time == "10:00"

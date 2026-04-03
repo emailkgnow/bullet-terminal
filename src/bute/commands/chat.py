@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -506,6 +507,121 @@ def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
 
 
 def _exit_flow(session: ChatSession, save_requested: bool) -> None:
-    """Handle exit flow. Placeholder."""
+    """Handle exit — batch review proposals, optional summary."""
     if session.proposals:
-        console.print(f"\n  [dim]{len(session.proposals)} proposed entries (not yet implemented)[/dim]")
+        _batch_review(session)
+
+    # Offer summary if chat was substantive (more than initial exchange)
+    if save_requested:
+        _generate_summary(session)
+    elif len(session.messages) > 4:
+        if click.confirm("\n  Save summary note?", default=False):
+            _generate_summary(session)
+
+
+def _batch_review(session: ChatSession) -> None:
+    """Present all accumulated proposals for batch review."""
+    display_proposed_entries(session.proposals)
+
+    choice = click.prompt(
+        "\n  Accept all?",
+        type=click.Choice(["y", "n", "pick"], case_sensitive=False),
+        prompt_suffix=" [y]es [n]o [p]ick > ",
+        default="y",
+        show_choices=False,
+    )
+
+    if choice == "n":
+        console.print("  [dim]All proposals discarded.[/dim]")
+        session.proposals = []
+        return
+
+    to_create = session.proposals
+    if choice == "pick":
+        try:
+            import questionary
+
+            choices = [
+                questionary.Choice(
+                    f"{_sig_for_type(p['type'])} {p['body']}",
+                    value=i,
+                    checked=True,
+                )
+                for i, p in enumerate(session.proposals)
+            ]
+            selected = questionary.checkbox(
+                "Select entries to create:", choices=choices
+            ).ask()
+            if selected is None:
+                return
+            to_create = [session.proposals[i] for i in selected]
+        except ImportError:
+            console.print("  [dim]questionary not available — accepting all[/dim]")
+
+    created = create_proposals(to_create, session)
+    console.print(
+        f"\n  [green]{len(created)} "
+        f"{'entry' if len(created) == 1 else 'entries'} created.[/green]"
+    )
+
+
+def _sig_for_type(entry_type: str) -> str:
+    """Map type name back to signifier."""
+    return {"task": ".", "note": "-", "journal": "=", "calendar": "o"}.get(entry_type, "?")
+
+
+def create_proposals(proposals: list[dict], session: ChatSession) -> list:
+    """Create Entry objects from proposals, save to disk, and return them."""
+    from bute.ai import embed_entry
+    from bute.display import confirm_capture
+    from bute.models import Entry, EntryType
+    from bute.parser import resolve_date, resolve_time
+    from bute.storage import save_entry
+
+    type_map = {
+        "task": EntryType.TASK,
+        "note": EntryType.NOTE,
+        "journal": EntryType.JOURNAL,
+        "calendar": EntryType.CALENDAR,
+    }
+
+    created = []
+    for p in proposals:
+        entry_type = type_map[p["type"]]
+        metadata = p.get("metadata", {})
+
+        kwargs = {
+            "entry_type": entry_type,
+            "body": p["body"],
+            "important": p.get("important", False),
+            "tags": list(p.get("tags", [])),
+        }
+
+        if "due" in metadata:
+            try:
+                kwargs["due"] = resolve_date(metadata["due"])
+            except Exception:
+                pass
+        if "d" in metadata:
+            try:
+                kwargs["scheduled_date"] = resolve_date(metadata["d"])
+            except Exception:
+                pass
+        if "t" in metadata:
+            try:
+                kwargs["scheduled_time"] = resolve_time(metadata["t"])
+            except Exception:
+                pass
+
+        entry = Entry.create(**kwargs)
+        save_entry(entry, session.config)
+        embed_entry(entry.id, entry.body, session.config)
+        confirm_capture(entry)
+        created.append(entry)
+
+    return created
+
+
+def _generate_summary(session: ChatSession) -> None:
+    """Generate a summary note. Placeholder — implemented in Task 9."""
+    console.print("  [dim]Summary generation not yet implemented.[/dim]")
