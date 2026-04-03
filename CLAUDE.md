@@ -85,7 +85,7 @@ Three independent capability tiers — each degrades gracefully:
 2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bute rebuild`
 3. **LLM** (remote) — OpenAI-compatible API, provider-agnostic. API key via config or macOS Keychain
 
-AI is used for: `topic`, `review`, `nudges`, tag processing (`@tag analyze`, `@tag execute`). Core capture/view/action loop works without AI.
+AI is used for: `topic`, `recap [period]`, `nudges`, tag processing (`@tag analyze`, `@tag execute`). Core capture/view/action loop works without AI.
 
 ## CLI Grammar (Current)
 
@@ -146,7 +146,8 @@ bute tags                           # list all tags with stage and count
 bute                # entry point — DYTS if not done today, else daily log
 bute dyts           # morning ritual (Dump, Yesterday, Tasks, Schedule)
 bute plan           # dump tasks + select for the week
-bute recap          # end-of-day summary (-q to skip AI)
+bute recap          # end-of-day summary: done, open, dropped, captured
+bute recap week     # AI analysis of the period (day, week, month, year)
 bute habit <name>   # track habits
 bute streak         # habit streaks and 30-day stats
 ```
@@ -180,7 +181,7 @@ bute init           # first-run setup (pick AI provider)
 
 ### Commands — Medium Value
 - ~~`bt streak`~~ Done — 7-day grid, current streak count, 30-day completion rate.
-- ~~`bt reflect`~~ Done as `bt recap` — end-of-day summary with structured display + AI coaching narrative.
+- ~~`bt reflect`~~ Done as `bt recap` — end-of-day summary. `bt recap [period]` runs AI analyze pipeline for day/week/month/year.
 - ~~`bt week`~~ Done — weekly spread across all dimensions, Mon-Sun. `bt week last` for previous week.
 - ~~**Notes as reference layer**~~ Partially addressed by tag processing — `@tag analyze` clusters tagged notes. Full PKM features (pinned notes, AI recall, linked references) remain future work.
 

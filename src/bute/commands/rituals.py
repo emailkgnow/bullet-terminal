@@ -547,14 +547,6 @@ def _recap_period(period: str, config):
     """AI-analyze all entries for the given period."""
     from datetime import timedelta
 
-    from bute.ai import _LLM_INSTALL_MSG, is_llm_available
-    from bute.commands.tags import _run_analyze
-    from bute.storage import query_and_load
-
-    if not is_llm_available(config):
-        console.print(_LLM_INSTALL_MSG)
-        return
-
     today = date.today()
     if period == "day":
         start = today
@@ -570,6 +562,14 @@ def _recap_period(period: str, config):
         label = "this-year"
     else:
         console.print(f"  [red]Unknown period: {period}. Use day, week, month, or year.[/red]")
+        return
+
+    from bute.ai import _LLM_INSTALL_MSG, is_llm_available
+    from bute.commands.tags import _run_analyze
+    from bute.storage import query_and_load
+
+    if not is_llm_available(config):
+        console.print(_LLM_INSTALL_MSG)
         return
 
     entries = query_and_load(config, created_since=start.isoformat())
