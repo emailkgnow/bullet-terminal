@@ -225,6 +225,7 @@ def _print_help():
     console.print("    [bold]bt <n> untag @tag[/bold]        Remove a tag")
     console.print("    [bold]bt <n> undo[/bold]              Undo last action on entry")
     console.print("    [bold]bt undo[/bold]                  Undo last action globally")
+    console.print("    [bold]bt <n> chat[/bold]             AI chat — think through an entry")
     console.print("    [dim]Multiple entries:[/dim] [bold]bt 1 2 3 done[/bold]")
     console.print()
 
