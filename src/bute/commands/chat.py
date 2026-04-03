@@ -623,5 +623,40 @@ def create_proposals(proposals: list[dict], session: ChatSession) -> list:
 
 
 def _generate_summary(session: ChatSession) -> None:
-    """Generate a summary note. Placeholder — implemented in Task 9."""
-    console.print("  [dim]Summary generation not yet implemented.[/dim]")
+    """Generate a summary note from the chat conversation."""
+    from bute.ai import embed_entry, llm_send
+    from bute.ai.prompts import chat_summary_prompt
+    from bute.display import confirm_capture
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    console.print("  [dim]Generating summary...[/dim]")
+
+    # Build conversation text (skip system prompt)
+    conversation = []
+    for msg in session.messages:
+        if msg["role"] == "system":
+            continue
+        prefix = "User" if msg["role"] == "user" else "AI"
+        conversation.append(f"{prefix}: {msg['content']}")
+
+    response = llm_send(
+        chat_summary_prompt(),
+        "\n\n".join(conversation),
+        session.config,
+    )
+
+    if response == "[AI unavailable]":
+        console.print("  [dim]Could not generate summary.[/dim]")
+        return
+
+    # Create note with anchor's tags
+    tags = list(session.anchor.tags)
+    entry = Entry.create(
+        entry_type=EntryType.NOTE,
+        body=response,
+        tags=tags,
+    )
+    save_entry(entry, session.config)
+    embed_entry(entry.id, entry.body, session.config)
+    confirm_capture(entry)

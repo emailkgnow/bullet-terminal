@@ -1,6 +1,7 @@
 """Tests for the chat command module."""
 
 import pytest
+from unittest.mock import MagicMock, patch
 from bute.models import Entry, EntryType
 from bute.storage import save_entry
 
@@ -340,3 +341,29 @@ def test_create_proposals_creates_entries(tmp_data):
     # Verify calendar event
     assert created[2].type == EntryType.CALENDAR
     assert created[2].scheduled_time == "10:00"
+
+
+def test_generate_summary_creates_note(tmp_data):
+    from bute.commands.chat import ChatSession, _generate_summary
+
+    anchor = Entry.create(EntryType.TASK, "renovate kitchen", tags=["home-reno"])
+    session = ChatSession.start(anchor, config=None)
+    session.add_assistant_message("Let's break this down into steps.")
+    session.add_user_message("sounds good, what first?")
+    session.add_assistant_message("Start with getting contractor quotes.")
+
+    with patch("bute.ai.llm.send_message") as mock_llm:
+        mock_llm.return_value = "Kitchen reno: get quotes first, then materials, then schedule contractor."
+
+        _generate_summary(session)
+
+        # Verify llm_send was called
+        assert mock_llm.called
+
+    # Verify a note was created
+    from bute.storage import load_entries_by_filter
+    notes = load_entries_by_filter(
+        lambda e: e.type.value == "note" and "Kitchen reno" in e.body
+    )
+    assert len(notes) == 1
+    assert "home-reno" in notes[0].tags
