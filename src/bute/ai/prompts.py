@@ -209,6 +209,8 @@ The user can pull in additional entries during the conversation using /bt comman
 
 When relevant, suggest entries the user might want to pull in: "You might want to check your @tagname entries — /bt @tagname to see them."
 
+Do not use markdown formatting (no **bold**, no ## headers, no backticks except for {_BT_FENCE}bt proposal blocks). Use plain section titles on their own line and - bullet points for structure. The terminal handles formatting.
+
 Be direct, concise, and insightful. Focus on what the user might not see — patterns, gaps, dependencies, and priorities."""
 
 

@@ -313,17 +313,24 @@ def display_proposed_entries(proposals: list[dict]) -> None:
 
 def _stream_and_record(session: ChatSession) -> None:
     """Stream the next AI response, record it, and parse proposals."""
-    from bute.ai.llm import stream_chat
+    from rich.live import Live
 
-    console.print()
+    from bute.ai.llm import stream_chat
+    from bute.display import display_ai_response
+
     full_response = []
-    for chunk in stream_chat(session.messages, session.config):
-        print(chunk, end="", flush=True)
-        full_response.append(chunk)
-    print()  # newline after streaming
+    with Live(Text(""), refresh_per_second=10, console=console, transient=True) as live:
+        for chunk in stream_chat(session.messages, session.config):
+            full_response.append(chunk)
+            live.update(Text("".join(full_response)))
 
     response_text = "".join(full_response)
     session.add_assistant_message(response_text)
+
+    # Re-render with colors (strip ```bt blocks — shown as proposals below)
+    display_text = _BT_BLOCK_RE.sub("", response_text).strip()
+    if display_text:
+        display_ai_response(display_text)
 
     # Parse and accumulate proposals
     new_proposals = parse_proposals(response_text)
@@ -419,6 +426,12 @@ def _handle_slash_command(session: ChatSession, command: str) -> str | None:
             session.last_bt_results = entries
             context_ids = {e.id for e in session.context_entries}
             display_bt_results(entries, context_ids)
+            # Inject results into message history so the AI can see them
+            from bute.ai.prompts import format_entries
+            session.messages.append({
+                "role": "user",
+                "content": f"[/bt {args_str} — {len(entries)} entries]\n{format_entries(entries)}",
+            })
         else:
             console.print("  [dim]No entries found.[/dim]")
         return None
@@ -652,8 +665,10 @@ def _generate_summary(session: ChatSession) -> None:
         console.print("  [dim]Could not generate summary.[/dim]")
         return
 
-    # Create note with anchor's tags
+    # Create note with anchor's tags + ai-chat marker
     tags = list(session.anchor.tags)
+    if "ai-chat" not in tags:
+        tags.append("ai-chat")
     entry = Entry.create(
         entry_type=EntryType.NOTE,
         body=response,

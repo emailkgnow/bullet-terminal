@@ -34,6 +34,22 @@ def _run_analyze(tag: str, entries, config) -> str | None:
 
     if click.confirm("\n  Accept this analysis?", default=True):
         upsert_tag_stage(tag, "analyzed", analysis=response, config=config)
+
+        # Save analysis as a note for future reference
+        from bute.ai import embed_entry
+        from bute.display import confirm_capture
+        from bute.models import Entry, EntryType
+        from bute.storage import save_entry
+
+        entry = Entry.create(
+            entry_type=EntryType.NOTE,
+            body=response,
+            tags=[tag, "ai-analysis"],
+        )
+        save_entry(entry, config)
+        embed_entry(entry.id, entry.body, config)
+        confirm_capture(entry)
+
         console.print(f"  [green]@{tag} → analyzed[/green]")
         return response
     else:

@@ -187,7 +187,6 @@ def _print_help():
     console.print("    Add [bold red]![/bold red] for important: [dim]bt t! fix prod bug[/dim]")
     console.print("    Add [bold]@tag[/bold] and [bold]key:value[/bold]: [dim]bt t fix bug @backend due:tomorrow[/dim]")
     console.print("    Calendar keys: [dim]t:HHMM (time)  d:MMDD (date)  — bt c meeting t:1430 d:0330[/dim]")
-    console.print("    Just the signifier, no text: [dim]bt t → interactive prompt (no shell quoting)[/dim]")
     console.print("    [dim]Tasks auto-get @thisweek (focus). Use -l/--later for backlog only.[/dim]")
     console.print()
 
@@ -249,6 +248,7 @@ def _print_help():
 
     # AI
     console.print("  [bold cyan]AI Features[/bold cyan] — requires configured provider (bt init)")
+    console.print("    [bold]bt <n> chat[/bold]           Think through an entry with AI — interactive session")
     console.print("    [bold]bt review[/bold] [period]   AI summary ([dim]day, week, month[/dim])")
     console.print("    [bold]bt topic[/bold] <name>      Cross-dimension synthesis")
     console.print("    [bold]bt nudges[/bold]            AI-generated actionable suggestions")

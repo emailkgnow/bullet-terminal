@@ -367,3 +367,4 @@ def test_generate_summary_creates_note(tmp_data):
     )
     assert len(notes) == 1
     assert "home-reno" in notes[0].tags
+    assert "ai-chat" in notes[0].tags
