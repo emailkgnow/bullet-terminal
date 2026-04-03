@@ -2,6 +2,7 @@
 
 import pytest
 from bute.models import Entry, EntryType
+from bute.storage import save_entry
 
 
 def test_chat_prompt_returns_string():
@@ -156,3 +157,72 @@ def test_parse_proposals_journal_entry():
     assert proposals[0]["type"] == "journal"
     assert proposals[0]["body"] == "feeling good about progress"
     assert proposals[0]["tags"] == ["reflection"]
+
+
+def test_execute_bt_view_tasks(tmp_data):
+    from bute.commands.chat import execute_bt_view
+
+    e1 = Entry.create(EntryType.TASK, "task one")
+    e2 = Entry.create(EntryType.NOTE, "note one")
+    save_entry(e1)
+    save_entry(e2)
+
+    results = execute_bt_view(["t"], config=None)
+    assert len(results) == 1
+    assert results[0].body == "task one"
+
+
+def test_execute_bt_view_notes(tmp_data):
+    from bute.commands.chat import execute_bt_view
+
+    e1 = Entry.create(EntryType.NOTE, "note one")
+    save_entry(e1)
+
+    results = execute_bt_view(["n"], config=None)
+    assert len(results) == 1
+    assert results[0].body == "note one"
+
+
+def test_execute_bt_view_tag_filter(tmp_data):
+    from bute.commands.chat import execute_bt_view
+
+    e1 = Entry.create(EntryType.TASK, "tagged", tags=["work"])
+    e2 = Entry.create(EntryType.TASK, "untagged")
+    save_entry(e1)
+    save_entry(e2)
+
+    results = execute_bt_view(["@work"], config=None)
+    assert len(results) == 1
+    assert results[0].body == "tagged"
+
+
+def test_execute_bt_view_type_with_tag(tmp_data):
+    from bute.commands.chat import execute_bt_view
+
+    e1 = Entry.create(EntryType.TASK, "work task", tags=["work"])
+    e2 = Entry.create(EntryType.NOTE, "work note", tags=["work"])
+    save_entry(e1)
+    save_entry(e2)
+
+    results = execute_bt_view(["t", "@work"], config=None)
+    assert len(results) == 1
+    assert results[0].type == EntryType.TASK
+
+
+def test_execute_bt_view_empty_args(tmp_data):
+    from bute.commands.chat import execute_bt_view
+
+    assert execute_bt_view([], config=None) == []
+
+
+def test_execute_bt_view_important(tmp_data):
+    from bute.commands.chat import execute_bt_view
+
+    e1 = Entry.create(EntryType.TASK, "normal task")
+    e2 = Entry.create(EntryType.TASK, "urgent task", important=True)
+    save_entry(e1)
+    save_entry(e2)
+
+    results = execute_bt_view(["!"], config=None)
+    assert len(results) == 1
+    assert results[0].important is True
