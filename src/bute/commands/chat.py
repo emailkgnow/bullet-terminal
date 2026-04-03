@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -66,3 +67,66 @@ class ChatSession:
     def add_assistant_message(self, text: str) -> None:
         """Add an assistant response to the history."""
         self.messages.append({"role": "assistant", "content": text})
+
+
+_BT_BLOCK_RE = re.compile(r"```bt\s*\n(.*?)```", re.DOTALL)
+
+_SIGNIFIER_TO_TYPE = {".": "task", "-": "note", "=": "journal", "o": "calendar"}
+
+
+def parse_proposals(response_text: str) -> list[dict]:
+    """Extract proposed entries from ```bt code blocks in AI response.
+
+    Returns list of dicts with keys: type, important, body, tags, metadata.
+    """
+    proposals = []
+    for match in _BT_BLOCK_RE.finditer(response_text):
+        block = match.group(1)
+        for line in block.strip().splitlines():
+            parsed = _parse_proposal_line(line.strip())
+            if parsed:
+                proposals.append(parsed)
+    return proposals
+
+
+def _parse_proposal_line(line: str) -> dict | None:
+    """Parse a single proposal line like '. task text @tag due:date'."""
+    if not line:
+        return None
+
+    tokens = line.split()
+    if not tokens:
+        return None
+
+    first = tokens[0]
+    signifier = first.rstrip("!")
+    important = first.endswith("!") and len(first) > 1
+
+    if signifier not in _SIGNIFIER_TO_TYPE:
+        return None
+
+    entry_type = _SIGNIFIER_TO_TYPE[signifier]
+
+    body_parts = []
+    tags = []
+    metadata = {}
+
+    for token in tokens[1:]:
+        if re.match(r"^@[a-zA-Z0-9_-]+$", token):
+            tags.append(token[1:])
+        elif ":" in token and not token.startswith(":") and token.split(":")[0] in ("due", "d", "t"):
+            key, value = token.split(":", 1)
+            metadata[key] = value
+        else:
+            body_parts.append(token)
+
+    if not body_parts:
+        return None
+
+    return {
+        "type": entry_type,
+        "important": important,
+        "body": " ".join(body_parts),
+        "tags": tags,
+        "metadata": metadata,
+    }
