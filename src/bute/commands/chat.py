@@ -82,6 +82,7 @@ class ChatSession:
 _BT_BLOCK_RE = re.compile(r"```bt\s*\n(.*?)```", re.DOTALL)
 
 _SIGNIFIER_TO_TYPE = {".": "task", "-": "note", "=": "journal", "o": "calendar"}
+_TYPE_TO_SIG = {"task": ".", "note": "-", "journal": "=", "calendar": "o"}
 
 
 def parse_proposals(response_text: str) -> list[dict]:
@@ -273,7 +274,6 @@ def display_bt_results(entries: list, context_ids: set[str]) -> None:
 def display_proposed_entries(proposals: list[dict]) -> None:
     """Display proposed entries for batch review."""
     sig_style = {".": "cyan", "-": "yellow", "=": "magenta", "o": "green"}
-    type_to_sig = {"task": ".", "note": "-", "journal": "=", "calendar": "o"}
 
     table = Table(
         title="Proposed entries",
@@ -287,7 +287,7 @@ def display_proposed_entries(proposals: list[dict]) -> None:
     table.add_column("", style="dim")
 
     for i, p in enumerate(proposals, 1):
-        sig = type_to_sig.get(p["type"], "?")
+        sig = _sig_for_type(p["type"])
         color = sig_style.get(sig, "white")
         icon = Text()
         if p.get("important"):
@@ -387,8 +387,6 @@ def _run_repl(session: ChatSession) -> bool:
         session.add_user_message(user_input)
         _stream_and_record(session)
 
-    return False
-
 
 def _handle_slash_command(session: ChatSession, command: str) -> str | None:
     """Handle a slash command. Returns 'exit', 'save', or None to continue."""
@@ -413,6 +411,9 @@ def _handle_slash_command(session: ChatSession, command: str) -> str | None:
 
     if cmd == "/bt":
         bt_args = args_str.split() if args_str else []
+        if not bt_args:
+            console.print("  [dim]Usage: /bt t, /bt n, /bt @tag, /bt ![/dim]")
+            return None
         entries = execute_bt_view(bt_args, session.config)
         if entries:
             session.last_bt_results = entries
@@ -471,6 +472,7 @@ def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
 
     # Standard bt actions (done, drop, !, @tag, untag, later)
     from bute.commands.action import ACTION_HANDLERS, handle_add_tag, handle_remove_tag
+    from bute.errors import DwnError
     from bute.display import display_action_confirmation
     from bute.storage import entry_path_from_id, load_entry
 
@@ -502,8 +504,8 @@ def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
         try:
             handler(entry, action_args, session.config)
             display_action_confirmation(entry, action)
-        except Exception as e:
-            console.print(f"  [red]{e}[/red]")
+        except DwnError as e:
+            console.print(f"  [red]{e.format_message()}[/red]")
 
 
 def _exit_flow(session: ChatSession, save_requested: bool) -> None:
@@ -567,7 +569,7 @@ def _batch_review(session: ChatSession) -> None:
 
 def _sig_for_type(entry_type: str) -> str:
     """Map type name back to signifier."""
-    return {"task": ".", "note": "-", "journal": "=", "calendar": "o"}.get(entry_type, "?")
+    return _TYPE_TO_SIG.get(entry_type, "?")
 
 
 def create_proposals(proposals: list[dict], session: ChatSession) -> list:
