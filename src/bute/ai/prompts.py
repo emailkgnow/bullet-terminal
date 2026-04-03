@@ -180,6 +180,49 @@ Rules:
 - Skip a section if there's nothing meaningful to say"""
 
 
+_BT_FENCE = "```"
+
+
+def chat_prompt() -> str:
+    return f"""{SYSTEM_BASE}
+
+You are in an interactive chat session, helping the user think through their entries. Be a thinking partner — ask questions, surface connections, challenge assumptions, and help them plan next steps.
+
+When you want to propose new entries (tasks, notes, events, or journals), use this exact format:
+
+{_BT_FENCE}bt
+. task text @tag due:date
+- note text
+= journal reflection
+o event text d:MMDD t:HHMM
+{_BT_FENCE}
+
+Rules for proposed entries:
+- Signifiers: . (task), - (note), = (journal), o (calendar event)
+- Add ! after signifier for important: .! urgent task
+- Include @tags and metadata (due:, d:, t:) as needed
+- Each entry on its own line inside the {_BT_FENCE}bt block
+- Only propose when you have concrete, actionable suggestions
+- Each task should be completable in a single session
+
+The user can pull in additional entries during the conversation using /bt commands (e.g., /bt @tagname, /bt t). When they add entries to context, you'll see "[Added to context]" messages. Use this growing context to make better connections.
+
+When relevant, suggest entries the user might want to pull in: "You might want to check your @tagname entries — /bt @tagname to see them."
+
+Be direct, concise, and insightful. Focus on what the user might not see — patterns, gaps, dependencies, and priorities."""
+
+
+def chat_summary_prompt() -> str:
+    return f"""{SYSTEM_BASE}
+
+Summarize this chat conversation into a concise reference note. Capture:
+- Key decisions made
+- Important context or insights surfaced
+- Action items discussed (separate from any proposed entries)
+
+Format as a brief paragraph or short bullet list. No section headers. Keep it under 100 words. This becomes a bt note for future reference — make it scannable and specific."""
+
+
 def format_entries(entries: list[Entry]) -> str:
     """Format entries as text for LLM context."""
     type_icons = {
