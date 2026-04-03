@@ -204,7 +204,7 @@ def execute_tag_cmd(ctx, tag_name):
         import questionary
 
         choices = [
-            questionary.Choice(task, value=task, checked=True)
+            questionary.Choice(task, value=task, checked=False)
             for task in tasks
         ]
         selected = questionary.checkbox(
