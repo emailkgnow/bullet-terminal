@@ -11,14 +11,16 @@ console = Console()
 
 
 def _format_analysis_for_note(tag: str, response: str) -> str:
-    """Convert THEME: structured response into clean markdown with summaries only."""
+    """Convert THEME: structured response into clean markdown with summaries and entries."""
     from bute.display import _parse_analyze_themes
 
     lines = [f"@{tag} analysis"]
-    for theme_name, summary, _items in _parse_analyze_themes(response):
+    for theme_name, summary, items in _parse_analyze_themes(response):
         lines.append(f"\n## {theme_name}")
         if summary:
             lines.append(summary)
+        for item in items:
+            lines.append(f"  {item}")
 
     return "\n".join(lines)
 

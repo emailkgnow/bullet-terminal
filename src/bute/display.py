@@ -456,12 +456,10 @@ def display_analyze_map(tag: str, response: str) -> None:
     # Build blocks of lines per side: (text, color, is_header)
     def build_blocks(theme_list):
         blocks = []
-        for name, summary, items, color in theme_list:
+        for name, summary, _items, color in theme_list:
             block = [(name, color, True)]
             if summary:
-                block.append((_summarize_entry(f"- {summary}"), "dim", False))
-            for item in items:
-                block.append((_summarize_entry(item), color, False))
+                block.append((summary, color, False))
             blocks.append(block)
         return blocks
 
