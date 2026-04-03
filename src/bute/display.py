@@ -449,15 +449,17 @@ def display_analyze_map(tag: str, response: str) -> None:
 
     # Split themes into left and right sides
     n = len(themes)
-    colored = [(name, items, _theme_color(i, name)) for i, (name, _summary, items) in enumerate(themes)]
+    colored = [(name, summary, items, _theme_color(i, name)) for i, (name, summary, items) in enumerate(themes)]
     left_themes = colored[: (n + 1) // 2]
     right_themes = colored[(n + 1) // 2 :]
 
     # Build blocks of lines per side: (text, color, is_header)
     def build_blocks(theme_list):
         blocks = []
-        for name, items, color in theme_list:
+        for name, summary, items, color in theme_list:
             block = [(name, color, True)]
+            if summary:
+                block.append((_summarize_entry(f"- {summary}"), "dim", False))
             for item in items:
                 block.append((_summarize_entry(item), color, False))
             blocks.append(block)
