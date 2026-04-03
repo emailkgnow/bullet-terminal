@@ -454,12 +454,28 @@ def display_analyze_map(tag: str, response: str) -> None:
     right_themes = colored[(n + 1) // 2 :]
 
     # Build blocks of lines per side: (text, color, is_header)
+    def wrap_text(text, max_len):
+        """Wrap text at word boundaries into multiple lines."""
+        words = text.split()
+        lines = []
+        current = ""
+        for word in words:
+            if current and len(current) + 1 + len(word) > max_len:
+                lines.append(current)
+                current = word
+            else:
+                current = f"{current} {word}" if current else word
+        if current:
+            lines.append(current)
+        return lines
+
     def build_blocks(theme_list):
         blocks = []
         for name, summary, _items, color in theme_list:
             block = [(name, color, True)]
             if summary:
-                block.append((summary, color, False))
+                for line in wrap_text(summary, text_width):
+                    block.append((line, color, False))
             blocks.append(block)
         return blocks
 
