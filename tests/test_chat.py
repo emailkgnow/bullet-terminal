@@ -226,3 +226,69 @@ def test_execute_bt_view_important(tmp_data):
     results = execute_bt_view(["!"], config=None)
     assert len(results) == 1
     assert results[0].important is True
+
+
+def test_handle_slash_command_done(tmp_data):
+    from bute.commands.chat import ChatSession, _handle_slash_command
+
+    entry = Entry.create(EntryType.TASK, "test")
+    session = ChatSession.start(entry, config={})
+
+    assert _handle_slash_command(session, "/done") == "exit"
+
+
+def test_handle_slash_command_save(tmp_data):
+    from bute.commands.chat import ChatSession, _handle_slash_command
+
+    entry = Entry.create(EntryType.TASK, "test")
+    session = ChatSession.start(entry, config={})
+
+    assert _handle_slash_command(session, "/save") == "save"
+
+
+def test_handle_slash_command_bt(tmp_data):
+    from bute.commands.chat import ChatSession, _handle_slash_command
+
+    e1 = Entry.create(EntryType.TASK, "task one")
+    save_entry(e1)
+
+    anchor = Entry.create(EntryType.TASK, "anchor")
+    session = ChatSession.start(anchor, config=None)
+
+    _handle_slash_command(session, "/bt t")
+    assert len(session.last_bt_results) >= 1
+
+
+def test_handle_number_action_add(tmp_data):
+    from bute.commands.chat import ChatSession, _handle_number_action
+
+    anchor = Entry.create(EntryType.TASK, "anchor")
+    e1 = Entry.create(EntryType.NOTE, "note to add")
+    e2 = Entry.create(EntryType.NOTE, "another note")
+    save_entry(e1)
+    save_entry(e2)
+
+    session = ChatSession.start(anchor, config=None)
+    session.last_bt_results = [e1, e2]
+
+    _handle_number_action(session, ["1", "2", "add"])
+    assert len(session.context_entries) == 3  # anchor + 2 added
+    assert session.context_entries[1].body == "note to add"
+    assert session.context_entries[2].body == "another note"
+
+
+def test_handle_number_action_standard(tmp_data):
+    from bute.commands.chat import ChatSession, _handle_number_action
+
+    e1 = Entry.create(EntryType.TASK, "task to complete")
+    save_entry(e1)
+
+    anchor = Entry.create(EntryType.TASK, "anchor")
+    session = ChatSession.start(anchor, config=None)
+    session.last_bt_results = [e1]
+
+    _handle_number_action(session, ["1", "done"])
+
+    from bute.storage import entry_path_from_id, load_entry
+    loaded = load_entry(entry_path_from_id(e1.id))
+    assert loaded.status.value == "done"

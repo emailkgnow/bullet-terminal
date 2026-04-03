@@ -393,19 +393,116 @@ def _handle_slash_command(session: ChatSession, command: str) -> str | None:
     """Handle a slash command. Returns 'exit', 'save', or None to continue."""
     parts = command.split(None, 1)
     cmd = parts[0].lower()
+    args_str = parts[1] if len(parts) > 1 else ""
 
     if cmd == "/done":
         return "exit"
+
     if cmd == "/save":
         return "save"
 
+    if cmd == "/context":
+        display_chat_context(session)
+        return None
+
+    if cmd == "/clear":
+        session.context_entries = [session.anchor]
+        console.print("  [dim]Context reset to anchor entry.[/dim]")
+        return None
+
+    if cmd == "/bt":
+        bt_args = args_str.split() if args_str else []
+        entries = execute_bt_view(bt_args, session.config)
+        if entries:
+            session.last_bt_results = entries
+            context_ids = {e.id for e in session.context_entries}
+            display_bt_results(entries, context_ids)
+        else:
+            console.print("  [dim]No entries found.[/dim]")
+        return None
+
     console.print(f"  [dim]Unknown command: {cmd}[/dim]")
+    console.print("  [dim]Available: /bt <args>, /context, /clear, /done, /save[/dim]")
     return None
 
 
 def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
-    """Handle number-action commands in chat. Placeholder."""
-    console.print("  [dim]Number actions not yet implemented.[/dim]")
+    """Handle number-action commands in chat (e.g., '1 2 5 add', '3 done')."""
+    numbers = []
+    rest = list(tokens)
+    while rest and rest[0].isdigit():
+        numbers.append(int(rest.pop(0)))
+
+    if not rest:
+        console.print("  [dim]No action specified. Usage: 1 2 add, 3 done[/dim]")
+        return
+
+    action = rest[0]
+    action_args = rest[1:]
+
+    if not session.last_bt_results:
+        console.print("  [dim]No entries to reference. Run /bt first.[/dim]")
+        return
+
+    # Resolve numbers to entries
+    resolved = []
+    for n in numbers:
+        if n < 1 or n > len(session.last_bt_results):
+            console.print(
+                f"  [red]#{n} out of range (1-{len(session.last_bt_results)})[/red]"
+            )
+            return
+        resolved.append(session.last_bt_results[n - 1])
+
+    # Chat-specific: add to context
+    if action == "add":
+        before = len(session.context_entries)
+        session.add_to_context(resolved)
+        added = len(session.context_entries) - before
+        if added:
+            console.print(
+                f"  [green]Added {added} "
+                f"{'entry' if added == 1 else 'entries'} to context.[/green]"
+            )
+        else:
+            console.print("  [dim]Already in context.[/dim]")
+        return
+
+    # Standard bt actions (done, drop, !, @tag, untag, later)
+    from bute.commands.action import ACTION_HANDLERS, handle_add_tag, handle_remove_tag
+    from bute.display import display_action_confirmation
+    from bute.storage import entry_path_from_id, load_entry
+
+    # Handle @tag action
+    if action.startswith("@") and len(action) > 1:
+        tag = action[1:]
+        for entry in resolved:
+            handle_add_tag(entry, tag, session.config)
+            display_action_confirmation(entry, f"@{tag}")
+        return
+
+    # Handle untag
+    if action == "untag":
+        if not action_args:
+            console.print("  [dim]Usage: 1 untag @backend[/dim]")
+            return
+        tag = action_args[0].lstrip("@")
+        for entry in resolved:
+            handle_remove_tag(entry, tag, session.config)
+            display_action_confirmation(entry, f"untag @{tag}")
+        return
+
+    handler = ACTION_HANDLERS.get(action)
+    if handler is None:
+        console.print(f"  [dim]Unknown action: {action}[/dim]")
+        return
+
+    for entry in resolved:
+        try:
+            handler(entry, action_args, session.config)
+            display_action_confirmation(entry, action)
+        except Exception as e:
+            console.print(f"  [red]{e}[/red]")
 
 
 def _exit_flow(session: ChatSession, save_requested: bool) -> None:
