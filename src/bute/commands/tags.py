@@ -56,14 +56,14 @@ def _run_analyze(tag: str, entries, config, *, label: str | None = None) -> str 
 
     formatted = format_entries(entries)
     response = llm_send(analyze_prompt(), f"Tag: \"@{display_name}\"\n\nEntries:\n{formatted}", config)
-    from bute.display import display_analyze_tree
-    display_analyze_tree(display_name, response)
+    from bute.display import display_analyze_map
+    display_analyze_map(display_name, response)
 
-    if click.confirm("\n  Accept this analysis?", default=True):
+    if click.confirm("\n  Save this analysis?", default=True):
         if tag:
             upsert_tag_stage(tag, "analyzed", analysis=response, config=config)
 
-        # Save analysis as a note for future reference
+        # Save analysis as a clean markdown note
         from bute.ai import embed_entry
         from bute.display import confirm_capture
         from bute.models import Entry, EntryType
@@ -80,11 +80,6 @@ def _run_analyze(tag: str, entries, config, *, label: str | None = None) -> str 
         confirm_capture(entry)
 
         console.print(f"  [green]@{display_name} → analyzed[/green]")
-
-        # Offer mind map view
-        if click.confirm("  View as mind map?", default=False):
-            from bute.display import display_analyze_map
-            display_analyze_map(display_name, response)
 
         return response
     else:

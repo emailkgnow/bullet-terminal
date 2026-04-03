@@ -332,21 +332,24 @@ _SIG_TYPES = {".": "task", "-": "note", "=": "journal", "o": "event"}
 PAD = "  "  # second-level guide padding
 
 
-def display_analyze_tree(tag: str, response: str) -> None:
-    """Render an analysis response as a colored Rich Tree with BuJo signifiers."""
-    tree = Tree(f"[bold]@{tag}[/bold]")
-
-    # Parse THEME: blocks from the response
+def _parse_analyze_themes(response: str) -> list[tuple[str, list[str]]]:
+    """Parse THEME: or ## heading blocks from an analysis response."""
     themes = []
     current_theme = None
     current_items = []
 
     for line in response.splitlines():
         stripped = line.strip()
+        # Match both "THEME: Name" and "## Name" formats
         if stripped.upper().startswith("THEME:"):
             if current_theme is not None:
                 themes.append((current_theme, current_items))
             current_theme = stripped[6:].strip()
+            current_items = []
+        elif stripped.startswith("## "):
+            if current_theme is not None:
+                themes.append((current_theme, current_items))
+            current_theme = stripped[3:].strip()
             current_items = []
         elif stripped and current_theme is not None:
             current_items.append(stripped)
@@ -354,29 +357,34 @@ def display_analyze_tree(tag: str, response: str) -> None:
     if current_theme is not None:
         themes.append((current_theme, current_items))
 
-    # If parsing found no THEME: blocks, fall back to raw display
+    return themes
+
+
+def _theme_color(index: int, theme_name: str) -> str:
+    """Determine color for a theme branch."""
+    if "tension" in theme_name.lower() or "gap" in theme_name.lower():
+        return "yellow"
+    if "[complete]" in theme_name.lower() or "[done]" in theme_name.lower():
+        return "dim"
+    return _BRANCH_COLORS[index % len(_BRANCH_COLORS)]
+
+
+def display_analyze_tree(tag: str, response: str) -> None:
+    """Render an analysis response as a colored Rich Tree with BuJo signifiers."""
+    themes = _parse_analyze_themes(response)
     if not themes:
         console.print(f"\n{response}")
         return
 
-    # Count total entries (excluding tensions)
     total = sum(len(items) for name, items in themes if "tension" not in name.lower() and "gap" not in name.lower())
 
     console.print()
     console.print(f"  [bold]@{tag}[/bold] — {total} entries across {len(themes)} themes")
 
     for i, (theme_name, items) in enumerate(themes):
-        is_tensions = "tension" in theme_name.lower() or "gap" in theme_name.lower()
+        color = _theme_color(i, theme_name)
         is_complete = "[complete]" in theme_name.lower() or "[done]" in theme_name.lower()
 
-        if is_tensions:
-            color = "yellow"
-        elif is_complete:
-            color = "dim"
-        else:
-            color = _BRANCH_COLORS[i % len(_BRANCH_COLORS)]
-
-        # Count types for summary
         type_counts = {}
         for item in items:
             sig = item[0] if item and item[0] in _SIG_TYPES else None
@@ -387,7 +395,7 @@ def display_analyze_tree(tag: str, response: str) -> None:
         summary = ", ".join(f"{c} {t}{'s' if c > 1 else ''}" for t, c in type_counts.items())
         if is_complete:
             label = f"[dim]{theme_name}  {summary}[/dim]"
-        elif is_tensions:
+        elif color == "yellow":
             label = f"[bold {color}]{theme_name}[/bold {color}]"
         else:
             label = f"[bold {color}]{theme_name}[/bold {color}]  [dim]{summary}[/dim]"
@@ -404,6 +412,122 @@ def display_analyze_tree(tag: str, response: str) -> None:
         console.print(branch)
 
     console.print()
+
+
+def _summarize_entry(text: str) -> str:
+    """Strip BuJo signifier and summarize an entry for mind map display."""
+    # Strip leading signifier (". ", "- ", "= ", "o ") and status markers
+    stripped = re.sub(r'^[.\-=o]!?\s+', '', text)
+    stripped = re.sub(r'\s*\[(done|dropped|active)\]', '', stripped)
+    return _first_sentence(stripped)
+
+
+def display_analyze_map(tag: str, response: str) -> None:
+    """Render analysis as a horizontal mind map with center hub."""
+    themes = _parse_analyze_themes(response)
+    if not themes:
+        console.print(f"\n{response}")
+        return
+
+    width = console.width or 100
+    hub = f"@{tag}"
+    hub_width = len(hub) + 4  # "╡ @tag ╞"
+
+    # Split themes into left and right sides
+    n = len(themes)
+    colored = [(name, items, _theme_color(i, name)) for i, (name, items) in enumerate(themes)]
+    left_themes = colored[: (n + 1) // 2]
+    right_themes = colored[(n + 1) // 2 :]
+
+    # Build blocks of lines per side: (text, color, is_header)
+    def build_blocks(theme_list):
+        blocks = []
+        for name, items, color in theme_list:
+            block = [(name, color, True)]
+            for item in items:
+                block.append((_summarize_entry(item), color, False))
+            blocks.append(block)
+        return blocks
+
+    # Flatten blocks with spacer lines between themes
+    def flatten(blocks):
+        lines = []
+        for i, block in enumerate(blocks):
+            lines.extend(block)
+            if i < len(blocks) - 1:
+                lines.append(None)
+        return lines
+
+    left_lines = flatten(build_blocks(left_themes))
+    right_lines = flatten(build_blocks(right_themes))
+
+    # Pad to same height
+    max_height = max(len(left_lines), len(right_lines), 1)
+    left_lines.extend([None] * (max_height - len(left_lines)))
+    right_lines.extend([None] * (max_height - len(right_lines)))
+
+    hub_row = max_height // 2
+    side_width = (width - hub_width) // 2 - 1  # chars available per side
+
+    def clip(text, max_len):
+        if len(text) <= max_len:
+            return text
+        return text[: max_len - 1] + "…"
+
+    text_width = side_width - 4
+
+    output = Text()
+    for row in range(max_height):
+        left = left_lines[row]
+        right = right_lines[row]
+
+        # --- Left side (right-aligned, flows toward center) ---
+        left_part = Text()
+        if left is not None:
+            text, color, is_header = left
+            clipped = clip(text, text_width)
+            if is_header:
+                left_part.append(clipped.rjust(text_width), style=f"bold {color}")
+                left_part.append(" ───", style=color)
+            else:
+                left_part.append(clipped.rjust(text_width), style=color)
+                left_part.append("    ")
+        else:
+            left_part.append(" " * side_width)
+
+        # --- Center spine ---
+        spine = Text()
+        if row == hub_row:
+            spine.append("╡ ", style="bold")
+            spine.append(hub, style="bold")
+            spine.append(" ╞", style="bold")
+        else:
+            half = hub_width // 2
+            spine.append(" " * half)
+            spine.append("│", style="dim")
+            spine.append(" " * (hub_width - half - 1))
+
+        # --- Right side (left-aligned, flows away from center) ---
+        right_part = Text()
+        if right is not None:
+            text, color, is_header = right
+            clipped = clip(text, text_width)
+            if is_header:
+                right_part.append("─── ", style=color)
+                right_part.append(clipped, style=f"bold {color}")
+            else:
+                right_part.append("    ")
+                right_part.append(clipped, style=color)
+
+        line = Text()
+        line.append_text(left_part)
+        line.append_text(spine)
+        line.append_text(right_part)
+        output.append_text(line)
+        output.append("\n")
+
+    console.print()
+    console.print(output)
 
 
 def display_ai_response(text: str) -> None:
