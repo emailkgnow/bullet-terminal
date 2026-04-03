@@ -332,10 +332,15 @@ _SIG_TYPES = {".": "task", "-": "note", "=": "journal", "o": "event"}
 PAD = "  "  # second-level guide padding
 
 
-def _parse_analyze_themes(response: str) -> list[tuple[str, list[str]]]:
-    """Parse THEME: or ## heading blocks from an analysis response."""
+def _parse_analyze_themes(response: str) -> list[tuple[str, str, list[str]]]:
+    """Parse THEME: or ## heading blocks from an analysis response.
+
+    Returns list of (theme_name, summary, items) tuples.
+    Summary is the > line content (empty string if absent).
+    """
     themes = []
     current_theme = None
+    current_summary = ""
     current_items = []
 
     for line in response.splitlines():
@@ -343,19 +348,23 @@ def _parse_analyze_themes(response: str) -> list[tuple[str, list[str]]]:
         # Match both "THEME: Name" and "## Name" formats
         if stripped.upper().startswith("THEME:"):
             if current_theme is not None:
-                themes.append((current_theme, current_items))
+                themes.append((current_theme, current_summary, current_items))
             current_theme = stripped[6:].strip()
+            current_summary = ""
             current_items = []
         elif stripped.startswith("## "):
             if current_theme is not None:
-                themes.append((current_theme, current_items))
+                themes.append((current_theme, current_summary, current_items))
             current_theme = stripped[3:].strip()
+            current_summary = ""
             current_items = []
+        elif stripped.startswith("> ") and current_theme is not None and not current_items:
+            current_summary = stripped[2:].strip()
         elif stripped and current_theme is not None:
             current_items.append(stripped)
 
     if current_theme is not None:
-        themes.append((current_theme, current_items))
+        themes.append((current_theme, current_summary, current_items))
 
     return themes
 
@@ -376,12 +385,12 @@ def display_analyze_tree(tag: str, response: str) -> None:
         console.print(f"\n{response}")
         return
 
-    total = sum(len(items) for name, items in themes if "tension" not in name.lower() and "gap" not in name.lower())
+    total = sum(len(items) for name, _summary, items in themes if "tension" not in name.lower() and "gap" not in name.lower())
 
     console.print()
     console.print(f"  [bold]@{tag}[/bold] — {total} entries across {len(themes)} themes")
 
-    for i, (theme_name, items) in enumerate(themes):
+    for i, (theme_name, _summary, items) in enumerate(themes):
         color = _theme_color(i, theme_name)
         is_complete = "[complete]" in theme_name.lower() or "[done]" in theme_name.lower()
 
@@ -435,7 +444,7 @@ def display_analyze_map(tag: str, response: str) -> None:
 
     # Split themes into left and right sides
     n = len(themes)
-    colored = [(name, items, _theme_color(i, name)) for i, (name, items) in enumerate(themes)]
+    colored = [(name, items, _theme_color(i, name)) for i, (name, _summary, items) in enumerate(themes)]
     left_themes = colored[: (n + 1) // 2]
     right_themes = colored[(n + 1) // 2 :]
 

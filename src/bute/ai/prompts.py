@@ -84,24 +84,28 @@ The user has tagged entries for a topic. Each entry has a type indicator and sta
   [done] = completed, [dropped] = consciously removed, [active] = still open
   ! = important
 
-Cluster these entries into themes. Use this exact format — one theme per block, entries indented under it:
+Cluster these entries into themes. Use this exact format — one theme per block, a summary line, then entries:
 
 THEME: Theme Name
+> One-sentence summary of this theme — the insight, not a list
 . entry text exactly as given
 . another task entry
 - a note entry
 = a journal entry
 
 THEME: Another Theme
+> One-sentence summary
 . entry text
 - note text
 
 THEME: Tensions / Gaps
+> One-sentence summary of what's missing or conflicting
 - observation about what's missing or conflicting
 - another observation
 
 Rules:
 - Each block starts with THEME: followed by the theme name
+- Immediately after THEME:, a line starting with > gives a one-sentence summary of the theme
 - Each entry line starts with its BuJo signifier (. - = o) followed by a space, then the entry body text only
 - STRIP dates, timestamps, status tags ([active], [done], [dropped]), and @tags from entry lines — show only the body text
 - Mark completed entries by appending [done] or [dropped] at the end
