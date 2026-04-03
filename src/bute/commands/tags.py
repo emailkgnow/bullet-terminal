@@ -186,10 +186,6 @@ def execute_tag_cmd(ctx, tag_name):
     response = llm_send(execute_prompt(), f"Tag: \"@{tag_name}\"\n\nEntries:\n{formatted}", config)
     console.print(f"\n{response}")
 
-    if not click.confirm("\n  Create these tasks?", default=True):
-        console.print(f"  [dim]Task generation discarded. Analysis preserved. Run execute again when ready.[/dim]")
-        return
-
     tasks = []
     for line in response.split("\n"):
         stripped = line.strip()
@@ -200,7 +196,31 @@ def execute_tag_cmd(ctx, tag_name):
         elif bulleted:
             tasks.append(bulleted.group(1))
 
-    for task_text in tasks:
+    if not tasks:
+        console.print(f"  [dim]No tasks generated.[/dim]")
+        return
+
+    try:
+        import questionary
+
+        choices = [
+            questionary.Choice(task, value=task, checked=True)
+            for task in tasks
+        ]
+        selected = questionary.checkbox(
+            "Select tasks to create:", choices=choices
+        ).ask()
+
+        if selected is None or not selected:
+            console.print(f"  [dim]No tasks created.[/dim]")
+            return
+    except ImportError:
+        if not click.confirm(f"\n  Create all {len(tasks)} tasks?", default=True):
+            console.print(f"  [dim]Task generation discarded.[/dim]")
+            return
+        selected = tasks
+
+    for task_text in selected:
         entry = Entry.create(
             entry_type=EntryType.TASK,
             body=task_text,
@@ -211,4 +231,4 @@ def execute_tag_cmd(ctx, tag_name):
         confirm_capture(entry)
 
     upsert_tag_stage(tag_name, "executed", tasks_text=response, config=config)
-    console.print(f"  [green]{len(tasks)} tasks created from @{tag_name}[/green]")
+    console.print(f"  [green]{len(selected)} tasks created from @{tag_name}[/green]")
