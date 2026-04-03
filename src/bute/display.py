@@ -453,6 +453,9 @@ def display_analyze_map(tag: str, response: str) -> None:
     left_themes = colored[: (n + 1) // 2]
     right_themes = colored[(n + 1) // 2 :]
 
+    side_width = (width - hub_width) // 2 - 1  # chars available per side
+    text_width = side_width - 4
+
     # Build blocks of lines per side: (text, color, is_header)
     def wrap_text(text, max_len):
         """Wrap text at word boundaries into multiple lines."""
@@ -497,14 +500,11 @@ def display_analyze_map(tag: str, response: str) -> None:
     right_lines.extend([None] * (max_height - len(right_lines)))
 
     hub_row = max_height // 2
-    side_width = (width - hub_width) // 2 - 1  # chars available per side
 
     def clip(text, max_len):
         if len(text) <= max_len:
             return text
         return text[: max_len - 1] + "…"
-
-    text_width = side_width - 4
 
     output = Text()
     for row in range(max_height):
