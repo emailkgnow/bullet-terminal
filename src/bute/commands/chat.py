@@ -308,3 +308,107 @@ def display_proposed_entries(proposals: list[dict]) -> None:
 
     console.print()
     console.print(table)
+
+
+def _stream_and_record(session: ChatSession) -> None:
+    """Stream the next AI response, record it, and parse proposals."""
+    from bute.ai.llm import stream_chat
+
+    console.print()
+    full_response = []
+    for chunk in stream_chat(session.messages, session.config):
+        print(chunk, end="", flush=True)
+        full_response.append(chunk)
+    print()  # newline after streaming
+
+    response_text = "".join(full_response)
+    session.add_assistant_message(response_text)
+
+    # Parse and accumulate proposals
+    new_proposals = parse_proposals(response_text)
+    if new_proposals:
+        session.proposals.extend(new_proposals)
+        display_proposed_entries(new_proposals)
+        total = len(session.proposals)
+        if total > len(new_proposals):
+            console.print(f"  [dim]{total} entries proposed total[/dim]")
+
+
+def start_chat_session(entry, config) -> None:
+    """Start an interactive AI chat session anchored to an entry."""
+    from bute.ai import _LLM_INSTALL_MSG, is_llm_available
+
+    if not is_llm_available(config):
+        console.print(_LLM_INSTALL_MSG)
+        return
+
+    session = ChatSession.start(entry, config)
+    display_chat_header(session)
+
+    # Initial AI response
+    _stream_and_record(session)
+
+    # REPL loop
+    save_requested = _run_repl(session)
+
+    # Exit flow
+    _exit_flow(session, save_requested)
+
+
+def _run_repl(session: ChatSession) -> bool:
+    """Run the chat REPL. Returns True if /save was requested."""
+    while True:
+        try:
+            user_input = input("\n> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            console.print()
+            return False
+
+        if not user_input:
+            continue
+
+        # Slash commands
+        if user_input.startswith("/"):
+            result = _handle_slash_command(session, user_input)
+            if result == "exit":
+                return False
+            if result == "save":
+                return True
+            continue
+
+        # Number-action
+        tokens = user_input.split()
+        if tokens[0].isdigit():
+            _handle_number_action(session, tokens)
+            continue
+
+        # Regular message → send to AI
+        session.add_user_message(user_input)
+        _stream_and_record(session)
+
+    return False
+
+
+def _handle_slash_command(session: ChatSession, command: str) -> str | None:
+    """Handle a slash command. Returns 'exit', 'save', or None to continue."""
+    parts = command.split(None, 1)
+    cmd = parts[0].lower()
+
+    if cmd == "/done":
+        return "exit"
+    if cmd == "/save":
+        return "save"
+
+    console.print(f"  [dim]Unknown command: {cmd}[/dim]")
+    return None
+
+
+def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
+    """Handle number-action commands in chat. Placeholder."""
+    console.print("  [dim]Number actions not yet implemented.[/dim]")
+
+
+def _exit_flow(session: ChatSession, save_requested: bool) -> None:
+    """Handle exit flow. Placeholder."""
+    if session.proposals:
+        console.print(f"\n  [dim]{len(session.proposals)} proposed entries (not yet implemented)[/dim]")
