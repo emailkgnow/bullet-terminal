@@ -124,6 +124,29 @@ def send_message(system: str, user: str, config=None) -> str:
         return "[AI unavailable]"
 
 
+def stream_chat(messages: list[dict], config=None):
+    """Stream a multi-turn chat completion. Yields content chunks.
+
+    messages: list of {"role": "system"|"user"|"assistant", "content": "..."}
+    Yields "[AI unavailable]" on error.
+    """
+    try:
+        client = _get_client(config)
+        model = _get_model(config)
+        stream = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            stream=True,
+        )
+        for chunk in stream:
+            delta = chunk.choices[0].delta
+            if delta.content:
+                yield delta.content
+    except Exception as e:
+        logger.debug("LLM stream failed: %s", e, exc_info=True)
+        yield "[AI unavailable]"
+
+
 def send_with_entries(
     system: str, entries: list[Entry], question: str, config=None
 ) -> str:
