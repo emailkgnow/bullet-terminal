@@ -4,6 +4,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+from rich.tree import Tree
 
 from bute.models import Entry, EntryType, TaskStatus
 from bute.parser import format_time_display
@@ -71,6 +72,20 @@ STATUS_ICONS = {
 }
 
 
+import re
+
+def _first_sentence(text: str) -> str:
+    """Extract the first sentence from text (up to first period, !, or ?)."""
+    first_line = text.split("\n", 1)[0].strip()
+    m = re.search(r'[.!?]', first_line)
+    if m:
+        return first_line[:m.end()].strip()
+    # No sentence-ending punctuation — return the full first line, capped
+    if len(first_line) > 80:
+        return first_line[:77] + "..."
+    return first_line
+
+
 def _build_entry_row(i: int, entry: Entry) -> tuple[str, Text, Text, str]:
     """Build the common columns for an entry row: (#, icon, body, meta)."""
     style = TYPE_STYLE[entry.type]
@@ -82,13 +97,19 @@ def _build_entry_row(i: int, entry: Entry) -> tuple[str, Text, Text, str]:
         icon.append(" ")
     icon.append(style["icon"], style=style["color"])
 
+    # List views show first sentence only — ">" signals more content follows
+    preview = _first_sentence(entry.body)
+    has_more = len(preview) < len(entry.body.strip())
+    if has_more:
+        preview = preview + " >"
+
     body = Text()
     if entry.status == TaskStatus.DONE:
-        body.append(entry.body, style="strike dim")
+        body.append(preview, style="strike dim")
     elif entry.status == TaskStatus.DROPPED:
-        body.append(entry.body, style="dim")
+        body.append(preview, style="dim")
     else:
-        body.append(entry.body)
+        body.append(preview)
 
     meta_parts = []
     if entry.due:
@@ -300,6 +321,89 @@ def display_search_results(
     title = f'Search: "{query}"' if query else "Similar entries"
     console.print(f"\n  [bold]{title}[/bold]")
     console.print(table)
+
+
+# Rotating colors for analyze tree branches
+_BRANCH_COLORS = ["cyan", "green", "magenta", "blue", "red"]
+
+# Map BuJo signifiers to their type names
+_SIG_TYPES = {".": "task", "-": "note", "=": "journal", "o": "event"}
+
+PAD = "  "  # second-level guide padding
+
+
+def display_analyze_tree(tag: str, response: str) -> None:
+    """Render an analysis response as a colored Rich Tree with BuJo signifiers."""
+    tree = Tree(f"[bold]@{tag}[/bold]")
+
+    # Parse THEME: blocks from the response
+    themes = []
+    current_theme = None
+    current_items = []
+
+    for line in response.splitlines():
+        stripped = line.strip()
+        if stripped.upper().startswith("THEME:"):
+            if current_theme is not None:
+                themes.append((current_theme, current_items))
+            current_theme = stripped[6:].strip()
+            current_items = []
+        elif stripped and current_theme is not None:
+            current_items.append(stripped)
+
+    if current_theme is not None:
+        themes.append((current_theme, current_items))
+
+    # If parsing found no THEME: blocks, fall back to raw display
+    if not themes:
+        console.print(f"\n{response}")
+        return
+
+    # Count total entries (excluding tensions)
+    total = sum(len(items) for name, items in themes if "tension" not in name.lower() and "gap" not in name.lower())
+
+    console.print()
+    console.print(f"  [bold]@{tag}[/bold] — {total} entries across {len(themes)} themes")
+
+    for i, (theme_name, items) in enumerate(themes):
+        is_tensions = "tension" in theme_name.lower() or "gap" in theme_name.lower()
+        is_complete = "[complete]" in theme_name.lower() or "[done]" in theme_name.lower()
+
+        if is_tensions:
+            color = "yellow"
+        elif is_complete:
+            color = "dim"
+        else:
+            color = _BRANCH_COLORS[i % len(_BRANCH_COLORS)]
+
+        # Count types for summary
+        type_counts = {}
+        for item in items:
+            sig = item[0] if item and item[0] in _SIG_TYPES else None
+            if sig:
+                tname = _SIG_TYPES[sig]
+                type_counts[tname] = type_counts.get(tname, 0) + 1
+
+        summary = ", ".join(f"{c} {t}{'s' if c > 1 else ''}" for t, c in type_counts.items())
+        if is_complete:
+            label = f"[dim]{theme_name}  {summary}[/dim]"
+        elif is_tensions:
+            label = f"[bold {color}]{theme_name}[/bold {color}]"
+        else:
+            label = f"[bold {color}]{theme_name}[/bold {color}]  [dim]{summary}[/dim]"
+
+        branch = Tree(label, guide_style=color)
+
+        for item in items:
+            if is_complete:
+                branch.add(f"[dim]{PAD}{item}[/dim]", guide_style="dim")
+            else:
+                branch.add(f"[{color}]{PAD}{item}[/{color}]", guide_style=color)
+
+        console.print()
+        console.print(branch)
+
+    console.print()
 
 
 def display_ai_response(text: str) -> None:

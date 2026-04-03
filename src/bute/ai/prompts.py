@@ -116,28 +116,30 @@ The user has tagged entries for a topic. Each entry has a type indicator and sta
   [done] = completed, [dropped] = consciously removed, [active] = still open
   ! = important
 
-Cluster these entries into a text mind map. Format:
+Cluster these entries into themes. Use this exact format — one theme per block, entries indented under it:
 
-Tag Name
-├── Theme A
-│   ├── entry text (type indicator)
-│   ├── entry text (type indicator)
-│   └── entry text (type indicator)
-├── Theme B
-│   ├── entry text (type indicator)
-│   └── entry text (type indicator)
-└── Tensions / Gaps
-    ├── observation about what's missing or conflicting
-    └── observation
+THEME: Theme Name
+. entry text exactly as given
+. another task entry
+- a note entry
+= a journal entry
+
+THEME: Another Theme
+. entry text
+- note text
+
+THEME: Tensions / Gaps
+- observation about what's missing or conflicting
+- another observation
 
 Rules:
-- Use box-drawing characters (├── └── │) for the tree structure
+- Each block starts with THEME: followed by the theme name
+- Each entry line starts with its BuJo signifier (. - = o) followed by a space
+- Add [done] or [dropped] after entries that are not active
 - Theme names should be clear and concise
-- Each leaf is an actual entry — don't add, remove, or rephrase
-- Include the type indicator after each entry: (task), (note), (journal), (event)
-- Add [done] or [dropped] for non-active entries
-- The final branch is Tensions / Gaps — connections, contradictions, or missing pieces
-- Use the entry types and statuses as context (done tasks show progress, journals reveal feelings, notes are facts, active tasks are intentions)"""
+- Each leaf is an actual entry — don't add, remove, or rephrase the entry text
+- The final theme is always Tensions / Gaps — connections, contradictions, or missing pieces
+- No tree-drawing characters, no numbering, no extra formatting"""
 
 
 def execute_prompt() -> str:
@@ -223,6 +225,16 @@ Summarize this chat conversation into a concise reference note. Capture:
 - Action items discussed (separate from any proposed entries)
 
 Format as a brief paragraph or short bullet list. No section headers. Keep it under 100 words. This becomes a bt note for future reference — make it scannable and specific."""
+
+
+def title_prompt() -> str:
+    return f"""{SYSTEM_BASE}
+
+Generate a single topic sentence that summarizes the following entry. Rules:
+- One sentence only, ending with a period.
+- Capture the core idea or theme — what is this entry about?
+- Keep it under 15 words.
+- No quotes, no markdown, no preamble — just the sentence."""
 
 
 def format_entries(entries: list[Entry]) -> str:

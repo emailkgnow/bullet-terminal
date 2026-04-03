@@ -188,6 +188,7 @@ def _print_help():
     console.print("    Add [bold]@tag[/bold] and [bold]key:value[/bold]: [dim]bt t fix bug @backend due:tomorrow[/dim]")
     console.print("    Calendar keys: [dim]t:HHMM (time)  d:MMDD (date)  — bt c meeting t:1430 d:0330[/dim]")
     console.print("    [dim]Tasks auto-get @thisweek (focus). Use -l/--later for backlog only.[/dim]")
+    console.print("    [dim]Tip: first sentence = title in list views. Start entries with a clear topic sentence.[/dim]")
     console.print()
 
     # Views
@@ -224,6 +225,7 @@ def _print_help():
     console.print("    [bold]bt <n> untag @tag[/bold]        Remove a tag")
     console.print("    [bold]bt <n> undo[/bold]              Undo last action on entry")
     console.print("    [bold]bt undo[/bold]                  Undo last action globally")
+    console.print("    [bold]bt <n> title[/bold]            AI-generate a topic sentence")
     console.print("    [bold]bt <n> chat[/bold]             AI chat — think through an entry")
     console.print("    [dim]Multiple entries:[/dim] [bold]bt 1 2 3 done[/bold]")
     console.print()

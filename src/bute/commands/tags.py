@@ -10,6 +10,22 @@ from bute.db import get_tag_stage, upsert_tag_stage
 console = Console()
 
 
+def _format_analysis_for_note(tag: str, response: str) -> str:
+    """Convert THEME: structured response into clean markdown for storage."""
+    lines = [f"@{tag} analysis"]
+    current_theme = None
+
+    for line in response.splitlines():
+        stripped = line.strip()
+        if stripped.upper().startswith("THEME:"):
+            current_theme = stripped[6:].strip()
+            lines.append(f"\n## {current_theme}")
+        elif stripped and current_theme is not None:
+            lines.append(f"  {stripped}")
+
+    return "\n".join(lines)
+
+
 def _load_tagged_entries(tag: str, config=None):
     """Load all entries with the given tag."""
     from bute.storage import query_and_load
@@ -30,7 +46,8 @@ def _run_analyze(tag: str, entries, config) -> str | None:
 
     formatted = format_entries(entries)
     response = llm_send(analyze_prompt(), f"Tag: \"@{tag}\"\n\nEntries:\n{formatted}", config)
-    console.print(f"\n{response}")
+    from bute.display import display_analyze_tree
+    display_analyze_tree(tag, response)
 
     if click.confirm("\n  Accept this analysis?", default=True):
         upsert_tag_stage(tag, "analyzed", analysis=response, config=config)
@@ -43,7 +60,7 @@ def _run_analyze(tag: str, entries, config) -> str | None:
 
         entry = Entry.create(
             entry_type=EntryType.NOTE,
-            body=response,
+            body=_format_analysis_for_note(tag, response),
             tags=[tag, "ai-analysis"],
         )
         save_entry(entry, config)

@@ -110,6 +110,21 @@ def handle_add_tag(entry: Entry, tag: str, config) -> None:
     update_entry(entry, config)
 
 
+def handle_title(entry: Entry, args: list[str], config) -> None:
+    """Generate an AI topic sentence and prepend it to the entry body."""
+    from bute.ai import is_llm_available, llm_send
+    from bute.ai.prompts import title_prompt
+
+    if not is_llm_available(config):
+        raise DwnError("AI not configured. Run bt init.")
+
+    title = llm_send(title_prompt(), entry.body, config).strip().strip('"')
+    record_undo(entry.id, "title", {"body": entry.body}, config)
+    entry.body = f"{title}\n\n{entry.body}"
+    update_entry(entry, config)
+    console.print(f"  [bold]{title}[/bold]")
+
+
 def handle_later(entry: Entry, args: list[str], config) -> None:
     """Remove @today tag — defer task to backlog."""
     _require_task(entry, "later")
@@ -158,6 +173,9 @@ def apply_undo(record: dict, config) -> None:
         if tag not in entry.tags:
             entry.tags.append(tag)
         update_entry(entry, config)
+    elif action == "title":
+        entry.body = prev["body"]
+        update_entry(entry, config)
     else:
         raise DwnError(f"Cannot undo '{action}'.")
 
@@ -174,6 +192,7 @@ ACTION_HANDLERS = {
     "modify": handle_mod,
     "edit": handle_edit,
     "later": handle_later,
+    "title": handle_title,
 }
 
 

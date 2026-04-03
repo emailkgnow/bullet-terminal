@@ -12,7 +12,7 @@ DATA_DIR_DEFAULT = Path.home() / "bullet-terminal"
 PROVIDER_PRESETS = {
     "ollama": {
         "base_url": "http://localhost:11434/v1",
-        "default_model": "llama3",
+        "default_model": "gemma4:e4b",
         "needs_api_key": False,
     },
     "anthropic": {
@@ -67,6 +67,7 @@ def default_config(
     provider: str = "ollama",
     model: str | None = None,
     base_url: str | None = None,
+    api_key: str | None = None,
 ) -> tomlkit.TOMLDocument:
     """Generate a default config.toml with comments."""
     preset = PROVIDER_PRESETS.get(provider, {})
@@ -86,8 +87,8 @@ def default_config(
     ai.add("provider", provider)
     ai.add("model", model or preset.get("default_model", ""))
     ai.add("base_url", base_url or preset.get("base_url", ""))
-    ai.add(tomlkit.comment("For API key, use a command that prints it (e.g., keychain lookup)"))
-    ai.add("api_key", "")
+    ai.add(tomlkit.comment("API key: direct value, keychain:<service>, or empty for Keychain auto-lookup"))
+    ai.add("api_key", api_key or "")
     doc.add("ai", ai)
     doc.add(tomlkit.nl())
 
@@ -104,4 +105,8 @@ def ensure_data_dirs(config: tomlkit.TOMLDocument | None = None) -> Path:
     data_dir = get_data_dir(config)
     for subdir in ["entries", "collections", "habits", ".index"]:
         (data_dir / subdir).mkdir(parents=True, exist_ok=True)
+
+    from bute.guide import write_guide
+    write_guide(data_dir)
+
     return data_dir
