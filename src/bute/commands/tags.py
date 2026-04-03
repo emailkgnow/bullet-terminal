@@ -179,17 +179,11 @@ def execute_tag_cmd(ctx, tag_name):
         console.print(_LLM_INSTALL_MSG)
         return
 
-    stage_row = get_tag_stage(tag_name, config=config)
-    analysis_content = stage_row["analysis"] if stage_row else None
+    from bute.ai.prompts import format_entries
 
-    if not analysis_content:
-        console.print(f"  [dim]No analysis found. Running analysis first...[/dim]")
-        analysis_content = _run_analyze(tag_name, entries, config)
-        if analysis_content is None:
-            return
-
-    console.print(f"  [dim]Generating tasks...[/dim]")
-    response = llm_send(execute_prompt(), f"Tag: \"@{tag_name}\"\n\nAnalysis:\n{analysis_content}", config)
+    formatted = format_entries(entries)
+    console.print(f"  [dim]Generating tasks from {len(entries)} entries...[/dim]")
+    response = llm_send(execute_prompt(), f"Tag: \"@{tag_name}\"\n\nEntries:\n{formatted}", config)
     console.print(f"\n{response}")
 
     if not click.confirm("\n  Create these tasks?", default=True):
