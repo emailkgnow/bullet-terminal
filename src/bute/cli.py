@@ -250,13 +250,13 @@ def _print_help():
     console.print("    [bold]bt dump[/bold]             Rapid-fire tasks → Task Log ([dim]add @today or @thisweek to focus[/dim])")
     console.print("    [bold]bt dp[/bold]              Daily plan — morning ritual ([dim]-y for non-interactive[/dim])")
     console.print("    [bold]bt wp[/bold]              Weekly plan — select tasks for the week ([dim]-y[/dim])")
-    console.print("    [bold]bt recap[/bold]           End-of-day summary ([dim]-q to skip AI[/dim])")
+    console.print("    [bold]bt recap[/bold]             End-of-day summary — done, open, dropped, captured")
+    console.print("    [bold]bt recap[/bold] [period]    AI analysis of a period ([dim]day, week, month, year[/dim])")
     console.print()
 
     # AI
     console.print("  [bold cyan]AI Features[/bold cyan] — requires configured provider (bt init)")
     console.print("    [bold]bt <n> chat[/bold]           Think through an entry with AI — interactive session")
-    console.print("    [bold]bt review[/bold] [period]   AI summary ([dim]day, week, month[/dim])")
     console.print("    [bold]bt topic[/bold] <name>      Cross-dimension synthesis")
     console.print("    [bold]bt nudges[/bold]            AI-generated actionable suggestions")
     console.print()
