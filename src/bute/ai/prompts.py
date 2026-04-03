@@ -51,37 +51,6 @@ Rules:
 - Be specific — reference actual entry content"""
 
 
-def review_prompt(period: str) -> str:
-    return f"""{SYSTEM_BASE}
-
-Review the user's {period}. Produce a concise summary using this exact format:
-
-Accomplishments
-- bullet point (what got done, what moved forward)
-- bullet point
-
-Sentiment
-- bullet point (how they felt, emotional patterns)
-
-Patterns
-- bullet point (recurring topics, tags, themes)
-
-Stalled
-- bullet point (selected but not acted on, carried over)
-
-Lessons
-- bullet point (one key takeaway)
-
-Next {period}
-- bullet point (one suggestion for focus)
-
-Rules:
-- Use plain section titles on their own line (no bold, no markdown, no numbering, no colons)
-- Use "- " bullet points under each section (2-4 bullets max per section)
-- Keep each bullet to one concise sentence
-- Be specific — reference actual entry content
-- Skip a section entirely if there's nothing meaningful to say about it"""
-
 
 def nudges_prompt() -> str:
     return f"""{SYSTEM_BASE}
@@ -134,10 +103,11 @@ THEME: Tensions / Gaps
 
 Rules:
 - Each block starts with THEME: followed by the theme name
-- Each entry line starts with its BuJo signifier (. - = o) followed by a space
-- Add [done] or [dropped] after entries that are not active
+- Each entry line starts with its BuJo signifier (. - = o) followed by a space, then the entry body text only
+- STRIP dates, timestamps, status tags ([active], [done], [dropped]), and @tags from entry lines — show only the body text
+- Mark completed entries by appending [done] or [dropped] at the end
 - Theme names should be clear and concise
-- Each leaf is an actual entry — don't add, remove, or rephrase the entry text
+- Each leaf is an actual entry — don't add, remove, or rephrase the entry body text
 - The final theme is always Tensions / Gaps — connections, contradictions, or missing pieces
 - No tree-drawing characters, no numbering, no extra formatting"""
 
@@ -157,29 +127,6 @@ Requirements:
 
 Output only the numbered task list, nothing else."""
 
-
-def recap_prompt() -> str:
-    return f"""{SYSTEM_BASE}
-
-The user is reviewing their day. Produce a coaching-style summary using this exact format:
-
-Today
-- bullet point (what they accomplished, be specific)
-- bullet point
-
-Carrying Forward
-- bullet point (what's still open, no judgment)
-
-Tomorrow
-- one concrete, light suggestion for focus
-
-Rules:
-- Use plain section titles on their own line (no bold, no markdown, no numbering, no colons)
-- Use "- " bullet points under each section (2-3 bullets max)
-- Keep each bullet to one concise sentence
-- Tone: warm coach, not corporate report. Direct, not cheesy.
-- Be specific — reference actual entry content
-- Skip a section if there's nothing meaningful to say"""
 
 
 _BT_FENCE = "```"
