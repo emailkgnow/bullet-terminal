@@ -51,7 +51,6 @@ Rules:
 - Be specific — reference actual entry content"""
 
 
-
 def nudges_prompt() -> str:
     return f"""{SYSTEM_BASE}
 
@@ -126,7 +125,6 @@ Requirements:
 - Account for already-done tasks — don't regenerate work that's complete
 
 Output only the numbered task list, nothing else."""
-
 
 
 _BT_FENCE = "```"
