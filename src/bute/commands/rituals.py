@@ -474,14 +474,25 @@ def wp_cmd(ctx, non_interactive):
         console.print("  [dim]questionary not available — skipping selection[/dim]")
 
 
-# --- Recap (End of Day) ---
+# --- Recap ---
 
 
 @click.command("recap")
-@click.option("-q", "--quiet", is_flag=True, help="Skip AI summary.")
+@click.argument("period", required=False, default=None)
 @click.pass_context
-def recap_cmd(ctx, quiet):
-    """End-of-day summary — what you did, what's carrying, AI coaching."""
+def recap_cmd(ctx, period):
+    """End-of-day summary, or AI analysis of a period (day, week, month, year)."""
+    config = ctx.obj.get("config")
+
+    if period is None:
+        # Structured display — no AI
+        _recap_daily(config)
+    else:
+        _recap_period(period, config)
+
+
+def _recap_daily(config):
+    """Show today's structured recap: done, open, dropped, captured, habits."""
     from bute.habit_storage import get_habit_summary
     from bute.ritual_ops import (
         get_tasks_done_today,
@@ -490,9 +501,6 @@ def recap_cmd(ctx, quiet):
     )
     from bute.state import mark_recap_done
     from bute.storage import query_and_load
-    from bute.models import EntryType, TaskStatus
-
-    config = ctx.obj.get("config")
 
     done = get_tasks_done_today(config)
     open_tasks = query_and_load(config, type="task", status="active", tag="today")
@@ -531,64 +539,43 @@ def recap_cmd(ctx, quiet):
         from bute.display import display_habit_line
         display_habit_line(habits, configured_habits)
 
-    # AI coaching narrative
-    if not quiet:
-        from bute.ai import is_llm_available, llm_send_with_entries
-        from bute.ai.prompts import recap_prompt
-
-        if is_llm_available(config):
-            all_entries = done + list(open_tasks) + dropped + captured
-            if all_entries:
-                console.print()
-                console.print("  [dim]Thinking...[/dim]")
-                response = llm_send_with_entries(
-                    recap_prompt(), all_entries, "Recap my day", config
-                )
-                from bute.display import display_ai_response
-                display_ai_response(response)
-
     mark_recap_done(config)
     console.print()
 
 
-# --- Review (Phase 5 stub) ---
+def _recap_period(period: str, config):
+    """AI-analyze all entries for the given period."""
+    from datetime import timedelta
 
-
-@click.command("review")
-@click.argument("period", required=False, default="week")
-@click.pass_context
-def review_cmd(ctx, period):
-    """Review a period — AI synthesizes accomplishments, sentiment, lessons."""
-    from bute.ai import _LLM_INSTALL_MSG, is_llm_available, llm_send_with_entries
-    from bute.ai.prompts import review_prompt
-
-    config = ctx.obj.get("config")
+    from bute.ai import _LLM_INSTALL_MSG, is_llm_available
+    from bute.commands.tags import _run_analyze
+    from bute.storage import query_and_load
 
     if not is_llm_available(config):
         console.print(_LLM_INSTALL_MSG)
         return
 
-    from datetime import timedelta
-
-    from bute.storage import query_and_load
-
     today = date.today()
     if period == "day":
         start = today
+        label = "today"
+    elif period == "week":
+        start = today - timedelta(days=today.weekday())
+        label = "this-week"
     elif period == "month":
         start = today.replace(day=1)
-    else:  # week
-        start = today - timedelta(days=today.weekday())
+        label = "this-month"
+    elif period == "year":
+        start = today.replace(month=1, day=1)
+        label = "this-year"
+    else:
+        console.print(f"  [red]Unknown period: {period}. Use day, week, month, or year.[/red]")
+        return
 
     entries = query_and_load(config, created_since=start.isoformat())
 
     if not entries:
-        console.print(f"  [dim]No entries for this {period}.[/dim]")
+        console.print(f"  [dim]No entries for {label.replace('-', ' ')}.[/dim]")
         return
 
-    console.print(f"  [dim]Reviewing {len(entries)} entries...[/dim]")
-    response = llm_send_with_entries(
-        review_prompt(period), entries, f"Review my {period}", config
-    )
-    from bute.display import display_ai_response
-    display_ai_response(response)
+    _run_analyze("", entries, config, label=label)
