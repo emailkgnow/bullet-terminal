@@ -86,6 +86,14 @@ def _first_sentence(text: str) -> str:
     return first_line
 
 
+def _preview(text: str) -> str:
+    """Topic sentence with > indicator if entry has more content."""
+    preview = _first_sentence(text)
+    if len(preview) < len(text.strip()):
+        return preview + " >"
+    return preview
+
+
 def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tuple[str, Text, Text, str]:
     """Build the common columns for an entry row: (#, icon, body, meta)."""
     style = TYPE_STYLE[entry.type]
@@ -97,11 +105,7 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
         icon.append(" ")
     icon.append(style["icon"], style=style["color"])
 
-    # List views show first sentence only — ">" signals more content follows
-    preview = _first_sentence(entry.body)
-    has_more = len(preview) < len(entry.body.strip())
-    if has_more:
-        preview = preview + " >"
+    preview = _preview(entry.body)
 
     body = Text()
     if entry.status == TaskStatus.DONE:

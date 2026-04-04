@@ -239,6 +239,7 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
     """Build a month's log data — dict of day_num → list of entry strings."""
     import calendar
 
+    from bute.display import _preview
     from bute.parser import format_time_display
 
     from bute.models import EntryType
@@ -257,16 +258,16 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
         entries = load_entries_by_date(d, config)
         for e in entries:
             if e.type == EntryType.JOURNAL:
-                lines_by_day.setdefault(day_num, []).append(f"[magenta]=[/magenta] {e.body}")
+                lines_by_day.setdefault(day_num, []).append(f"[magenta]=[/magenta] {_preview(e.body)}")
             elif e.type == EntryType.NOTE:
-                lines_by_day.setdefault(day_num, []).append(f"[yellow]-[/yellow] {e.body}")
+                lines_by_day.setdefault(day_num, []).append(f"[yellow]-[/yellow] {_preview(e.body)}")
             elif e.type == EntryType.CALENDAR:
                 # Calendar events appear on their scheduled date, or creation date if no date set
                 event_day = e.scheduled_date.day if e.scheduled_date else day_num
                 if e.scheduled_date and (e.scheduled_date.year != target.year or e.scheduled_date.month != target.month):
                     continue  # scheduled for a different month
                 time_str = f" {format_time_display(e.scheduled_time)}" if e.scheduled_time else ""
-                lines_by_day.setdefault(event_day, []).append(f"[green]o[/green][dim]{time_str}[/dim] {e.body}")
+                lines_by_day.setdefault(event_day, []).append(f"[green]o[/green][dim]{time_str}[/dim] {_preview(e.body)}")
 
     # Calendar events scheduled in this month but created in a different month
     from bute.storage import query_and_load
@@ -281,7 +282,7 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
     for e in scheduled_events:
         day_num = e.scheduled_date.day
         time_str = f" {format_time_display(e.scheduled_time)}" if e.scheduled_time else ""
-        lines_by_day.setdefault(day_num, []).append(f"[green]o[/green][dim]{time_str}[/dim] {e.body}")
+        lines_by_day.setdefault(day_num, []).append(f"[green]o[/green][dim]{time_str}[/dim] {_preview(e.body)}")
 
     return lines_by_day
 
