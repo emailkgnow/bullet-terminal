@@ -126,3 +126,37 @@ def test_goals_empty(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["goals"])
     assert result.exit_code == 0
     assert "No goals" in result.output
+
+
+def test_goal_drill(runner, tmp_config, tmp_data):
+    """bt 1 after bt goals should show entries with connected tags."""
+    goal = Entry.create(EntryType.NOTE, "get fit", tags=["goal", "fitness"])
+    save_entry(goal)
+    _index_entry(goal)
+
+    t1 = Entry.create(EntryType.TASK, "sign up for gym", tags=["fitness"])
+    t1.status = TaskStatus.ACTIVE
+    save_entry(t1)
+    _index_entry(t1)
+
+    # First, run goals to set state
+    runner.invoke(main, ["goals"])
+
+    # Then drill into goal #1
+    result = runner.invoke(main, ["1"])
+    assert result.exit_code == 0
+    assert "sign up for gym" in result.output
+    assert "@fitness" in result.output
+
+
+def test_goal_drill_unlinked(runner, tmp_config, tmp_data):
+    """bt 1 on a goal with no connected tags shows helpful message."""
+    goal = Entry.create(EntryType.NOTE, "write a novel", tags=["goal"])
+    save_entry(goal)
+    _index_entry(goal)
+
+    runner.invoke(main, ["goals"])
+
+    result = runner.invoke(main, ["1"])
+    assert result.exit_code == 0
+    assert "No connected tags" in result.output

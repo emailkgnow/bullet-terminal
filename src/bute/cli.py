@@ -139,6 +139,12 @@ class DwnGroup(click.Group):
                     if cmd is not None:
                         return "habits", cmd, args
 
+                # Goals view — number only (no action) drills into goal
+                if state.get("view") == "goals" and len(args) == 1 and first.isdigit():
+                    cmd = self.get_command(ctx, "goal_drill")
+                    if cmd is not None:
+                        return "goal_drill", cmd, args
+
                 # Mixed view (ls) — check if number falls in habit range
                 habits = state.get("habits", [])
                 if habits:
@@ -324,6 +330,7 @@ from bute.commands.views import (  # noqa: E402
     active_cmd,
     calendar_cmd,
     due_cmd,
+    goal_drill_cmd,
     goals_cmd,
     important_cmd,
     journals_cmd,
@@ -366,6 +373,7 @@ main.add_command(tags_cmd)
 main.add_command(week_cmd)
 main.add_command(due_cmd)
 main.add_command(goals_cmd)
+main.add_command(goal_drill_cmd)
 main.add_command(dp_cmd)
 main.add_command(dump_cmd)
 main.add_command(habits_cmd)

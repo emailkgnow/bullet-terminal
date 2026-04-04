@@ -367,3 +367,40 @@ def goals_cmd(ctx):
     console.print()
     console.print(table)
     save_state("goals", [g.id for g in goals], config)
+
+
+@click.command("goal_drill", hidden=True)
+@click.argument("number", type=int)
+@click.pass_context
+def goal_drill_cmd(ctx, number):
+    """Drill into a goal — show all entries with its connected tags."""
+    from bute.models import SYSTEM_TAGS
+    from bute.state import resolve_numbers
+    from bute.storage import load_entry, entry_path_from_id
+
+    config = ctx.obj.get("config")
+
+    entry_ids = resolve_numbers([number], config)
+    path = entry_path_from_id(entry_ids[0], config)
+    if path is None:
+        console.print(f"  [red]Entry not found.[/red]")
+        return
+    goal = load_entry(path)
+
+    connected = [t for t in goal.tags if t not in SYSTEM_TAGS]
+    if not connected:
+        console.print(f"  [dim]No connected tags on this goal. Add one: bt {number} @tagname[/dim]")
+        return
+
+    # Query entries matching any connected tag, deduplicated
+    seen = set()
+    entries = []
+    for tag in connected:
+        for entry in query_and_load(config, tag=tag):
+            if entry.id not in seen:
+                seen.add(entry.id)
+                entries.append(entry)
+
+    tags_label = " ".join(f"@{t}" for t in connected)
+    display_entry_list(entries, tags_label)
+    save_state("goal_drill", [e.id for e in entries], config)
