@@ -311,7 +311,7 @@ def main(ctx):
             from bute.state import save_state
 
             entries = get_daily_log(config)
-            display_entry_list(entries, f"Today — {date.today().strftime('%a %b %d')}")
+            display_entry_list(entries, f"Today — {date.today().strftime('%a %b %d')}", hide_tags={"today", "thisweek"})
 
             # Show habits
             from bute.commands.views import _show_habits
