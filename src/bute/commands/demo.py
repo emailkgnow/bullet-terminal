@@ -44,7 +44,7 @@ def _start_demo(config):
 
     console.print("\n  [bold green]Demo mode ON[/bold green]")
     console.print("  [dim]Using isolated data at ~/bute-demo/[/dim]")
-    console.print("  [dim]Your real data is untouched. Run bt demo again to exit.[/dim]\n")
+    console.print("  [dim]Your real data is untouched. Run bt -d again to exit.[/dim]\n")
 
 
 def _end_demo():

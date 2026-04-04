@@ -288,26 +288,77 @@ def _print_help():
     console.print("    [bold]bt init[/bold]            First-run setup (pick AI provider)")
     console.print("    [bold]bt rebuild[/bold]         Re-embed all entries for semantic search")
     console.print("    [bold]bt export[/bold]          Export all data as a zip file ([dim]-o path[/dim])")
-    console.print("    [bold]bt demo[/bold]            Toggle demo mode — isolated data for presentations")
+    console.print("    [bold]bt -i[/bold]              Interactive REPL — no quoting needed")
+    console.print("    [bold]bt -d[/bold]              Toggle demo mode — isolated data for presentations")
     console.print("    [bold]bt --version[/bold]       Show version")
     console.print()
 
 
-@click.group(cls=DwnGroup, invoke_without_command=True)
+def _run_interactive(ctx):
+    """Run the interactive REPL — commands without 'bt' prefix."""
+    from rich.console import Console
+    console = Console()
+
+    console.print("\n  [bold]bt interactive[/bold] — type commands without 'bt' prefix. /exit to quit.\n")
+
+    while True:
+        try:
+            user_input = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            console.print()
+            break
+
+        if not user_input:
+            continue
+
+        if user_input in ("/exit", "/done"):
+            break
+
+        # Split into args and invoke through the CLI group
+        args = user_input.split()
+        try:
+            main(args, standalone_mode=False, parent=ctx)
+        except click.exceptions.UsageError as e:
+            console.print(f"  [red]{e.format_message()}[/red]")
+        except SystemExit:
+            pass  # Click raises SystemExit on --help etc.
+        except Exception as e:
+            console.print(f"  [red]{e}[/red]")
+
+    console.print("  [dim]Exited interactive mode.[/dim]")
+
+
+@click.group(cls=DwnGroup, invoke_without_command=True, context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(version=__version__, prog_name="bt")
+@click.option("-i", "interactive", is_flag=True, help="Interactive REPL mode")
+@click.option("-d", "demo", is_flag=True, help="Toggle demo mode")
 @click.pass_context
-def main(ctx):
+def main(ctx, interactive, demo):
     """bt (BuTe) — AI-powered life management CLI based on Bullet Journal."""
     ctx.ensure_object(dict)
     from bute.config import apply_demo_config, load_config
 
     config = load_config()
+
+    # Handle -d flag before applying demo config
+    if demo:
+        from bute.commands.demo import demo_cmd
+        config = apply_demo_config(config)
+        ctx.obj["config"] = config
+        ctx.invoke(demo_cmd)
+        return
+
     config = apply_demo_config(config)
     ctx.obj["config"] = config
 
     from bute.config import is_demo_active
     if is_demo_active():
-        click.echo("  ▶ DEMO MODE — bt demo to exit")
+        click.echo("  ▶ DEMO MODE — bt -d to exit")
+
+    # Handle -i flag
+    if interactive:
+        _run_interactive(ctx)
+        return
 
     if not ctx.invoked_subcommand:
         from bute.state import is_dyts_done_today
