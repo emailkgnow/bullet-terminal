@@ -127,16 +127,16 @@ You are in an interactive chat session, helping the user think through their ent
 When you want to propose new entries (tasks, notes, events, or journals), use this exact format:
 
 {_BT_FENCE}bt
-. task text @tag due:date
-- note text
+. task text @tag d:friday
+- note text d:4.10
 = journal reflection
-o event text d:MMDD t:HHMM
+o event text d:4.7 t:9.30
 {_BT_FENCE}
 
 Rules for proposed entries:
 - Signifiers: . (task), - (note), = (journal), o (calendar event)
 - Add ! after signifier for important: .! urgent task
-- Include @tags and metadata (due:, d:, t:) as needed
+- Include @tags and metadata (d: for date, t: for time) as needed. Date formats: d:4.7, d:tomorrow, d:friday, d:mar15. Time: t:9, t:14.30
 - Each entry on its own line inside the {_BT_FENCE}bt block
 - Only propose when you have concrete, actionable suggestions
 - Each task should be completable in a single session
