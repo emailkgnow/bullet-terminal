@@ -319,6 +319,7 @@ from bute.commands.views import (  # noqa: E402
     active_cmd,
     calendar_cmd,
     due_cmd,
+    goals_cmd,
     important_cmd,
     journals_cmd,
     ls_cmd,
@@ -359,6 +360,7 @@ main.add_command(important_cmd)
 main.add_command(tags_cmd)
 main.add_command(week_cmd)
 main.add_command(due_cmd)
+main.add_command(goals_cmd)
 main.add_command(dp_cmd)
 main.add_command(dump_cmd)
 main.add_command(habits_cmd)

@@ -303,3 +303,62 @@ def due_cmd(ctx, scope):
     console.print()
     console.print(table)
     save_state("due", [e.id for e in all_entries], config)
+
+
+@click.command("goals")
+@click.pass_context
+def goals_cmd(ctx):
+    """Show goals — notes tagged @goal with task progress."""
+    from bute.db import query_entries
+    from bute.models import SYSTEM_TAGS
+
+    config = ctx.obj.get("config")
+
+    goals = query_and_load(config, type="note", tag="goal")
+    if not goals:
+        console.print("  [dim]No goals found. Create one: bt n \"your goal\" @goal @tag[/dim]")
+        return
+
+    # Important goals first (stable sort preserves DB order within group)
+    goals.sort(key=lambda e: not e.important)
+
+    # For each goal, compute connected tags and task counts
+    goal_data = []
+    for goal in goals:
+        connected = [t for t in goal.tags if t not in SYSTEM_TAGS]
+        active_count = 0
+        done_count = 0
+        if connected:
+            for tag in connected:
+                for _, _ in query_entries(config, type="task", status="active", tag=tag):
+                    active_count += 1
+                for _, _ in query_entries(config, type="task", status="done", tag=tag):
+                    done_count += 1
+        goal_data.append((goal, connected, active_count, done_count))
+
+    # Render table
+    table = Table(
+        title="Goals",
+        title_style="bold",
+        show_header=True,
+        header_style="bold dim",
+        box=None,
+        pad_edge=False,
+        padding=(0, 1),
+        expand=True,
+    )
+    table.add_column("#", style="bold dim", width=3, justify="right")
+    table.add_column("", width=2)
+    table.add_column("Entry", ratio=1, overflow="fold")
+    table.add_column("Tags", style="dim")
+    table.add_column("Progress", style="dim")
+
+    for i, (goal, connected, active, done) in enumerate(goal_data, 1):
+        _, icon, body, _ = _build_entry_row(i, goal)
+        tags_str = " ".join(f"@{t}" for t in connected) if connected else "[dim]—[/dim]"
+        progress = f"{active} active  {done} done"
+        table.add_row(str(i), icon, body, tags_str, progress)
+
+    console.print()
+    console.print(table)
+    save_state("goals", [g.id for g in goals], config)
