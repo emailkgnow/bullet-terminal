@@ -197,7 +197,7 @@ def _print_help():
     console.print("    BuJo bullets work too: [dim]bt . (task)  bt - (note)  bt = (journal)  bt o (event)[/dim]")
     console.print("    Add [bold red]![/bold red] for important: [dim]bt t! fix prod bug[/dim]")
     console.print("    Add [bold]@tag[/bold] and [bold]key:value[/bold]: [dim]bt t fix bug @backend due:tomorrow[/dim]")
-    console.print("    [bold]d:[/bold] date — [dim]d:4.7  d:tomorrow  d:friday  d:mar15[/dim]  (works on all types)")
+    console.print("    [bold]d:[/bold] date — [dim]d:4.7  d:tom  d:fri  d:mar15[/dim]  (works on all types)")
     console.print("    [bold]t:[/bold] time — [dim]t:9  t:14.30[/dim]  (24h, for calendar events)")
     console.print("    [dim]Tasks auto-get @thisweek (focus). Use -l/--later for backlog only.[/dim]")
     console.print("    [dim]Tip: first sentence = title in list views. Start entries with a clear topic sentence.[/dim]")

@@ -1,5 +1,7 @@
 """Capture command — handles t/n/j/c and task/note/journal/cal signifier input."""
 
+from datetime import date
+
 import click
 
 from bute.display import confirm_capture
@@ -75,8 +77,10 @@ def capture_cmd(ctx, later, tokens):
         extra_meta=meta,
     )
 
-    # Auto-add @thisweek and @today for tasks unless --later flag
-    if entry.type == EntryType.TASK and not later:
+    # Auto-add @thisweek and @today for tasks unless --later flag or has a future date
+    has_future_date = entry.scheduled_date and entry.scheduled_date > date.today()
+    has_future_due = entry.due and entry.due > date.today()
+    if entry.type == EntryType.TASK and not later and not has_future_date and not has_future_due:
         if "thisweek" not in entry.tags:
             entry.tags.append("thisweek")
         if "today" not in entry.tags:

@@ -66,7 +66,10 @@ def handle_drop(entry: Entry, args: list[str], config) -> None:
 def handle_delete(entry: Entry, args: list[str], config) -> None:
     """Permanently delete an entry from disk, vector DB, and index."""
     path = entry_path_from_id(entry.id, config)
+    # Save file content for undo before deleting
+    file_content = None
     if path and path.exists():
+        file_content = path.read_text()
         path.unlink()
     from bute.ai.vectors import is_available, delete as vec_delete
     if is_available():
@@ -76,6 +79,8 @@ def handle_delete(entry: Entry, args: list[str], config) -> None:
         delete_entry(entry.id, config)
     except Exception:
         pass
+    if file_content is not None:
+        record_undo(entry.id, "delete", {"file_content": file_content}, config)
 
 
 def handle_toggle_important(entry: Entry, args: list[str], config) -> None:
@@ -151,6 +156,37 @@ def apply_undo(record: dict, config) -> None:
     entry_id = record["entry_id"]
     action = record["action"]
     prev = record["prev"]
+
+    # Delete undo: recreate the file from saved content
+    if action == "delete":
+        file_content = prev.get("file_content")
+        if not file_content:
+            raise DwnError(f"Entry {entry_id[:8]} — no saved content to restore.")
+        from bute.storage import save_entry, load_entry as _load
+        from bute.config import get_data_dir
+        data_dir = get_data_dir(config)
+        # Reconstruct the file path from entry metadata
+        import frontmatter
+        post = frontmatter.loads(file_content)
+        created = post.metadata.get("created", "")
+        if isinstance(created, str):
+            from datetime import datetime
+            created = datetime.fromisoformat(created)
+        month_dir = data_dir / "entries" / created.strftime("%Y-%m")
+        month_dir.mkdir(parents=True, exist_ok=True)
+        restored_path = month_dir / f"{entry_id}.md"
+        restored_path.write_text(file_content)
+        entry = _load(restored_path)
+        # Re-index
+        from bute.ai import embed_entry
+        embed_entry(entry.id, entry.body, config)
+        try:
+            from bute.db import upsert_entry
+            upsert_entry(entry, config)
+        except Exception:
+            pass
+        display_action_confirmation(entry, "undo delete")
+        return
 
     path = entry_path_from_id(entry_id, config)
     if path is None:

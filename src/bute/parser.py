@@ -38,6 +38,16 @@ DAY_NAMES = [
     "friday", "saturday", "sunday",
 ]
 
+DAY_ABBR = {
+    "mon": "monday", "tue": "tuesday", "wed": "wednesday", "thu": "thursday",
+    "fri": "friday", "sat": "saturday", "sun": "sunday",
+}
+
+DATE_ALIASES = {
+    "tom": "tomorrow", "tmr": "tomorrow", "tmrw": "tomorrow",
+    "tod": "today",
+}
+
 
 @dataclass
 class ParsedInput:
@@ -198,6 +208,12 @@ def resolve_date(value: str, reference: date | None = None) -> date:
     """
     ref = reference or date.today()
     low = value.lower().strip()
+
+    # Expand aliases and abbreviations
+    if low in DATE_ALIASES:
+        low = DATE_ALIASES[low]
+    if low in DAY_ABBR:
+        low = DAY_ABBR[low]
 
     # Dot separator: MM.DD
     dot_match = re.match(r"^(\d{1,2})\.(\d{1,2})$", low)
