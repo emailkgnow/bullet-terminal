@@ -40,7 +40,7 @@ def get_today_schedule(config=None) -> list[Entry]:
         if e.id not in seen:
             seen.add(e.id)
             result.append(e)
-    return sorted(result, key=lambda e: (e.scheduled_time or "", e.created))
+    return sorted(result, key=lambda e: (e.scheduled_time or "", not e.important, e.created))
 
 
 def get_daily_log(config=None) -> list[Entry]:
@@ -88,7 +88,8 @@ def get_daily_log(config=None) -> list[Entry]:
             result.append(e)
 
     def _daily_sort_key(e):
-        """Sort: tasks first, then calendar (timed→untimed), notes, journals."""
+        """Sort: tasks first, then calendar (timed→untimed), notes, journals.
+        Important entries first within each type group."""
         type_order = {
             EntryType.TASK: 0,
             EntryType.CALENDAR: 1,
@@ -97,7 +98,7 @@ def get_daily_log(config=None) -> list[Entry]:
         }
         group = type_order.get(e.type, 4)
         time_key = e.scheduled_time if e.type == EntryType.CALENDAR and e.scheduled_time else ""
-        return (group, time_key, e.created)
+        return (group, not e.important, time_key, e.created)
 
     return sorted(result, key=_daily_sort_key)
 

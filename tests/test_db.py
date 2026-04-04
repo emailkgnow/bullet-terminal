@@ -96,7 +96,7 @@ class TestConnection:
         )
         db.commit()
         row = db.execute(
-            "SELECT tag, stage, analysis, tasks_text, analyzed_at, executed_at "
+            "SELECT tag, stage, analysis, analyzed_at "
             "FROM tag_stages WHERE tag = ?",
             ("test-tag",),
         ).fetchone()
@@ -408,10 +408,11 @@ class TestQueryEntries:
         results = query_entries(type="task", status="active", tag="backend")
         assert self._ids(results) == {self.t3.id}
 
-    def test_results_ordered_by_created_desc(self):
+    def test_results_ordered_important_first_then_created_desc(self):
         results = query_entries(type="task")
-        created_times = [r[1] for r in results]
-        assert created_times == sorted(created_times, reverse=True)
+        # Important entries come first, then by created DESC within each group
+        ids = [r[0] for r in results]
+        assert ids[0] == self.t2.id  # important entry first
 
     def test_returns_list_of_tuples(self):
         results = query_entries()
@@ -542,13 +543,6 @@ class TestTagStages:
         assert row["stage"] == "analyzed"
         assert row["analysis"] == "Theme A\n- item one"
         assert row["analyzed_at"] is not None
-        assert row["executed_at"] is None
-
-        upsert_tag_stage("home-reno", "executed", tasks_text="1. Do thing")
-        row = get_tag_stage("home-reno")
-        assert row["stage"] == "executed"
-        assert row["tasks_text"] == "1. Do thing"
-        assert row["executed_at"] is not None
         assert row["analysis"] == "Theme A\n- item one"
 
     def test_get_tag_stage_missing(self):

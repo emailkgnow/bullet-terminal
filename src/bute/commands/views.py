@@ -175,7 +175,7 @@ def tags_cmd(ctx):
         return
 
     stages = {s["tag"]: s["stage"] for s in get_all_tag_stages(config)}
-    stage_colors = {"raw": "dim", "analyzed": "yellow", "executed": "green"}
+    stage_colors = {"raw": "dim", "analyzed": "green"}
 
     table = Table(
         title="Tags",
@@ -245,7 +245,7 @@ def due_cmd(ctx, scope):
         console.print("  [dim]No tasks with due dates.[/dim]")
         return
 
-    entries.sort(key=lambda e: e.due)
+    entries.sort(key=lambda e: (e.due, not e.important))
 
     if scope == "all":
         display_entry_list(entries, "All Due Tasks")
@@ -255,6 +255,10 @@ def due_cmd(ctx, scope):
     overdue = [e for e in entries if e.due < today]
     due_today = [e for e in entries if e.due == today]
     due_week = [e for e in entries if today < e.due <= end_of_week]
+
+    # Important entries first within each due group
+    for group in (overdue, due_today, due_week):
+        group.sort(key=lambda e: not e.important)
 
     filtered = overdue + due_today + due_week
     if not filtered:

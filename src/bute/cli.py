@@ -117,10 +117,6 @@ class DwnGroup(click.Group):
                 cmd = self.get_command(ctx, "analyze_tag")
                 if cmd is not None:
                     return "analyze_tag", cmd, [tag_name]
-            elif subcommand == "execute":
-                cmd = self.get_command(ctx, "execute_tag")
-                if cmd is not None:
-                    return "execute_tag", cmd, [tag_name]
             elif subcommand == "map":
                 cmd = self.get_command(ctx, "map_tag")
                 if cmd is not None:
@@ -264,7 +260,6 @@ def _print_help():
     # Tag Processing
     console.print("  [bold cyan]Tag Processing[/bold cyan] — ideas to action")
     console.print("    [bold]bt @[/bold]<name> [bold]analyze[/bold]     AI clusters and organizes tagged entries")
-    console.print("    [bold]bt @[/bold]<name> [bold]execute[/bold]     AI generates sequenced tasks from analysis")
     console.print("    [bold]bt @[/bold]<name> [bold]map[/bold]         Mind map visualization of tag analysis")
     console.print()
 
@@ -346,7 +341,7 @@ from bute.commands.search import find_cmd, rebuild_cmd, search_cmd, similar_cmd 
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
-from bute.commands.tags import analyze_tag_cmd, execute_tag_cmd, map_tag_cmd  # noqa: E402
+from bute.commands.tags import analyze_tag_cmd, map_tag_cmd  # noqa: E402
 
 main.add_command(init_cmd)
 main.add_command(start_cmd)
@@ -379,5 +374,4 @@ main.add_command(export_cmd)
 main.add_command(topic_cmd)
 main.add_command(nudges_cmd)
 main.add_command(analyze_tag_cmd)
-main.add_command(execute_tag_cmd)
 main.add_command(map_tag_cmd)

@@ -115,22 +115,6 @@ Rules:
 - No tree-drawing characters, no numbering, no extra formatting"""
 
 
-def execute_prompt() -> str:
-    return f"""{SYSTEM_BASE}
-
-The user has tagged entries for a goal or project. Generate a sequenced list of concrete, actionable tasks that would move this forward.
-
-Requirements:
-- Each task starts with a verb
-- Tasks are specific enough to act on in a single session
-- Tasks are ordered sequentially — each builds on the previous
-- Number each task (1, 2, 3...)
-- Keep the total manageable (aim for 5-15 tasks)
-- Account for already-done tasks ([done]) — don't regenerate work that's complete
-- Use the entries as context — reference actual content, not generic advice
-
-Output only the numbered task list, nothing else."""
-
 
 _BT_FENCE = "```"
 

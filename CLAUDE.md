@@ -37,7 +37,7 @@ Custom Click group with 6-layer routing in `resolve_command()`:
    - With text → **capture** (`bute t call dentist`)
    - Without text → **view** (`bute t` → show Task Log)
    - With only `@tag` → **filtered view** (`bute t @backend`)
-4. **Tag filter** — `@tagname` → cross-dimension filter, `@tagname analyze` → AI analyze, `@tagname execute` → AI execute
+4. **Tag filter** — `@tagname` → cross-dimension filter, `@tagname analyze` → AI analyze
 5. **Number-action** — `1 done`, `2 3 drop` → action dispatch
 6. **Fallback** — Click error
 
@@ -47,7 +47,7 @@ Custom Click group with 6-layer routing in `resolve_command()`:
 - **Task statuses**: `active`, `done`, `dropped` (no `migrated` — removed by design)
 - **IDs**: ULID (time-sortable, 26 chars)
 - **Storage**: one `.md` file per entry at `~/bute/entries/YYYY-MM/<ULID>.md`
-- **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter. Tags have a dual role: organizing entries (label) and processing groups via AI (analyze/execute). Stage tracking in `tag_stages` SQLite table.
+- **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter. Tags have a dual role: organizing entries (label) and processing groups via AI (analyze). Stage tracking in `tag_stages` SQLite table.
 
 ### Data Flow
 
@@ -76,7 +76,7 @@ User input → DwnGroup.resolve_command() → capture.py
 | `ai/vectors.py` | sqlite-vec wrapper (upsert, search, delete) |
 | `ai/embeddings.py` | fastembed wrapper, lazy model loading |
 | `ai/prompts.py` | Prompt templates for AI features |
-| `commands/tags.py` | Tag processing: analyze (AI clusters entries), execute (AI generates tasks) |
+| `commands/tags.py` | Tag processing: analyze (AI clusters entries) |
 
 ### AI Architecture
 
@@ -85,7 +85,7 @@ Three independent capability tiers — each degrades gracefully:
 2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bute rebuild`
 3. **LLM** (remote) — OpenAI-compatible API, provider-agnostic. API key via config or macOS Keychain
 
-AI is used for: `topic`, `recap [period]`, `nudges`, tag processing (`@tag analyze`, `@tag execute`). Core capture/view/action loop works without AI.
+AI is used for: `topic`, `recap [period]`, `nudges`, tag processing (`@tag analyze`). Core capture/view/action loop works without AI.
 
 ## CLI Grammar (Current)
 
@@ -134,10 +134,9 @@ bute undo           # undo last action
 bute 3 undo         # undo last action on entry 3
 ```
 
-**Tag Processing** — ideas to action:
+**Tag Processing** — ideas to clarity:
 ```
 bute @home-reno analyze             # AI clusters and organizes tagged entries
-bute @home-reno execute             # AI generates sequenced tasks from analysis
 bute tags                           # list all tags with stage and count
 ```
 
@@ -162,7 +161,7 @@ bute init           # first-run setup (pick AI provider)
 ## Design Decisions
 
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. DYTS Y phase handles yesterday's unfinished items.
-- **Tags have a dual role** — `@tag` as label (organizes entries) and `@tag` as goal (`analyze`/`execute` processes the group via AI). The `+collection` syntax was removed — tags absorbed collections. Stage tracking (raw → analyzed → executed) lives in the `tag_stages` SQLite table.
+- **Tags have a dual role** — `@tag` as label (organizes entries) and `@tag` as thinking tool (`analyze` clusters the group via AI). The `+collection` syntax was removed — tags absorbed collections. Stage tracking (raw → analyzed) lives in the `tag_stages` SQLite table.
 - **Linelog is derived** — no stored file, computed from journal + calendar entries. No AI compression.
 - **`bute` with no args** = DYTS entry point. If DYTS done today, shows daily log.
 - **Daily log (`bute ls`)** shows only: `@today` tasks, today's calendar events, all today's journals and notes. Other tasks stay in Task Log (`bute t`).
@@ -194,7 +193,7 @@ bute init           # first-run setup (pick AI provider)
 - ~~`bt export`~~ ✓ Done — exports entries, collections, habits as `bullet-terminal-markdown-YYYY-MM-DD.zip` with README. `-o <path>` for custom output. Counter suffix for same-day duplicates.
 
 ### Tag Processing
-- **Mindmap output for `bt @tag analyze`** — after AI clusters and organizes tagged entries, render or export a mindmap visualization of the themes and their items. Could be ASCII art in the terminal, or generate a Mermaid/Markmap diagram that opens in a browser. Gives the user a spatial view of how their ideas relate before deciding to execute.
+- **Mindmap output for `bt @tag analyze`** — after AI clusters and organizes tagged entries, render or export a mindmap visualization of the themes and their items. Could be ASCII art in the terminal, or generate a Mermaid/Markmap diagram that opens in a browser. Gives the user a spatial view of how their ideas relate.
 
 ### Infrastructure
 - **`bt this` — capture Claude Code chat into bt** — add a Claude Code hook or slash command so `bt this` saves the current conversation's markdown export as a bt note. Turns ephemeral AI chats into searchable, tagged entries in the bt system.

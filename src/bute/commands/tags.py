@@ -1,6 +1,4 @@
-"""Tag processing commands — analyze and execute."""
-
-import re
+"""Tag processing commands — analyze."""
 
 import click
 from rich.console import Console
@@ -157,78 +155,3 @@ def map_tag_cmd(ctx, tag_name):
         console.print(f"  [green]@{tag_name} → analyzed[/green]")
 
 
-@click.command("execute_tag", hidden=True)
-@click.argument("tag_name")
-@click.pass_context
-def execute_tag_cmd(ctx, tag_name):
-    """AI generates sequenced tasks from tag analysis."""
-    from bute.ai import _LLM_INSTALL_MSG, embed_entry, is_llm_available, llm_send
-    from bute.ai.prompts import execute_prompt
-    from bute.display import confirm_capture
-    from bute.models import Entry, EntryType
-    from bute.storage import save_entry
-
-    config = ctx.obj.get("config")
-
-    entries = _load_tagged_entries(tag_name, config)
-    if not entries:
-        console.print(f"  [dim]No entries found with @{tag_name}.[/dim]")
-        return
-
-    if not is_llm_available(config):
-        console.print(_LLM_INSTALL_MSG)
-        return
-
-    from bute.ai.prompts import format_entries
-
-    formatted = format_entries(entries)
-    console.print(f"  [dim]Generating tasks from {len(entries)} entries...[/dim]")
-    response = llm_send(execute_prompt(), f"Tag: \"@{tag_name}\"\n\nEntries:\n{formatted}", config)
-    console.print(f"\n{response}")
-
-    tasks = []
-    for line in response.split("\n"):
-        stripped = line.strip()
-        numbered = re.match(r"^\d+\.\s+(.+)$", stripped)
-        bulleted = re.match(r"^-\s+(.+)$", stripped)
-        if numbered:
-            tasks.append(numbered.group(1))
-        elif bulleted:
-            tasks.append(bulleted.group(1))
-
-    if not tasks:
-        console.print(f"  [dim]No tasks generated.[/dim]")
-        return
-
-    try:
-        import questionary
-
-        choices = [
-            questionary.Choice(task, value=task, checked=False)
-            for task in tasks
-        ]
-        selected = questionary.checkbox(
-            "Select tasks to create:", choices=choices
-        ).ask()
-
-        if selected is None or not selected:
-            console.print(f"  [dim]No tasks created.[/dim]")
-            return
-    except ImportError:
-        if not click.confirm(f"\n  Create all {len(tasks)} tasks?", default=True):
-            console.print(f"  [dim]Task generation discarded.[/dim]")
-            return
-        selected = tasks
-
-    for task_text in selected:
-        entry = Entry.create(
-            entry_type=EntryType.TASK,
-            body=task_text,
-            tags=[tag_name],
-        )
-        save_entry(entry, config)
-        embed_entry(entry.id, entry.body, config)
-        confirm_capture(entry)
-
-    upsert_tag_stage(tag_name, "executed", tasks_text=response, config=config)
-    console.print(f"  [green]{len(selected)} tasks created from @{tag_name}[/green]")

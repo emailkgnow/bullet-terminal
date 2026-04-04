@@ -105,9 +105,7 @@ def ensure_schema(db: sqlite3.Connection) -> None:
             tag         TEXT PRIMARY KEY,
             stage       TEXT NOT NULL DEFAULT 'raw',
             analysis    TEXT,
-            tasks_text  TEXT,
-            analyzed_at TEXT,
-            executed_at TEXT
+            analyzed_at TEXT
         );
     """)
     # vec0 is optional — only create if sqlite-vec is loaded
@@ -399,7 +397,7 @@ def query_entries(
             params.append(t)
 
     where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
-    sql = f"SELECT entry_id, created FROM entries {where_clause} ORDER BY created DESC"
+    sql = f"SELECT entry_id, created FROM entries {where_clause} ORDER BY important DESC, created DESC"
 
     rows = db.execute(sql, params).fetchall()
     return [(row[0], row[1]) for row in rows]
@@ -463,7 +461,6 @@ def upsert_tag_stage(
     stage: str,
     *,
     analysis: str | None = None,
-    tasks_text: str | None = None,
     config=None,
 ) -> None:
     """Insert or update a tag's processing stage."""
@@ -475,15 +472,13 @@ def upsert_tag_stage(
     existing = get_tag_stage(tag, config)
     if existing is None:
         db.execute(
-            """INSERT INTO tag_stages (tag, stage, analysis, tasks_text, analyzed_at, executed_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO tag_stages (tag, stage, analysis, analyzed_at)
+               VALUES (?, ?, ?, ?)""",
             (
                 tag,
                 stage,
                 analysis,
-                tasks_text,
-                now if stage in ("analyzed", "executed") else None,
-                now if stage == "executed" else None,
+                now if stage == "analyzed" else None,
             ),
         )
     else:
@@ -492,20 +487,7 @@ def upsert_tag_stage(
         if analysis is not None:
             updates.append("analysis = ?")
             params.append(analysis)
-        if tasks_text is not None:
-            updates.append("tasks_text = ?")
-            params.append(tasks_text)
-        if stage in ("analyzed", "executed"):
-            updates.append("analyzed_at = ?")
-            params.append(existing["analyzed_at"] or now)
-        if stage == "executed":
-            updates.append("executed_at = ?")
-            params.append(now)
         if stage == "analyzed":
-            updates.append("executed_at = ?")
-            params.append(None)
-            updates.append("tasks_text = ?")
-            params.append(None)
             updates.append("analyzed_at = ?")
             params.append(now)
         params.append(tag)
@@ -517,7 +499,7 @@ def get_tag_stage(tag: str, config=None) -> dict | None:
     """Get a tag's processing stage. Returns dict or None."""
     db = get_connection(config)
     row = db.execute(
-        "SELECT tag, stage, analysis, tasks_text, analyzed_at, executed_at FROM tag_stages WHERE tag = ?",
+        "SELECT tag, stage, analysis, analyzed_at FROM tag_stages WHERE tag = ?",
         (tag,),
     ).fetchone()
     if row is None:
@@ -526,9 +508,7 @@ def get_tag_stage(tag: str, config=None) -> dict | None:
         "tag": row[0],
         "stage": row[1],
         "analysis": row[2],
-        "tasks_text": row[3],
-        "analyzed_at": row[4],
-        "executed_at": row[5],
+        "analyzed_at": row[3],
     }
 
 
@@ -536,16 +516,14 @@ def get_all_tag_stages(config=None) -> list[dict]:
     """Get all tag stage rows."""
     db = get_connection(config)
     rows = db.execute(
-        "SELECT tag, stage, analysis, tasks_text, analyzed_at, executed_at FROM tag_stages ORDER BY tag"
+        "SELECT tag, stage, analysis, analyzed_at FROM tag_stages ORDER BY tag"
     ).fetchall()
     return [
         {
             "tag": r[0],
             "stage": r[1],
             "analysis": r[2],
-            "tasks_text": r[3],
-            "analyzed_at": r[4],
-            "executed_at": r[5],
+            "analyzed_at": r[3],
         }
         for r in rows
     ]

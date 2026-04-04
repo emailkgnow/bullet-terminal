@@ -159,15 +159,24 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
 
     # Group entries by date (calendar events use scheduled_date if set)
     from collections import OrderedDict
-    grouped: OrderedDict[str, list[tuple[int, Entry]]] = OrderedDict()
-    for i, entry in enumerate(entries, 1):
+    grouped: OrderedDict[str, list[Entry]] = OrderedDict()
+    for entry in entries:
         if entry.scheduled_date:
             date_key = entry.scheduled_date.strftime("%a %b %d")
         else:
             date_key = entry.created.strftime("%a %b %d")
         if date_key not in grouped:
             grouped[date_key] = []
-        grouped[date_key].append((i, entry))
+        grouped[date_key].append(entry)
+
+    # Important entries first within each date group (stable sort preserves existing order)
+    for items in grouped.values():
+        items.sort(key=lambda e: not e.important)
+
+    # Rebuild entries list in display order so caller's state matches
+    entries.clear()
+    for items in grouped.values():
+        entries.extend(items)
 
     table = Table(
         title=title or None,
@@ -185,11 +194,13 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
     table.add_column("Entry", ratio=1, overflow="fold")
     table.add_column("Meta", style="dim")
 
-    for group_idx, (date_label, items) in enumerate(grouped.items()):
-        for row_idx, (i, entry) in enumerate(items):
-            num, icon, body, meta = _build_entry_row(i, entry)
+    counter = 1
+    for date_label, items in grouped.items():
+        for row_idx, entry in enumerate(items):
+            num, icon, body, meta = _build_entry_row(counter, entry)
             date_col = date_label if row_idx == 0 else ""
             table.add_row(date_col, num, icon, body, meta)
+            counter += 1
         table.add_section()
 
     console.print()

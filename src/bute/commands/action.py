@@ -190,6 +190,7 @@ ACTION_HANDLERS = {
     "!": handle_toggle_important,
     "mod": handle_mod,
     "modify": handle_mod,
+    "open": handle_edit,
     "edit": handle_edit,
     "later": handle_later,
     "title": handle_title,
@@ -241,6 +242,24 @@ def action_cmd(ctx, tokens):
             entry = load_entry(path)
             handle_remove_tag(entry, tag, config)
             display_action_confirmation(entry, f"untag @{tag}")
+        return
+
+    # Handle map: bt <n> map (single @ai-analysis note)
+    if action == "map":
+        if len(entry_ids) > 1:
+            raise InvalidActionError(
+                "map works on a single entry. Usage: bt 1 map"
+            )
+        entry_id = entry_ids[0]
+        path = entry_path_from_id(entry_id, config)
+        if path is None:
+            console.print(f"  [red]Entry {entry_id[:8]} not found.[/red]")
+            return
+        entry = load_entry(path)
+        if "ai-analysis" not in entry.tags:
+            raise InvalidActionError("map only works on @ai-analysis notes.")
+        from bute.display import display_analyze_map
+        display_analyze_map(entry.tags[0] if entry.tags[0] != "ai-analysis" else "analysis", entry.body)
         return
 
     # Handle chat: bt <n> chat (single entry only)
