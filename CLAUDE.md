@@ -134,6 +134,12 @@ bute undo           # undo last action
 bute 3 undo         # undo last action on entry 3
 ```
 
+**Goals** — orient tasks toward outcomes:
+```
+bute goals                          # show goals with task progress
+```
+Goals are notes tagged `@goal`. Other tags on the note connect tasks to the goal. `bute goals` shows each goal with active/done task counts. System tags (`@goal`, `@today`, `@thisweek`) are filtered out when computing connected tags.
+
 **Tag Processing** — ideas to clarity:
 ```
 bute @home-reno analyze             # AI clusters and organizes tagged entries
