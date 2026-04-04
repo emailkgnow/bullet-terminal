@@ -23,7 +23,7 @@ def ls_cmd(ctx):
     config = ctx.obj.get("config")
     entries = get_daily_log(config)
     title = f"Today — {date.today().strftime('%a %b %d')}"
-    display_entry_list(entries, title)
+    display_entry_list(entries, title, hide_tags={"today", "thisweek"})
     habit_names = _show_habits(config, len(entries))
     save_state("ls", [e.id for e in entries], config, habits=habit_names)
 

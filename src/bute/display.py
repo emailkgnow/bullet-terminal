@@ -86,7 +86,7 @@ def _first_sentence(text: str) -> str:
     return first_line
 
 
-def _build_entry_row(i: int, entry: Entry) -> tuple[str, Text, Text, str]:
+def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tuple[str, Text, Text, str]:
     """Build the common columns for an entry row: (#, icon, body, meta)."""
     style = TYPE_STYLE[entry.type]
 
@@ -117,13 +117,14 @@ def _build_entry_row(i: int, entry: Entry) -> tuple[str, Text, Text, str]:
     if entry.scheduled_time:
         meta_parts.append(format_time_display(entry.scheduled_time))
     if entry.tags:
-        meta_parts.extend(f"@{t}" for t in entry.tags)
+        tags = [t for t in entry.tags if not hide_tags or t not in hide_tags]
+        meta_parts.extend(f"@{t}" for t in tags)
     meta = " ".join(meta_parts)
 
     return str(i), icon, body, meta
 
 
-def display_entry_list(entries: list[Entry], title: str = "") -> None:
+def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | None = None) -> None:
     """Render a numbered list of entries as a Rich Table."""
     if not entries:
         console.print(f"  [dim]No entries found.[/dim]")
@@ -145,7 +146,7 @@ def display_entry_list(entries: list[Entry], title: str = "") -> None:
     table.add_column("Meta", style="dim")
 
     for i, entry in enumerate(entries, 1):
-        table.add_row(*_build_entry_row(i, entry))
+        table.add_row(*_build_entry_row(i, entry, hide_tags=hide_tags))
 
     console.print()
     console.print(table)
