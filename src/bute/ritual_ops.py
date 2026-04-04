@@ -79,11 +79,22 @@ def get_daily_log(config=None) -> list[Entry]:
             seen.add(e.id)
             result.append(e)
 
-    # Also include calendar events scheduled for today but created on a different day
-    scheduled_today = query_and_load(config, type="calendar", scheduled_date=today.isoformat())
+    # Also include active tasks due today or overdue
+    due_tasks = query_and_load(config, type="task", status="active", has_due=True)
+    due_tasks = [e for e in due_tasks if e.due <= today]
+    for e in due_tasks:
+        if e.id not in seen:
+            seen.add(e.id)
+            result.append(e)
+
+    # Also include any entries scheduled for today but created on a different day
+    scheduled_today = query_and_load(config, scheduled_date=today.isoformat())
     scheduled_today = [e for e in scheduled_today if e.created.date() != today]
     for e in scheduled_today:
         if e.id not in seen:
+            # Skip done/dropped tasks
+            if e.type == EntryType.TASK and e.status != TaskStatus.ACTIVE:
+                continue
             seen.add(e.id)
             result.append(e)
 

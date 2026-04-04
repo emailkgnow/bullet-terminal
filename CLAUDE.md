@@ -85,7 +85,7 @@ Three independent capability tiers — each degrades gracefully:
 2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bute rebuild`
 3. **LLM** (remote) — OpenAI-compatible API, provider-agnostic. API key via config or macOS Keychain
 
-AI is used for: `topic`, `recap [period]`, `nudges`, tag processing (`@tag analyze`). Core capture/view/action loop works without AI.
+AI is used for: `topic`, `recap [period]`, `nudges`, tag processing (`@tag analyze`), `chat` (interactive sessions with entry suggestions). Core capture/view/action loop works without AI.
 
 ## CLI Grammar (Current)
 
@@ -94,15 +94,16 @@ AI is used for: `topic`, `recap [period]`, `nudges`, tag processing (`@tag analy
 bute t call dentist due:friday @backend    # single letter
 bute task call dentist due:friday @backend # full word
 bute t! fix prod bug                       # important modifier
-bute c dentist t:1430 d:0330               # calendar: Mar 30 at 2:30 PM
-bute c meeting t:0900                      # calendar: today at 9:00 AM
-bute c conference d:0415                   # calendar: Apr 15, all day
+bute c dentist t:14.30 d:3.30              # calendar: Mar 30 at 2:30 PM
+bute c meeting t:9                         # calendar: today at 9:00 AM
+bute c conference d:4.15                   # calendar: Apr 15, all day
+bute n check OAuth docs d:4.10             # note: resurfaces in daily log Apr 10
 ```
 
-**Calendar metadata:**
-- `t:HHMM` — time in 24h (4 digits). No `t:` = all day.
-- `d:MMDD` — date (4 digits). No `d:` = today.
-- `due:` — deadline for tasks (supports: `tomorrow`, `friday`, `mar29`, `0329`)
+**Date/time metadata:**
+- `d:` — date. Formats: `d:4.7` (MM.DD), `d:today`, `d:tomorrow`, `d:friday`, `d:mar15`. Legacy `d:0407` still works.
+- `t:` — time in 24h. Formats: `t:9` (9:00), `t:14.15` (2:15 PM). Legacy `t:1430` still works.
+- `due:` — deadline for tasks (supports same formats as `d:`)
 
 **Views** — signifier alone, or named commands:
 ```
@@ -130,9 +131,12 @@ bute 6 @tag         # add tag
 bute 6 untag @tag   # remove tag
 bute 7 edit         # open in $EDITOR
 bute 3 later        # defer — remove from today's log
+bute 3 chat         # AI chat session anchored to entry
 bute undo           # undo last action
 bute 3 undo         # undo last action on entry 3
 ```
+
+**Chat sessions** — `bt <n> chat` starts an AI conversation anchored to an entry. During the chat, use `/bt t`, `/bt @tag`, etc. to pull entries into context. At exit (`/done`), the AI reviews the conversation and suggests entries to create (tasks, notes, journals, calendar events). You confirm with `y`/`n`/`p` (pick). Chat-created tasks auto-tag `@thisweek`, notes/journals auto-tag `@today`.
 
 **Goals** — orient tasks toward outcomes:
 ```
@@ -170,17 +174,19 @@ bute init           # first-run setup (pick AI provider)
 - **Tags have a dual role** — `@tag` as label (organizes entries) and `@tag` as thinking tool (`analyze` clusters the group via AI). The `+collection` syntax was removed — tags absorbed collections. Stage tracking (raw → analyzed) lives in the `tag_stages` SQLite table.
 - **Linelog is derived** — no stored file, computed from journal + calendar entries. No AI compression.
 - **`bute` with no args** = DYTS entry point. If DYTS done today, shows daily log.
-- **Daily log (`bute ls`)** shows only: `@today` tasks, today's calendar events, all today's journals and notes. Other tasks stay in Task Log (`bute t`).
+- **Daily log (`bute ls`)** shows: `@today` tasks, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Task Log (`bute t`).
 - **`bute plan`** includes task dump phase — add tasks before selecting for the week.
 - **Display**: tasks = flat list, notes/journals/calendar = grouped by date (using `scheduled_date` for calendar events).
+- **Scheduling is universal** — `d:` (scheduled_date) works on all entry types. Tasks: deadline. Calendar: event date. Notes/journals: resurface date. All surface in the daily log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
 - **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.
-- **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Legacy formats (`3pm`, `3:30pm`) normalized on read.
+- **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Preferred input: `t:9`, `t:14.30`. Legacy formats (`t:1430`, `3pm`) still accepted.
+- **Date format**: preferred input: `d:4.7`, `d:mar15`, `d:tomorrow`, `d:friday`. Legacy `d:0407` still accepted.
 - **API key**: resolved from config value, `keychain:<service>`, or auto-lookup in macOS Keychain.
 
 ## Backlog
 
 ### Commands — High Value
-- ~~`bt due`~~ ✓ Done — overdue + due today + due this week. `bt due all` for all tasks with due dates.
+- ~~`bt due`~~ ✓ Done — overdue + due today + next 7 days (rolling). `bt due all` for all tasks with due dates.
 - ~~`bt <n> untag @tag`~~ ✓ Done — `bt 1 untag @tag` or `bt 1 untag tag`
 - ~~`bt edit <n>`~~ ✓ Done — `bt <n> edit` opens entry in `$EDITOR` (falls back to `nano`)
 

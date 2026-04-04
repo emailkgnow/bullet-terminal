@@ -237,7 +237,7 @@ def due_cmd(ctx, scope):
 
     config = ctx.obj.get("config")
     today = date.today()
-    end_of_week = today + timedelta(days=(6 - today.weekday()))
+    end_of_week = today + timedelta(days=7)
 
     entries = query_and_load(config, type="task", status="active", has_due=True)
 
@@ -286,7 +286,7 @@ def due_cmd(ctx, scope):
     groups = [
         ("Overdue", overdue, "bold red"),
         ("Today", due_today, "bold yellow"),
-        ("This Week", due_week, ""),
+        ("Next 7 Days", due_week, ""),
     ]
 
     for label, group, style in groups:

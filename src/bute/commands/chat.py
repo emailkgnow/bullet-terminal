@@ -327,19 +327,9 @@ def _stream_and_record(session: ChatSession) -> None:
     response_text = "".join(full_response)
     session.add_assistant_message(response_text)
 
-    # Re-render with colors (strip ```bt blocks — shown as proposals below)
-    display_text = _BT_BLOCK_RE.sub("", response_text).strip()
-    if display_text:
-        display_ai_response(display_text)
-
-    # Parse and accumulate proposals
-    new_proposals = parse_proposals(response_text)
-    if new_proposals:
-        session.proposals.extend(new_proposals)
-        display_proposed_entries(new_proposals)
-        total = len(session.proposals)
-        if total > len(new_proposals):
-            console.print(f"  [dim]{total} entries proposed total[/dim]")
+    # Render full response (including any ```bt blocks — they're conversational here)
+    if response_text.strip():
+        display_ai_response(response_text)
 
 
 def start_chat_session(entry, config) -> None:
@@ -522,11 +512,12 @@ def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
 
 
 def _exit_flow(session: ChatSession, save_requested: bool) -> None:
-    """Handle exit — batch review proposals, optional summary."""
-    if session.proposals:
-        _batch_review(session)
+    """Handle exit — ask AI to suggest entries, then optional summary."""
+    # Only suggest entries if chat was substantive
+    if len(session.messages) > 4:
+        _suggest_entries(session)
 
-    # Offer summary if chat was substantive (more than initial exchange)
+    # Offer summary if chat was substantive
     if save_requested:
         _generate_summary(session)
     elif len(session.messages) > 4:
@@ -534,13 +525,58 @@ def _exit_flow(session: ChatSession, save_requested: bool) -> None:
             _generate_summary(session)
 
 
+def _suggest_entries(session: ChatSession) -> None:
+    """Ask the AI to review the conversation and suggest entries to create."""
+    from bute.ai.llm import stream_chat
+    from rich.live import Live
+
+    console.print("\n  [dim]Reviewing chat for entries...[/dim]")
+
+    review_messages = list(session.messages) + [{
+        "role": "user",
+        "content": (
+            "Review our conversation and suggest concrete entries I should "
+            "create from it — tasks, notes, journal reflections, or calendar "
+            "events. Use ```bt blocks. Only suggest entries that are clearly "
+            "worth capturing. If nothing stands out, say so."
+        ),
+    }]
+
+    full_response = []
+    with Live(Text(""), refresh_per_second=10, console=console, transient=True) as live:
+        for chunk in stream_chat(review_messages, session.config):
+            full_response.append(chunk)
+            live.update(Text("".join(full_response)))
+
+    response_text = "".join(full_response)
+
+    # Parse proposals from the response
+    proposals = parse_proposals(response_text)
+    if not proposals:
+        # Show the AI's response (e.g. "nothing stands out")
+        display_text = _BT_BLOCK_RE.sub("", response_text).strip()
+        if display_text:
+            from bute.display import display_ai_response
+            display_ai_response(display_text)
+        return
+
+    # Show the AI's reasoning then the proposals
+    display_text = _BT_BLOCK_RE.sub("", response_text).strip()
+    if display_text:
+        from bute.display import display_ai_response
+        display_ai_response(display_text)
+
+    session.proposals = proposals
+    _batch_review(session)
+
+
 def _batch_review(session: ChatSession) -> None:
-    """Present all accumulated proposals for batch review."""
+    """Present proposals for review."""
     display_proposed_entries(session.proposals)
 
     choice = click.prompt(
         "\n  Accept all?",
-        type=click.Choice(["y", "n", "pick"], case_sensitive=False),
+        type=click.Choice(["y", "n", "p"], case_sensitive=False),
         prompt_suffix=" [y]es [n]o [p]ick > ",
         default="y",
         show_choices=False,
@@ -552,7 +588,7 @@ def _batch_review(session: ChatSession) -> None:
         return
 
     to_create = session.proposals
-    if choice == "pick":
+    if choice == "p":
         try:
             import questionary
 
@@ -627,6 +663,13 @@ def create_proposals(proposals: list[dict], session: ChatSession) -> list:
                 kwargs["scheduled_time"] = resolve_time(metadata["t"])
             except Exception:
                 pass
+
+        # Auto-tag: tasks → @thisweek, notes/journals → @today
+        tags = kwargs["tags"]
+        if entry_type == EntryType.TASK and "thisweek" not in tags:
+            tags.append("thisweek")
+        elif entry_type in (EntryType.NOTE, EntryType.JOURNAL) and "today" not in tags:
+            tags.append("today")
 
         entry = Entry.create(**kwargs)
         save_entry(entry, session.config)

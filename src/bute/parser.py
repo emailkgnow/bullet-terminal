@@ -125,17 +125,30 @@ def resolve_time(value: str) -> str:
     """Resolve time input to normalized HH:MM 24h format.
 
     Supports:
-    - HHMM (4 digits): "1430" → "14:30", "0900" → "09:00"
-    - Legacy formats: "3pm" → "15:00", "3:30pm" → "15:30", "15:00" → "15:00"
+    - H or HH (hour only): "9" → "09:00", "14" → "14:00"
+    - H.MM or HH.MM (dot separator): "9.30" → "09:30", "14.15" → "14:15"
+    - Legacy HHMM (4 digits): "1430" → "14:30"
+    - Legacy HH:MM: "14:30" → "14:30"
+    - Legacy am/pm: "3pm" → "15:00"
     """
     value = value.strip().lower()
 
-    # 4-digit numeric: HHMM
+    # Dot separator: H.MM or HH.MM
+    dot_match = re.match(r"^(\d{1,2})\.(\d{2})$", value)
+    if dot_match:
+        h, m = int(dot_match.group(1)), int(dot_match.group(2))
+        return f"{h:02d}:{m:02d}"
+
+    # Hour only: "9", "14"
+    if re.match(r"^\d{1,2}$", value) and int(value) < 24:
+        return f"{int(value):02d}:00"
+
+    # Legacy: 4-digit HHMM
     if re.match(r"^\d{4}$", value):
         h, m = int(value[:2]), int(value[2:])
         return f"{h:02d}:{m:02d}"
 
-    # Already HH:MM
+    # Legacy: HH:MM
     if re.match(r"^\d{1,2}:\d{2}$", value):
         h, m = value.split(":")
         return f"{int(h):02d}:{int(m):02d}"
@@ -175,18 +188,21 @@ def resolve_date(value: str, reference: date | None = None) -> date:
     """Resolve a date string to a date object.
 
     Supports:
-    - MMDD (4 digits): "0330" → Mar 30
+    - MM.DD (dot separator): "01.03" → Jan 3, "12.25" → Dec 25
     - "today", "tomorrow"
     - Day names: "monday", "friday"
-    - Month+day: "mar29", "3/29"
+    - Month+day: "mar3", "jan15"
+    - Legacy MMDD (4 digits): "0330" → Mar 30
+    - Legacy slash: "3/29"
     - ISO format: "2026-03-29"
     """
     ref = reference or date.today()
     low = value.lower().strip()
 
-    # 4-digit numeric: MMDD
-    if re.match(r"^\d{4}$", low):
-        month, day = int(low[:2]), int(low[2:])
+    # Dot separator: MM.DD
+    dot_match = re.match(r"^(\d{1,2})\.(\d{1,2})$", low)
+    if dot_match:
+        month, day = int(dot_match.group(1)), int(dot_match.group(2))
         candidate = date(ref.year, month, day)
         if candidate < ref:
             candidate = date(ref.year + 1, month, day)
@@ -217,7 +233,15 @@ def resolve_date(value: str, reference: date | None = None) -> date:
             candidate = date(ref.year + 1, month, day)
         return candidate
 
-    # Slash format: "3/29"
+    # Legacy: 4-digit MMDD
+    if re.match(r"^\d{4}$", low):
+        month, day = int(low[:2]), int(low[2:])
+        candidate = date(ref.year, month, day)
+        if candidate < ref:
+            candidate = date(ref.year + 1, month, day)
+        return candidate
+
+    # Legacy: slash format "3/29"
     slash_match = SLASH_DATE_RE.match(low)
     if slash_match:
         month = int(slash_match.group(1))
