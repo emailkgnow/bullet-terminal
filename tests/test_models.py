@@ -91,3 +91,11 @@ def test_frontmatter_dict_note_has_no_status():
     entry = Entry.create(EntryType.NOTE, "test")
     d = entry.to_frontmatter_dict()
     assert "status" not in d
+
+
+def test_system_tags_is_set():
+    from bute.models import SYSTEM_TAGS
+    assert isinstance(SYSTEM_TAGS, frozenset)
+    assert "goal" in SYSTEM_TAGS
+    assert "today" in SYSTEM_TAGS
+    assert "thisweek" in SYSTEM_TAGS

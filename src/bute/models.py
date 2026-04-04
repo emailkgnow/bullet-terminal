@@ -29,6 +29,10 @@ SIGNIFIER_MAP = {
     "/c": EntryType.CALENDAR,
 }
 
+# Tags that bt interprets as instructions, not labels.
+# Used by goals view to filter connected tags.
+SYSTEM_TAGS = frozenset({"goal", "today", "thisweek"})
+
 
 @dataclass
 class Entry:
