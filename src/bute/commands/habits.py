@@ -98,10 +98,15 @@ def handle_habit_action(tokens: list[str], config) -> None:
         return
 
     if not rest:
-        console.print("  [red]No action specified. Use: done, undo, delete[/red]")
-        return
-
-    action = rest[0]
+        # Bare number — toggle: done if not done today, undo if already done
+        from bute.habit_storage import get_habit_summary
+        names = _resolve_habit_numbers(numbers, config)
+        configured = _get_configured(config)
+        summary = get_habit_summary(date.today(), configured, config)
+        # Use first habit's state to pick action (all in batch get same action)
+        action = "undo" if names and summary.get(names[0]) else "done"
+    else:
+        action = rest[0]
     names = _resolve_habit_numbers(numbers, config)
 
     if action == "done":

@@ -163,6 +163,11 @@ class DwnGroup(click.Group):
                             return "habits", cmd, remapped
             except Exception:
                 pass
+
+            # Bare number (no action) — default to edit
+            if all(tok.isdigit() for tok in args):
+                args = list(args) + ["edit"]
+
             cmd = self.get_command(ctx, "action")
             if cmd is not None:
                 return "action", cmd, args
