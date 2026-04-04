@@ -373,7 +373,7 @@ def goals_cmd(ctx):
 @click.argument("number", type=int)
 @click.pass_context
 def goal_drill_cmd(ctx, number):
-    """Drill into a goal — show all entries with its connected tags."""
+    """Drill into a goal — show tasks with its connected tags."""
     from bute.models import SYSTEM_TAGS
     from bute.state import resolve_numbers
     from bute.storage import load_entry, entry_path_from_id
@@ -396,7 +396,7 @@ def goal_drill_cmd(ctx, number):
     seen = set()
     entries = []
     for tag in connected:
-        for entry in query_and_load(config, tag=tag):
+        for entry in query_and_load(config, type="task", tag=tag):
             if entry.id not in seen:
                 seen.add(entry.id)
                 entries.append(entry)

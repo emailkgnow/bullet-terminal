@@ -129,7 +129,7 @@ def test_goals_empty(runner, tmp_config, tmp_data):
 
 
 def test_goal_drill(runner, tmp_config, tmp_data):
-    """bt 1 after bt goals should show entries with connected tags."""
+    """bt 1 after bt goals should show only tasks with connected tags."""
     goal = Entry.create(EntryType.NOTE, "get fit", tags=["goal", "fitness"])
     save_entry(goal)
     _index_entry(goal)
@@ -139,14 +139,17 @@ def test_goal_drill(runner, tmp_config, tmp_data):
     save_entry(t1)
     _index_entry(t1)
 
-    # First, run goals to set state
+    # Note with same tag should NOT appear in drill-down
+    n1 = Entry.create(EntryType.NOTE, "gym research notes", tags=["fitness"])
+    save_entry(n1)
+    _index_entry(n1)
+
     runner.invoke(main, ["goals"])
 
-    # Then drill into goal #1
     result = runner.invoke(main, ["1"])
     assert result.exit_code == 0
     assert "sign up for gym" in result.output
-    assert "@fitness" in result.output
+    assert "gym research notes" not in result.output
 
 
 def test_goal_drill_unlinked(runner, tmp_config, tmp_data):
