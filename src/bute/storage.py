@@ -48,11 +48,14 @@ def load_entry(path: Path) -> Entry:
     # Known frontmatter keys — everything else goes to extra_meta
     known_keys = {
         "id", "type", "created", "status", "important",
-        "due", "date", "time", "repeat", "tags",
+        "due", "date", "time", "repeat", "tags", "completions",
     }
     extra_meta = {
         k: v for k, v in post.metadata.items() if k not in known_keys
     }
+
+    raw_completions = post.metadata.get("completions", [])
+    completions = [str(c) for c in raw_completions] if raw_completions else []
 
     return Entry(
         id=post["id"],
@@ -67,6 +70,7 @@ def load_entry(path: Path) -> Entry:
         repeat=post.metadata.get("repeat"),
         tags=post.metadata.get("tags", []),
         extra_meta=extra_meta,
+        completions=completions,
     )
 
 

@@ -63,7 +63,7 @@ def capture_cmd(ctx, later, tokens):
     # Support both t: and time:
     raw_time = meta.pop("t", None) or meta.pop("time", None)
     scheduled_time = resolve_time(raw_time) if raw_time else None
-    repeat = meta.pop("repeat", None)
+    repeat = meta.pop("r", None) or meta.pop("repeat", None)
 
     entry = Entry.create(
         entry_type=entry_type,

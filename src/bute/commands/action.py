@@ -48,11 +48,20 @@ def _require_task(entry: Entry, action: str) -> None:
 
 
 def handle_done(entry: Entry, args: list[str], config) -> None:
-    """Mark a task as done."""
+    """Mark a task as done. For recurring tasks, record completion for today."""
     _require_task(entry, "done")
-    record_undo(entry.id, "done", {"status": entry.status.value}, config)
-    entry.status = TaskStatus.DONE
-    update_entry(entry, config)
+    if entry.is_recurring():
+        from datetime import date
+        today_iso = date.today().isoformat()
+        if today_iso in entry.completions:
+            return  # already done today
+        record_undo(entry.id, "done", {"completion_removed": today_iso}, config)
+        entry.completions.append(today_iso)
+        update_entry(entry, config)
+    else:
+        record_undo(entry.id, "done", {"status": entry.status.value}, config)
+        entry.status = TaskStatus.DONE
+        update_entry(entry, config)
 
 
 def handle_drop(entry: Entry, args: list[str], config) -> None:
@@ -194,8 +203,15 @@ def apply_undo(record: dict, config) -> None:
     entry = load_entry(path)
 
     if action in ("done", "drop"):
-        entry.status = TaskStatus(prev["status"])
-        update_entry(entry, config)
+        if "completion_removed" in prev:
+            # Undo a recurring done — remove the date from completions
+            date_to_remove = prev["completion_removed"]
+            if date_to_remove in entry.completions:
+                entry.completions.remove(date_to_remove)
+            update_entry(entry, config)
+        else:
+            entry.status = TaskStatus(prev["status"])
+            update_entry(entry, config)
     elif action == "!":
         entry.important = prev["important"]
         update_entry(entry, config)

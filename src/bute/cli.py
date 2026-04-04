@@ -199,6 +199,7 @@ def _print_help():
     console.print("    Add [bold]@tag[/bold] and [bold]key:value[/bold]: [dim]bt t fix bug @backend due:tomorrow[/dim]")
     console.print("    [bold]d:[/bold] date — [dim]d:4.7  d:tom  d:fri  d:mar15[/dim]  (works on all types)")
     console.print("    [bold]t:[/bold] time — [dim]t:9  t:14.30[/dim]  (24h, for calendar events)")
+    console.print("    [bold]r:[/bold] recur — [dim]r:daily  r:weekly  r:monthly  r:yearly[/dim]")
     console.print("    [dim]Tasks auto-get @thisweek (focus). Use -l/--later for backlog only.[/dim]")
     console.print("    [dim]Tip: first sentence = title in list views. Start entries with a clear topic sentence.[/dim]")
     console.print()
@@ -244,13 +245,14 @@ def _print_help():
     console.print()
 
     # Habits
-    console.print("  [bold cyan]Habits[/bold cyan] — daily tracking")
+    console.print("  [bold cyan]Habits[/bold cyan] — daily tracking (entries with @habit r:daily)")
     console.print("    [bold]bt h[/bold]                  List habits with today's status")
     console.print("    [bold]bt h[/bold] <name>           Add a new habit")
     console.print("    [bold]bt h <n> done[/bold]         Mark habit done today")
     console.print("    [bold]bt h <n> undo[/bold]         Clear today's entry")
     console.print("    [bold]bt h <n> delete[/bold]       Remove habit permanently")
     console.print("    [bold]bt streak[/bold]            Habit streaks, trends, and 30-day stats")
+    console.print("    [bold]bt migrate-habits[/bold]    Migrate old config habits to entries")
     console.print()
 
     # Goals
@@ -286,6 +288,7 @@ def _print_help():
     console.print("    [bold]bt init[/bold]            First-run setup (pick AI provider)")
     console.print("    [bold]bt rebuild[/bold]         Re-embed all entries for semantic search")
     console.print("    [bold]bt export[/bold]          Export all data as a zip file ([dim]-o path[/dim])")
+    console.print("    [bold]bt demo[/bold]            Toggle demo mode — isolated data for presentations")
     console.print("    [bold]bt --version[/bold]       Show version")
     console.print()
 
@@ -296,9 +299,15 @@ def _print_help():
 def main(ctx):
     """bt (BuTe) — AI-powered life management CLI based on Bullet Journal."""
     ctx.ensure_object(dict)
-    from bute.config import load_config
+    from bute.config import apply_demo_config, load_config
 
-    ctx.obj["config"] = load_config()
+    config = load_config()
+    config = apply_demo_config(config)
+    ctx.obj["config"] = config
+
+    from bute.config import is_demo_active
+    if is_demo_active():
+        click.echo("  ▶ DEMO MODE — bt demo to exit")
 
     if not ctx.invoked_subcommand:
         from bute.state import is_dyts_done_today
@@ -354,13 +363,14 @@ from bute.commands.rituals import (  # noqa: E402
     recap_cmd,
     wp_cmd,
 )
-from bute.commands.habits import habits_cmd, streak_cmd  # noqa: E402
+from bute.commands.habits import habits_cmd, migrate_habits_cmd, streak_cmd  # noqa: E402
 from bute.commands.export import export_cmd  # noqa: E402
 from bute.commands.search import find_cmd, rebuild_cmd, search_cmd, similar_cmd  # noqa: E402
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
 from bute.commands.tags import analyze_tag_cmd, map_tag_cmd  # noqa: E402
+from bute.commands.demo import demo_cmd  # noqa: E402
 
 main.add_command(init_cmd)
 main.add_command(start_cmd)
@@ -396,3 +406,5 @@ main.add_command(topic_cmd)
 main.add_command(nudges_cmd)
 main.add_command(analyze_tag_cmd)
 main.add_command(map_tag_cmd)
+main.add_command(demo_cmd)
+main.add_command(migrate_habits_cmd)

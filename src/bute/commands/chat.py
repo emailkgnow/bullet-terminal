@@ -125,7 +125,7 @@ def _parse_proposal_line(line: str) -> dict | None:
     for token in tokens[1:]:
         if re.match(r"^@[a-zA-Z0-9_-]+$", token):
             tags.append(token[1:])
-        elif ":" in token and not token.startswith(":") and token.split(":")[0] in ("due", "d", "t"):
+        elif ":" in token and not token.startswith(":") and token.split(":")[0] in ("due", "d", "t", "r", "repeat"):
             key, value = token.split(":", 1)
             metadata[key] = value
         else:
@@ -663,6 +663,9 @@ def create_proposals(proposals: list[dict], session: ChatSession) -> list:
                 kwargs["scheduled_time"] = resolve_time(metadata["t"])
             except Exception:
                 pass
+        repeat = metadata.get("r") or metadata.get("repeat")
+        if repeat:
+            kwargs["repeat"] = repeat
 
         # Auto-tag: tasks → @thisweek, notes/journals → @today
         tags = kwargs["tags"]

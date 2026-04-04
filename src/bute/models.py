@@ -31,7 +31,7 @@ SIGNIFIER_MAP = {
 
 # Tags that bt interprets as instructions, not labels.
 # Used by goals view to filter connected tags.
-SYSTEM_TAGS = {"goal", "today", "thisweek"}
+SYSTEM_TAGS = {"goal", "today", "thisweek", "habit"}
 
 
 @dataclass
@@ -50,6 +50,7 @@ class Entry:
     repeat: Optional[str] = None
     tags: list[str] = field(default_factory=list)
     extra_meta: dict = field(default_factory=dict)
+    completions: list[str] = field(default_factory=list)
 
     @classmethod
     def create(
@@ -104,4 +105,29 @@ class Entry:
             d["tags"] = self.tags
         if self.extra_meta:
             d.update(self.extra_meta)
+        if self.completions:
+            d["completions"] = self.completions
         return d
+
+    def is_recurring(self) -> bool:
+        """Check if this entry has a recurrence rule."""
+        return self.repeat is not None
+
+    def is_completed_for_date(self, target: date) -> bool:
+        """Check if this recurring entry was completed for a given date."""
+        return target.isoformat() in self.completions
+
+    def recurs_on(self, target: date) -> bool:
+        """Check if this recurring entry should show on the given date."""
+        if not self.repeat:
+            return False
+        anchor = self.scheduled_date or self.created.date()
+        if self.repeat == "daily":
+            return True
+        elif self.repeat == "weekly":
+            return target.weekday() == anchor.weekday()
+        elif self.repeat == "monthly":
+            return target.day == anchor.day
+        elif self.repeat == "yearly":
+            return target.month == anchor.month and target.day == anchor.day
+        return False

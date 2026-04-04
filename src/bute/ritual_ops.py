@@ -98,6 +98,13 @@ def get_daily_log(config=None) -> list[Entry]:
             seen.add(e.id)
             result.append(e)
 
+    # Also include recurring entries that match today (excluding @habit — shown separately)
+    recurring = query_and_load(config, has_repeat=True, status="active")
+    for e in recurring:
+        if e.id not in seen and e.recurs_on(today) and "habit" not in e.tags:
+            seen.add(e.id)
+            result.append(e)
+
     def _daily_sort_key(e):
         """Sort: tasks first, then calendar (timed→untimed), notes, journals.
         Important entries first within each type group."""

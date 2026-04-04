@@ -289,6 +289,44 @@ def display_habit_line(
         console.print(table)
 
 
+def display_habit_line_entries(
+    habits: list, target_date, start_num: int = 0
+) -> None:
+    """Display numbered habit rows from Entry objects."""
+    if not habits:
+        return
+
+    console.print(f"  [dim]{'─' * 50}[/dim]")
+
+    if start_num == 0:
+        parts = []
+        for entry in habits:
+            completed = entry.is_completed_for_date(target_date)
+            if completed:
+                parts.append(f"[green]●[/green] {entry.body}")
+            else:
+                parts.append(f"[dim]○[/dim] {entry.body}")
+        console.print(f"  [bold dim]Habits[/bold dim]   {'   '.join(parts)}")
+    else:
+        table = Table(
+            show_header=False,
+            show_edge=False,
+            pad_edge=False,
+            box=None,
+            padding=(0, 1),
+        )
+        table.add_column("#", style="bold dim", width=4, justify="right")
+        table.add_column("", width=1)
+        table.add_column("", ratio=1)
+
+        for i, entry in enumerate(habits):
+            completed = entry.is_completed_for_date(target_date)
+            icon = Text("●", style="green") if completed else Text("○", style="dim")
+            table.add_row(str(start_num + i), icon, entry.body)
+
+        console.print(table)
+
+
 def display_search_results(
     entries: list[Entry], distances: list[float], query: str = ""
 ) -> None:

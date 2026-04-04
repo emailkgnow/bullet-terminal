@@ -314,6 +314,7 @@ def query_entries(
     due_before: str | None = None,
     due_on: str | None = None,
     has_due: bool = False,
+    has_repeat: bool = False,
     has_tags: bool = False,
     exclude_status: str | None = None,
     important: bool | None = None,
@@ -371,6 +372,9 @@ def query_entries(
 
     if has_due:
         conditions.append("due IS NOT NULL")
+
+    if has_repeat:
+        conditions.append("repeat IS NOT NULL")
 
     if has_tags:
         conditions.append("tags != '[]'")

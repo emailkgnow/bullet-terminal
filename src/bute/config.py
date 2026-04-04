@@ -7,6 +7,8 @@ import tomlkit
 CONFIG_DIR = Path.home() / ".config" / "bute"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 DATA_DIR_DEFAULT = Path.home() / "bullet-terminal"
+DEMO_MARKER = CONFIG_DIR / ".demo"
+DEMO_DATA_DIR = Path.home() / "bute-demo"
 
 # Known AI provider presets
 PROVIDER_PRESETS = {
@@ -98,6 +100,23 @@ def default_config(
     doc.add("habits", habits)
 
     return doc
+
+
+def is_demo_active() -> bool:
+    """Check if demo mode is active."""
+    return DEMO_MARKER.exists()
+
+
+def apply_demo_config(config: tomlkit.TOMLDocument) -> tomlkit.TOMLDocument:
+    """If demo mode is active, override data directory and clear personal data."""
+    if is_demo_active():
+        if "core" not in config:
+            config["core"] = tomlkit.table()
+        config["core"]["data_dir"] = str(DEMO_DATA_DIR)
+        # Clear habits so real ones don't leak into demo
+        if "habits" in config:
+            config["habits"]["list"] = tomlkit.array("[]")
+    return config
 
 
 def ensure_data_dirs(config: tomlkit.TOMLDocument | None = None) -> Path:

@@ -34,18 +34,15 @@ def ls_cmd(ctx):
 
 
 def _show_habits(config, entry_count=0) -> list[str]:
-    """Show numbered habit rows if habits are configured. Returns habit names."""
-    configured = []
-    if config and "habits" in config and "list" in config["habits"]:
-        configured = list(config["habits"]["list"])
-    if not configured:
+    """Show numbered habit rows from entries. Returns habit entry IDs."""
+    from bute.commands.habits import _get_habit_entries
+    from bute.display import display_habit_line_entries
+    habits = _get_habit_entries(config)
+    if not habits:
         return []
-    from bute.display import display_habit_line
-    from bute.habit_storage import get_habit_summary
-    habits = get_habit_summary(date.today(), configured, config)
     start_num = entry_count + 1 if entry_count > 0 else 0
-    display_habit_line(habits, configured, start_num=start_num)
-    return configured
+    display_habit_line_entries(habits, date.today(), start_num=start_num)
+    return [e.id for e in habits]
 
 
 def _dimension_command(name, entry_type, label, group_by_date=False):

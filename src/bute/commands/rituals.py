@@ -195,37 +195,36 @@ def dp_cmd(ctx, non_interactive):
                 confirm_capture(entry)
 
     # --- H: Habits ---
-    configured = []
-    if config and "habits" in config and "list" in config["habits"]:
-        configured = list(config["habits"]["list"])
+    from bute.commands.habits import _get_habit_entries
 
-    if configured:
+    habit_entries = _get_habit_entries(config)
+
+    if habit_entries:
         display_ritual_header("H · Habits", "Check in on your habits")
 
-        from bute.habit_storage import get_habit_summary, save_habit
-
-        habits = get_habit_summary(date.today(), configured, config)
+        today = date.today()
+        today_iso = today.isoformat()
 
         if non_interactive:
-            from bute.display import display_habit_line
-            display_habit_line(habits, configured)
+            from bute.display import display_habit_line_entries
+            display_habit_line_entries(habit_entries, today)
         else:
-            for name in configured:
-                status = habits.get(name)
-                if status is True:
-                    console.print(f"  [green]●[/green] {name} [dim](done)[/dim]")
+            for entry in habit_entries:
+                if entry.is_completed_for_date(today):
+                    console.print(f"  [green]●[/green] {entry.body} [dim](done)[/dim]")
                     continue
 
                 choice = click.prompt(
-                    f"  ○ {name}",
+                    f"  ○ {entry.body}",
                     type=click.Choice(["y", "s"], case_sensitive=False),
                     prompt_suffix=" [y]es [s]kip > ",
                     default="s",
                     show_choices=False,
                 )
                 if choice == "y":
-                    save_habit(name, True, date.today(), config)
-                    console.print(f"  [green]●[/green] {name}")
+                    entry.completions.append(today_iso)
+                    update_entry(entry, config)
+                    console.print(f"  [green]●[/green] {entry.body}")
 
     from bute.state import mark_dyts_done
     mark_dyts_done(config)
@@ -493,7 +492,7 @@ def recap_cmd(ctx, period):
 
 def _recap_daily(config):
     """Show today's structured recap: done, open, dropped, captured, habits."""
-    from bute.habit_storage import get_habit_summary
+    from bute.commands.habits import _get_habit_entries
     from bute.ritual_ops import (
         get_tasks_done_today,
         get_tasks_dropped_today,
@@ -507,13 +506,10 @@ def _recap_daily(config):
     dropped = get_tasks_dropped_today(config)
     captured = get_today_captured(config)
 
-    # Check habits
-    configured_habits = []
-    if config and "habits" in config and "list" in config["habits"]:
-        configured_habits = list(config["habits"]["list"])
-    habits = get_habit_summary(date.today(), configured_habits, config) if configured_habits else {}
+    habit_entries = _get_habit_entries(config)
+    today = date.today()
 
-    has_content = done or open_tasks or dropped or captured or any(v is not None for v in habits.values())
+    has_content = done or open_tasks or dropped or captured or habit_entries
     if not has_content:
         console.print("  [dim]Nothing to recap — quiet day.[/dim]")
         mark_recap_done(config)
@@ -535,9 +531,9 @@ def _recap_daily(config):
     if captured:
         display_entry_list(captured, "Captured")
 
-    if configured_habits:
-        from bute.display import display_habit_line
-        display_habit_line(habits, configured_habits)
+    if habit_entries:
+        from bute.display import display_habit_line_entries
+        display_habit_line_entries(habit_entries, today)
 
     mark_recap_done(config)
     console.print()
