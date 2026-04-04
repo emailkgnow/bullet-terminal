@@ -14,9 +14,9 @@ BULLET_RE = re.compile(r"^([.=\-o])(!?)$")
 
 # Full word to signifier mapping
 WORD_TO_SIGNIFIER = {
-    "task": "t", "note": "n", "journal": "j", "cal": "c",
+    "task": "t", "note": "n", "journal": "j", "calendar": "c",
 }
-WORD_SIGNIFIER_RE = re.compile(r"^(task|note|journal|cal)(!?)$")
+WORD_SIGNIFIER_RE = re.compile(r"^(task|note|journal|calendar)(!?)$")
 # Key must start with a letter — prevents "1:1" from being parsed as key:value
 KV_RE = re.compile(r"^([a-zA-Z]\w*):(.+)$")
 TAG_RE = re.compile(r"^@([a-zA-Z0-9_-]+)$")

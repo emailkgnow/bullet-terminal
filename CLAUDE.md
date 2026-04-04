@@ -31,11 +31,11 @@ uv build
 
 Custom Click group with 6-layer routing in `resolve_command()`:
 
-1. **Named commands** — standard Click (ls, dp, tasks, notes, tags, etc.)
-2. **Letter shortcut** — `l` → linelog
-3. **Signifiers** — `t`, `n`, `j`, `c` (or full words: `task`, `note`, `journal`, `cal`)
+1. **Named commands** — standard Click (dp, tasks, backlog, notes, tags, etc.)
+2. **Letter shortcut** — `b` → backlog, `m` → monthly
+3. **Signifiers** — `t`, `n`, `j`, `c` (or full words: `task`, `note`, `journal`, `calendar`)
    - With text → **capture** (`bute t call dentist`)
-   - Without text → **view** (`bute t` → show Task Log)
+   - Without text → **view** (`bute t` → show Tasks / weekly focus)
    - With only `@tag` → **filtered view** (`bute t @backend`)
 4. **Tag filter** — `@tagname` → cross-dimension filter, `@tagname analyze` → AI analyze
 5. **Number-action** — `1 done`, `2 3 drop` → action dispatch
@@ -59,7 +59,7 @@ User input → DwnGroup.resolve_command() → capture.py
 
 ### State Management
 
-`.state.json` stores the last displayed list as `{"view": "ls", "entries": ["ulid1", "ulid2"]}`. Display numbers (1, 2, 3) map to ULIDs. Numbers re-scope on each new view.
+`.state.json` stores the last displayed list as `{"view": "tasks", "entries": ["ulid1", "ulid2"]}`. Display numbers (1, 2, 3) map to ULIDs. Numbers re-scope on each new view.
 
 ### Key Modules
 
@@ -107,12 +107,13 @@ bute n check OAuth docs d:4.10             # note: resurfaces in daily log Apr 1
 
 **Views** — signifier alone, or named commands:
 ```
-bute t              # Task Log (active tasks)
+bute t              # Tasks — this week's focus (@thisweek)
 bute t @backend     # filtered by tag
 bute t -a           # all including done/dropped
+bute b              # Task Backlog — all active tasks
 bute n / j / c      # notes / journals / calendar (grouped by date)
-bute l              # line log (monthly overview)
-bute ls             # today's daily log
+bute m              # monthly log (notes, journals, calendar)
+bute                # daily log (or DYTS if not done today)
 bute @tagname       # cross-dimension tag filter
 bute !              # all important entries
 bute t!             # important tasks (also: n!, j!, c!)
@@ -172,10 +173,11 @@ bute init           # first-run setup (pick AI provider)
 
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. DYTS Y phase handles yesterday's unfinished items.
 - **Tags have a dual role** — `@tag` as label (organizes entries) and `@tag` as thinking tool (`analyze` clusters the group via AI). The `+collection` syntax was removed — tags absorbed collections. Stage tracking (raw → analyzed) lives in the `tag_stages` SQLite table.
-- **Linelog is derived** — no stored file, computed from journal + calendar entries. No AI compression.
+- **Monthly log is derived** — no stored file, computed from notes, journal, and calendar entries. `bt m` shows the monthly log.
 - **`bute` with no args** = DYTS entry point. If DYTS done today, shows daily log.
-- **Daily log (`bute ls`)** shows: `@today` tasks, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Task Log (`bute t`).
-- **`bute plan`** includes task dump phase — add tasks before selecting for the week.
+- **Daily log (`bute`)** shows: `@today` tasks, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bute b`) or Tasks (`bute t`).
+- **Task views**: `bt t` (Tasks) shows `@thisweek` focus tasks. `bt b` (Backlog) shows all active tasks. The flow is: backlog → weekly plan → tasks → daily log.
+- **`bute wp`** includes task dump phase — add tasks before selecting for the week.
 - **Display**: tasks = flat list, notes/journals/calendar = grouped by date (using `scheduled_date` for calendar events).
 - **Scheduling is universal** — `d:` (scheduled_date) works on all entry types. Tasks: deadline. Calendar: event date. Notes/journals: resurface date. All surface in the daily log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
 - **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.

@@ -1,4 +1,4 @@
-"""Capture command — handles t/n/j/c and task/note/journal/cal signifier input."""
+"""Capture command — handles t/n/j/c and task/note/journal/calendar signifier input."""
 
 from datetime import date
 
@@ -39,7 +39,7 @@ def capture_cmd(ctx, later, tokens):
             "task": "task", "task!": "task (important)",
             "note": "note", "note!": "note (important)",
             "journal": "journal", "journal!": "journal (important)",
-            "cal": "event", "cal!": "event (important)",
+            "calendar": "event", "calendar!": "event (important)",
         }
         key = tokens[0].lstrip("/")
         label = type_labels.get(key, "entry")

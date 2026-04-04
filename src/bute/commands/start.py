@@ -48,7 +48,7 @@ def start_cmd(ctx):
 
     # Act
     console.print()
-    console.print("  [bold]Act[/bold] — use [bold]bt ls[/bold] to see today's log, then act by number:")
+    console.print("  [bold]Act[/bold] — use [bold]bt[/bold] to see today's log, then act by number:")
     console.print()
     console.print("    [bold]bt 1 done[/bold]       mark complete")
     console.print("    [bold]bt 2 drop[/bold]       consciously delete")
@@ -61,7 +61,7 @@ def start_cmd(ctx):
         Text.from_markup(
             "  [bold cyan]morning[/bold cyan]   bt dp            [dim]— daily plan[/dim]\n"
             "  [bold]all day[/bold]   bt t / n / j / c  [dim]— capture fast[/dim]\n"
-            "  [bold cyan]evening[/bold cyan]   bt ls            [dim]— check your day[/dim]\n"
+            "  [bold cyan]evening[/bold cyan]   bt               [dim]— check your day[/dim]\n"
             "  [bold cyan]weekly[/bold cyan]    bt wp            [dim]— weekly plan[/dim]"
         ),
         title=Text(" the rhythm ", style="bold"),

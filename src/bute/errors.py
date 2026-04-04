@@ -33,7 +33,7 @@ class StateNotFoundError(DwnError):
     """Raised when no view state exists (no previous list displayed)."""
 
     def __init__(self):
-        super().__init__("No active view. Run 'bt ls' first to see entries.")
+        super().__init__("No active view. Run 'bt' first to see entries.")
 
 
 class InvalidActionError(DwnError):

@@ -58,7 +58,7 @@ def test_number_action_routes_to_action(runner, tmp_config, tmp_data):
     """Verify digits route to the action command (not a named command)."""
     # Capture an entry, list it, then act on it
     runner.invoke(main, ["/t", "test", "task"])
-    runner.invoke(main, ["ls"])
+    runner.invoke(main, ["t"])
     result = runner.invoke(main, ["1", "done"])
     assert result.exit_code == 0
     assert "done" in result.output

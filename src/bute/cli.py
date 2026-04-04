@@ -11,13 +11,13 @@ from bute import __version__
 SIGNIFIER_PATTERN = re.compile(r"^/?[tnjc]!?$")
 # Bullet signifier pattern: . = - o (with optional !)
 BULLET_PATTERN = re.compile(r"^[.=\-o]!?$")
-# Full word capture: task, note, journal, cal (with optional !)
-WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|cal)!?$")
+# Full word capture: task, note, journal, calendar (with optional !)
+WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|calendar)!?$")
 
 # Short letter to view command mapping (when no text follows)
-SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "l": "linelog"}
+SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog", "m": "monthly"}
 BULLET_TO_VIEW = {".": "tasks", "=": "journals", "-": "notes", "o": "calendar"}
-WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "cal": "calendar"}
+WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calendar": "calendar"}
 
 
 class DwnGroup(click.Group):
@@ -40,10 +40,15 @@ class DwnGroup(click.Group):
             return cmd.name, cmd, rest
 
         # 2. Single letter shortcuts
-        if first == "l":
-            cmd = self.get_command(ctx, "linelog")
+        if first == "b":
+            cmd = self.get_command(ctx, "backlog")
             if cmd is not None:
-                return "linelog", cmd, rest
+                return "backlog", cmd, rest
+
+        if first == "m":
+            cmd = self.get_command(ctx, "monthly")
+            if cmd is not None:
+                return "monthly", cmd, rest
 
         if first in ("h", "habit"):
             cmd = self.get_command(ctx, "habits")
@@ -193,7 +198,7 @@ def _print_help():
     console.print("    [yellow]bt n[/yellow] <text>      Note / idea     [dim]bt n OAuth2 tokens expire in 30 days[/dim]")
     console.print("    [magenta]bt j[/magenta] <text>      Journal         [dim]bt j rough morning, couldn't focus[/dim]")
     console.print("    [green]bt c[/green] <text>      Calendar event  [dim]bt c standup t:9[/dim]")
-    console.print("    Full words work too: [dim]bt task, bt note, bt journal, bt cal[/dim]")
+    console.print("    Full words work too: [dim]bt task, bt note, bt journal, bt calendar[/dim]")
     console.print("    BuJo bullets work too: [dim]bt . (task)  bt - (note)  bt = (journal)  bt o (event)[/dim]")
     console.print("    Add [bold red]![/bold red] for important: [dim]bt t! fix prod bug[/dim]")
     console.print("    Add [bold]@tag[/bold] and [bold]key:value[/bold]: [dim]bt t fix bug @backend due:tomorrow[/dim]")
@@ -207,14 +212,13 @@ def _print_help():
     # Views
     console.print("  [bold cyan]Views[/bold cyan] — same letters, no text = view")
     console.print("    [bold]bt[/bold]                 Daily plan if not done today, else today's log")
-    console.print("    [bold]bt ls[/bold]              Today's log (always)")
-    console.print("    [bold]bt t[/bold] [@tag]        Active tasks ([dim]-a/--all[/dim] for done/dropped)")
+    console.print("    [bold]bt t[/bold] [@tag]        Tasks — this week's focus ([dim]-a/--all[/dim] for done/dropped)")
+    console.print("    [bold]bt b[/bold] [@tag]        Task Backlog — all active tasks")
     console.print("    [bold]bt n[/bold] [@tag]        All notes")
     console.print("    [bold]bt j[/bold] [@tag]        All journal entries")
     console.print("    [bold]bt c[/bold] [@tag]        All events")
-    console.print("    [bold]bt l[/bold] [period]      Line log ([dim]default: this month, YYYY-MM or YYYY[/dim])")
+    console.print("    [bold]bt m[/bold] [period]      Monthly log ([dim]default: this month, YYYY-MM or YYYY[/dim])")
     console.print("    [bold]bt due[/bold]              Tasks by deadline — overdue, today, next 7 days ([dim]bt due all[/dim])")
-    console.print("    [bold]bt active[/bold]          This week's selected tasks")
     console.print("    [bold]bt week[/bold] [last]     Weekly spread — all entries Mon-Sun")
     console.print("    [bold]bt tags[/bold]            List all tags with entry counts and stage")
     console.print("    [bold]bt ![/bold]               All important entries")
@@ -262,7 +266,7 @@ def _print_help():
 
     # Rituals
     console.print("  [bold cyan]Rituals[/bold cyan] — guided BuJo workflows")
-    console.print("    [bold]bt dump[/bold]             Rapid-fire tasks → Task Log ([dim]add @today or @thisweek to focus[/dim])")
+    console.print("    [bold]bt dump[/bold]             Rapid-fire tasks → Backlog ([dim]add @today or @thisweek to focus[/dim])")
     console.print("    [bold]bt dp[/bold]              Daily plan — morning ritual ([dim]-y for non-interactive[/dim])")
     console.print("    [bold]bt wp[/bold]              Weekly plan — select tasks for the week ([dim]-y[/dim])")
     console.print("    [bold]bt recap[/bold]             End-of-day summary — done, open, dropped, captured")
@@ -308,14 +312,13 @@ def _run_interactive(ctx):
             console.print()
             break
 
-        if not user_input:
-            continue
-
         if user_input in ("/exit", "/done"):
             break
 
-        # Split into args and invoke through the CLI group
+        # Strip leading 'bt' if user types it out of habit
         args = user_input.split()
+        if args and args[0] == "bt":
+            args = args[1:]
         try:
             main(args, standalone_mode=False, parent=ctx)
         except click.exceptions.UsageError as e:
@@ -382,7 +385,7 @@ def main(ctx, interactive, demo):
 
             from rich.console import Console
             console = Console()
-            console.print(f"\n  [dim]Daily plan done. Run[/dim] [bold]bt dp[/bold] [dim]to redo.[/dim]")
+            console.print(f"\n  [dim]Daily plan done. Run [bold]bt dp[/bold] to redo.[/dim]")
         else:
             ctx.invoke(dp_cmd)
 
@@ -393,14 +396,13 @@ from bute.commands.capture import capture_cmd  # noqa: E402
 from bute.commands.action import action_cmd, undo_cmd  # noqa: E402
 from bute.commands.init_cmd import init_cmd  # noqa: E402
 from bute.commands.views import (  # noqa: E402
-    active_cmd,
+    backlog_cmd,
     calendar_cmd,
     due_cmd,
     goal_drill_cmd,
     goals_cmd,
     important_cmd,
     journals_cmd,
-    ls_cmd,
     notes_cmd,
     tag_filter_cmd,
     tags_cmd,
@@ -410,7 +412,7 @@ from bute.commands.views import (  # noqa: E402
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
     dump_cmd,
-    linelog_cmd,
+    monthly_cmd,
     recap_cmd,
     wp_cmd,
 )
@@ -428,12 +430,11 @@ main.add_command(start_cmd)
 main.add_command(capture_cmd)
 main.add_command(action_cmd)
 main.add_command(undo_cmd)
-main.add_command(ls_cmd)
 main.add_command(tasks_cmd)
+main.add_command(backlog_cmd)
 main.add_command(notes_cmd)
 main.add_command(journals_cmd)
 main.add_command(calendar_cmd)
-main.add_command(active_cmd)
 main.add_command(tag_filter_cmd)
 main.add_command(important_cmd)
 main.add_command(tags_cmd)
@@ -445,7 +446,7 @@ main.add_command(dp_cmd)
 main.add_command(dump_cmd)
 main.add_command(habits_cmd)
 main.add_command(streak_cmd)
-main.add_command(linelog_cmd)
+main.add_command(monthly_cmd)
 main.add_command(wp_cmd)
 main.add_command(recap_cmd)
 main.add_command(search_cmd)

@@ -98,7 +98,7 @@ def dp_cmd(ctx, non_interactive):
                     display_action_confirmation(entry, "later")
 
 
-    # --- T: Task log ---
+    # --- T: Tasks ---
     display_ritual_header("T · Tasks", "Pick your focus for today")
 
     active = get_weekly_active_tasks(config)
@@ -232,11 +232,11 @@ def dp_cmd(ctx, non_interactive):
     console.print(f"\n  [bold green]Ready. Go.[/bold green]")
 
 
-# --- Line Log ---
+# --- Monthly Log ---
 
 
 def _build_month_data(target: date, config) -> dict[int, list[str]]:
-    """Build a month's linelog data — dict of day_num → list of entry strings."""
+    """Build a month's log data — dict of day_num → list of entry strings."""
     import calendar
 
     from bute.parser import format_time_display
@@ -249,7 +249,7 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
 
     lines_by_day: dict[int, list[str]] = {}
 
-    # Journal + calendar entries created on each day of the month
+    # Journal, note, and calendar entries created on each day of the month
     for day_num in range(1, last_day + 1):
         d = date(target.year, target.month, day_num)
         if d > today:
@@ -258,6 +258,8 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
         for e in entries:
             if e.type == EntryType.JOURNAL:
                 lines_by_day.setdefault(day_num, []).append(f"[magenta]=[/magenta] {e.body}")
+            elif e.type == EntryType.NOTE:
+                lines_by_day.setdefault(day_num, []).append(f"[yellow]-[/yellow] {e.body}")
             elif e.type == EntryType.CALENDAR:
                 # Calendar events appear on their scheduled date, or creation date if no date set
                 event_day = e.scheduled_date.day if e.scheduled_date else day_num
@@ -292,7 +294,7 @@ def _render_month_table(target: date, lines_by_day: dict[int, list[str]], title:
     WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
     table = Table(
-        title=title or f"Line Log — {target.strftime('%B %Y')}",
+        title=title or f"Monthly Log — {target.strftime('%B %Y')}",
         title_style="bold",
         show_header=True,
         header_style="bold dim",
@@ -321,7 +323,7 @@ def dump_cmd(ctx):
     """Rapid-fire task capture into the backlog."""
     config = ctx.obj.get("config")
 
-    display_ritual_header("Dump", "Get it out of your head — tasks go to Task Log")
+    display_ritual_header("Dump", "Get it out of your head — tasks go to Backlog")
     console.print("  [dim]Enter tasks, one per line. Add[/dim] [bold]@today[/bold] [dim]or[/dim] [bold]@thisweek[/bold] [dim]to pull into focus.[/dim]")
     console.print("  [dim]Blank line when done.[/dim]")
 
@@ -347,14 +349,14 @@ def dump_cmd(ctx):
     if count == 0:
         console.print("  [dim]Nothing to dump — clear head.[/dim]")
     else:
-        console.print(f"\n  [bold]{count}[/bold] [dim]task{'s' if count != 1 else ''} captured to Task Log.[/dim]")
+        console.print(f"\n  [bold]{count}[/bold] [dim]task{'s' if count != 1 else ''} captured to Backlog.[/dim]")
 
 
-@click.command("linelog")
+@click.command("monthly")
 @click.argument("period", required=False, default=None)
 @click.pass_context
-def linelog_cmd(ctx, period):
-    """Show the line log. No args = this month. YYYY-MM = month. YYYY = full year."""
+def monthly_cmd(ctx, period):
+    """Monthly log. No args = this month. YYYY-MM = month. YYYY = full year."""
     config = ctx.obj.get("config")
 
     if period and len(period) == 4 and period.isdigit():
@@ -368,11 +370,11 @@ def linelog_cmd(ctx, period):
                 if not found_any:
                     console.print()
                 found_any = True
-                table = _render_month_table(target, data, title=f"Line Log — {target.strftime('%B %Y')}")
+                table = _render_month_table(target, data, title=f"Monthly Log — {target.strftime('%B %Y')}")
                 console.print(table)
                 console.print()
         if not found_any:
-            console.print(f"  [dim]No line log entries for {year}.[/dim]")
+            console.print(f"  [dim]No entries for {year}.[/dim]")
     else:
         if period:
             try:
@@ -385,7 +387,7 @@ def linelog_cmd(ctx, period):
 
         data = _build_month_data(target, config)
         if not data:
-            console.print(f"  [dim]No line log entries for {target.strftime('%B %Y')}.[/dim]")
+            console.print(f"  [dim]No entries for {target.strftime('%B %Y')}.[/dim]")
             return
 
         console.print()
@@ -404,15 +406,15 @@ def wp_cmd(ctx, non_interactive):
     """Weekly ritual — dump tasks, then select for the week."""
     config = ctx.obj.get("config")
 
-    display_ritual_header("Plan", "Review your task log and select for this week")
+    display_ritual_header("Plan", "Review your backlog and select for this week")
 
     active = get_all_active_tasks(config)
 
     # Show current task log
     if active:
-        display_entry_list(active, "Task Log")
+        display_entry_list(active, "Task Backlog")
     else:
-        console.print("  [dim]Task log is empty.[/dim]")
+        console.print("  [dim]Backlog is empty.[/dim]")
 
     # Dump phase — add new tasks
     if not non_interactive:
@@ -443,7 +445,7 @@ def wp_cmd(ctx, non_interactive):
         if thisweek:
             display_entry_list(thisweek, "This week's tasks")
         else:
-            display_entry_list(active, "Task Log (none selected for week)")
+            display_entry_list(active, "Task Backlog (none selected for week)")
         return
 
     # Selection phase

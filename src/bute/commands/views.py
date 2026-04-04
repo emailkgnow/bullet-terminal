@@ -1,6 +1,6 @@
-"""View commands for bute (ls, tasks, notes, journals, calendar, active, tag filter)."""
+"""View commands for bute (tasks, backlog, notes, journals, calendar, tag filter)."""
 
-from datetime import date, datetime
+from datetime import date
 
 import click
 
@@ -9,28 +9,11 @@ from rich.table import Table
 
 from bute.display import _build_entry_row, display_entry_list, display_entry_list_grouped
 from bute.models import EntryType, TaskStatus
-from bute.ritual_ops import get_daily_log, get_week_entries, get_weekly_active_tasks
+from bute.ritual_ops import get_all_active_tasks, get_week_entries, get_weekly_active_tasks
 from bute.state import save_state
 from bute.storage import query_and_load
 
 console = Console()
-
-
-@click.command("ls")
-@click.pass_context
-def ls_cmd(ctx):
-    """Today's daily log — focus tasks, events, journals, notes."""
-    config = ctx.obj.get("config")
-    entries = get_daily_log(config)
-    title = f"Today — {date.today().strftime('%a %b %d')}"
-    display_entry_list(entries, title, hide_tags={"today", "thisweek"})
-    habit_names = _show_habits(config, len(entries))
-    save_state("ls", [e.id for e in entries], config, habits=habit_names)
-
-    # Evening reminder
-    from bute.state import is_recap_done_today
-    if datetime.now().hour >= 18 and not is_recap_done_today(config):
-        console.print("  [dim]Run[/dim] [bold]bt recap[/bold] [dim]for your day summary[/dim]")
 
 
 def _show_habits(config, entry_count=0) -> list[str]:
@@ -79,7 +62,56 @@ def _dimension_command(name, entry_type, label, group_by_date=False):
     return cmd
 
 
-tasks_cmd = _dimension_command("tasks", EntryType.TASK, "Task Log")
+@click.command("tasks")
+@click.argument("tag", required=False, default=None)
+@click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
+@click.pass_context
+def tasks_cmd(ctx, tag, show_all):
+    """Show this week's focus tasks (@thisweek). -a for done/dropped."""
+    config = ctx.obj.get("config")
+
+    if show_all:
+        kwargs = {"type": "task", "status": None}
+        if tag:
+            kwargs["tag"] = tag
+        entries = query_and_load(config, **{k: v for k, v in kwargs.items() if v is not None})
+        title = f"All Tasks" + (f" @{tag}" if tag else "")
+    else:
+        entries = get_weekly_active_tasks(config)
+        if tag:
+            entries = [e for e in entries if tag in e.tags]
+        title = "Tasks" + (f" @{tag}" if tag else "")
+
+    display_entry_list(entries, title)
+    save_state("tasks", [e.id for e in entries], config)
+
+
+@click.command("backlog")
+@click.argument("tag", required=False, default=None)
+@click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
+@click.pass_context
+def backlog_cmd(ctx, tag, show_all):
+    """Show all active tasks. -a for done/dropped."""
+    config = ctx.obj.get("config")
+
+    kwargs = {"type": "task"}
+    if tag:
+        kwargs["tag"] = tag
+    if not show_all:
+        kwargs["status"] = "active"
+    entries = query_and_load(config, **kwargs)
+
+    title_parts = ["Task Backlog"]
+    if tag:
+        title_parts.append(f"@{tag}")
+    if show_all:
+        title_parts[0] = "All Tasks (Backlog)"
+    title = " ".join(title_parts)
+
+    display_entry_list(entries, title)
+    save_state("backlog", [e.id for e in entries], config)
+
+
 notes_cmd = _dimension_command("notes", EntryType.NOTE, "Notes", group_by_date=True)
 journals_cmd = _dimension_command("journals", EntryType.JOURNAL, "Journals", group_by_date=True)
 calendar_cmd = _dimension_command("calendar", EntryType.CALENDAR, "Calendar", group_by_date=True)
@@ -90,14 +122,14 @@ calendar_cmd = _dimension_command("calendar", EntryType.CALENDAR, "Calendar", gr
 @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
 @click.pass_context
 def important_cmd(ctx, entry_type, show_all):
-    """Show important entries. Optional type filter (task, note, journal, cal)."""
+    """Show important entries. Optional type filter (task, note, journal, calendar)."""
     config = ctx.obj.get("config")
 
     type_map = {
         "task": EntryType.TASK, "t": EntryType.TASK,
         "note": EntryType.NOTE, "n": EntryType.NOTE,
         "journal": EntryType.JOURNAL, "j": EntryType.JOURNAL,
-        "cal": EntryType.CALENDAR, "c": EntryType.CALENDAR,
+        "calendar": EntryType.CALENDAR, "c": EntryType.CALENDAR,
     }
     filter_type = type_map.get(entry_type) if entry_type else None
 
@@ -128,16 +160,6 @@ def important_cmd(ctx, entry_type, show_all):
     display_entry_list(entries, title)
     save_state("important", [e.id for e in entries], config)
 
-
-@click.command("active")
-@click.pass_context
-def active_cmd(ctx):
-    """Show this week's focus tasks (@thisweek). Falls back to all active if none tagged."""
-    config = ctx.obj.get("config")
-
-    entries = get_weekly_active_tasks(config)
-    display_entry_list(entries, "This Week")
-    save_state("active", [e.id for e in entries], config)
 
 
 @click.command("tag_filter", hidden=True)
