@@ -1,7 +1,6 @@
 """Tests for bt goals command."""
 
 from bute.cli import main
-from bute.db import get_connection
 from bute.models import Entry, EntryType, TaskStatus
 from bute.storage import save_entry
 
@@ -44,6 +43,8 @@ def test_goals_unlinked(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["goals"])
     assert result.exit_code == 0
     assert "write a novel" in result.output
+    assert "0 active" in result.output
+    assert "0 done" in result.output
 
 
 def test_goals_multi_tag(runner, tmp_config, tmp_data):
@@ -66,6 +67,22 @@ def test_goals_multi_tag(runner, tmp_config, tmp_data):
     assert result.exit_code == 0
     assert "learn islam" in result.output
     assert "2 active" in result.output
+
+
+def test_goals_multi_tag_no_double_count(runner, tmp_config, tmp_data):
+    """Task tagged with multiple connected tags should count once, not per tag."""
+    goal = Entry.create(EntryType.NOTE, "learn islam", tags=["goal", "prayer", "fasting"])
+    save_entry(goal)
+    _index_entry(goal)
+
+    t1 = Entry.create(EntryType.TASK, "ramadan routine", tags=["prayer", "fasting"])
+    t1.status = TaskStatus.ACTIVE
+    save_entry(t1)
+    _index_entry(t1)
+
+    result = runner.invoke(main, ["goals"])
+    assert result.exit_code == 0
+    assert "1 active" in result.output
 
 
 def test_goals_important_first(runner, tmp_config, tmp_data):

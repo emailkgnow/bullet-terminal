@@ -329,11 +329,16 @@ def goals_cmd(ctx):
         active_count = 0
         done_count = 0
         if connected:
+            seen = set()
             for tag in connected:
-                for _, _ in query_entries(config, type="task", status="active", tag=tag):
-                    active_count += 1
-                for _, _ in query_entries(config, type="task", status="done", tag=tag):
-                    done_count += 1
+                for entry_id, _ in query_entries(config, type="task", status="active", tag=tag):
+                    if entry_id not in seen:
+                        active_count += 1
+                        seen.add(entry_id)
+                for entry_id, _ in query_entries(config, type="task", status="done", tag=tag):
+                    if entry_id not in seen:
+                        done_count += 1
+                        seen.add(entry_id)
         goal_data.append((goal, connected, active_count, done_count))
 
     # Render table

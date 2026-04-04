@@ -241,6 +241,11 @@ def _print_help():
     console.print("    [bold]bt streak[/bold]            Habit streaks, trends, and 30-day stats")
     console.print()
 
+    # Goals
+    console.print("  [bold cyan]Goals[/bold cyan] — orient tasks toward outcomes")
+    console.print("    [bold]bt goals[/bold]            Show goals with task progress")
+    console.print()
+
     # Rituals
     console.print("  [bold cyan]Rituals[/bold cyan] — guided BuJo workflows")
     console.print("    [bold]bt dump[/bold]             Rapid-fire tasks → Task Log ([dim]add @today or @thisweek to focus[/dim])")
