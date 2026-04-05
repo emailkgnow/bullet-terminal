@@ -261,9 +261,9 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
                 from bute.models import TaskStatus
                 preview = _preview(e.body)
                 if e.status == TaskStatus.DONE:
-                    lines_by_day.setdefault(day_num, []).append(f"[dim][s][cyan].[/cyan] {preview}[/s][/dim]")
+                    lines_by_day.setdefault(day_num, []).append(f"[strike dim][cyan].[/cyan] {preview}[/strike dim]")
                 elif e.status == TaskStatus.DROPPED:
-                    lines_by_day.setdefault(day_num, []).append(f"[dim][s][cyan].[/cyan] {preview}[/s] dropped[/dim]")
+                    lines_by_day.setdefault(day_num, []).append(f"[dim][cyan].[/cyan] {preview}[/dim]")
                 else:
                     lines_by_day.setdefault(day_num, []).append(f"[cyan].[/cyan] {preview}")
             elif e.type == EntryType.JOURNAL:
