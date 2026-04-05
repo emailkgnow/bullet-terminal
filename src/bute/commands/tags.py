@@ -206,3 +206,123 @@ def map_tag_cmd(ctx, tokens):
         console.print(f"  [green]{label} → analyzed[/green]")
 
 
+@click.command("auto-tag")
+@click.pass_context
+def autotag_cmd(ctx):
+    """AI suggests tags for untagged notes. Interactive review."""
+    from bute.ai import _LLM_INSTALL_MSG, is_llm_available, llm_send
+    from bute.ai.prompts import autotag_prompt
+    from bute.display import _preview
+    from bute.storage import query_and_load, update_entry
+
+    config = ctx.obj.get("config")
+
+    if not is_llm_available(config):
+        console.print(_LLM_INSTALL_MSG)
+        return
+
+    # Find untagged notes
+    all_notes = query_and_load(config, type="note")
+    untagged = [e for e in all_notes if not e.tags]
+
+    if not untagged:
+        console.print("  [dim]No untagged notes found.[/dim]")
+        return
+
+    # Get existing tags for the prompt
+    all_entries = query_and_load(config, has_tags=True)
+    existing_tags = sorted({t for e in all_entries for t in e.tags})
+
+    console.print(f"\n  [bold]Auto-Tag[/bold] — {len(untagged)} untagged notes found\n")
+
+    prompt = autotag_prompt(existing_tags)
+    tagged_count = 0
+    accept_all = False
+
+    for i, entry in enumerate(untagged, 1):
+        console.print(f"  [bold]{i}/{len(untagged)}[/bold]")
+        console.print(f"  [dim]{'─' * 50}[/dim]")
+        console.print(f"  - {entry.body}")
+        console.print(f"  [dim]{'─' * 50}[/dim]")
+
+        # Get AI suggestion
+        response = llm_send(prompt, entry.body, config).strip()
+
+        if response == "SKIP":
+            console.print("  [dim]AI: too vague to tag[/dim]")
+            if not accept_all:
+                choice = click.prompt(
+                    "  ",
+                    type=click.Choice(["s", "e", "q"], case_sensitive=False),
+                    prompt_suffix="[s]kip  [e]dit  [q]uit > ",
+                    default="s",
+                    show_choices=False,
+                )
+                if choice == "q":
+                    break
+                elif choice == "e":
+                    tags_input = click.prompt("  Tags", default="").strip()
+                    if tags_input:
+                        tags = [t.lstrip("@").strip() for t in tags_input.split() if t.lstrip("@").strip()]
+                        entry.tags.extend(tags)
+                        update_entry(entry, config)
+                        console.print(f"  [green]✓ {' '.join(f'@{t}' for t in tags)}[/green]\n")
+                        tagged_count += 1
+                    else:
+                        console.print()
+            else:
+                console.print()
+            continue
+
+        # Parse suggested tags
+        suggested = [t.lstrip("@").strip() for t in response.split() if t.startswith("@")]
+        if not suggested:
+            console.print(f"  [dim]AI: {response}[/dim]\n")
+            continue
+
+        console.print(f"  Suggested: [bold]{' '.join(f'@{t}' for t in suggested)}[/bold]")
+
+        if accept_all:
+            entry.tags.extend(suggested)
+            update_entry(entry, config)
+            console.print(f"  [green]✓ {' '.join(f'@{t}' for t in suggested)}[/green]\n")
+            tagged_count += 1
+            continue
+
+        choice = click.prompt(
+            "  ",
+            type=click.Choice(["a", "e", "s", "A", "q"], case_sensitive=True),
+            prompt_suffix="[a]ccept  [e]dit  [s]kip  [A]ccept all  [q]uit > ",
+            default="a",
+            show_choices=False,
+        )
+
+        if choice == "a":
+            entry.tags.extend(suggested)
+            update_entry(entry, config)
+            console.print(f"  [green]✓ {' '.join(f'@{t}' for t in suggested)}[/green]\n")
+            tagged_count += 1
+        elif choice == "e":
+            tags_input = click.prompt("  Tags", default=" ".join(f"@{t}" for t in suggested)).strip()
+            tags = [t.lstrip("@").strip() for t in tags_input.split() if t.lstrip("@").strip()]
+            if tags:
+                entry.tags.extend(tags)
+                update_entry(entry, config)
+                console.print(f"  [green]✓ {' '.join(f'@{t}' for t in tags)}[/green]\n")
+                tagged_count += 1
+            else:
+                console.print()
+        elif choice == "A":
+            accept_all = True
+            entry.tags.extend(suggested)
+            update_entry(entry, config)
+            console.print(f"  [green]✓ {' '.join(f'@{t}' for t in suggested)}[/green]\n")
+            tagged_count += 1
+        elif choice == "q":
+            break
+        else:
+            console.print()
+
+    console.print(f"\n  [bold]{tagged_count}[/bold] [dim]notes tagged.[/dim]")
+
+

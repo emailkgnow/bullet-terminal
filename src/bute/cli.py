@@ -267,6 +267,7 @@ def _print_help():
     console.print()
     console.print("    [dim]Also:[/dim] bt task, bt note, bt journal, bt calendar [dim]or BuJo bullets:[/dim] bt . - = o")
     console.print("    [dim]Modifiers:[/dim] [bold red]![/bold red] important  [bold]@tag[/bold]  [bold]d:[/bold]date  [bold]t:[/bold]time  [bold]due:[/bold]deadline  [bold]r:[/bold]recur")
+    console.print("    [dim]Tip:[/dim] dates like [bold]d:4.7[/bold] auto-resolve to the future. For past dates, use ISO: [bold]d:2026-03-15[/bold]")
 
     # --- Views ---
     t = Table(title="Views — same letters, no text = view", title_style="bold cyan",
@@ -352,6 +353,7 @@ def _print_help():
     t.add_row("bt map @tag [-@ex]", "Mind map of tag analysis", "bt map @backend")
     t.add_row("bt topic <name>", "Cross-dimension synthesis", "bt topic productivity")
     t.add_row("bt nudges", "Actionable suggestions", "")
+    t.add_row("bt auto-tag", "AI suggests tags for untagged notes", "")
     t.add_row("bt recap <period>", "AI analysis of a period", "bt recap week")
     t.add_row("bt search <query>", "Semantic search", "bt search diet plans")
     t.add_row("bt similar <n>", "Entries similar to #n", "bt similar 3")
@@ -502,7 +504,7 @@ from bute.commands.search import find_cmd, rebuild_cmd, search_cmd, similar_cmd 
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
-from bute.commands.tags import analyze_tag_cmd, map_tag_cmd  # noqa: E402
+from bute.commands.tags import analyze_tag_cmd, autotag_cmd, map_tag_cmd  # noqa: E402
 from bute.commands.demo import demo_cmd  # noqa: E402
 
 main.add_command(init_cmd)
@@ -538,6 +540,7 @@ main.add_command(export_cmd)
 main.add_command(topic_cmd)
 main.add_command(nudges_cmd)
 main.add_command(analyze_tag_cmd)
+main.add_command(autotag_cmd)
 main.add_command(map_tag_cmd)
 main.add_command(demo_cmd)
 main.add_command(migrate_habits_cmd)
