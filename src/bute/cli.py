@@ -235,8 +235,9 @@ def _print_help():
     console.print("    [bold]bt <n> open[/bold]        Open in $EDITOR     [bold]bt <n> mod[/bold] <text>  Replace text")
     console.print("    [bold]bt <n> @tag[/bold]        Add a tag           [bold]bt <n> untag @tag[/bold]  Remove tag")
     console.print("    [bold]bt <n> delete[/bold]      Permanently remove  [bold]bt undo[/bold]         Undo last action")
-    console.print("    [bold]bt <n> chat[/bold]        AI chat session     [bold]bt <n> title[/bold]    AI topic sentence")
-    console.print("    [bold]bt <n> map[/bold]         Mind map            [dim]Multiple: bt 1 2 3 done[/dim]")
+    console.print("    [bold]bt <n> chat[/bold]        AI chat session     [bold]bt <n> map[/bold]      Mind map")
+    console.print("    [bold]bt <n> title[/bold]       AI-generate a topic sentence for an entry")
+    console.print("    [dim]Multiple entries: bt 1 2 3 done[/dim]")
     console.print()
 
     # Commands
