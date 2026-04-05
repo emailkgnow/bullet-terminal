@@ -206,7 +206,7 @@ def map_tag_cmd(ctx, tokens):
         console.print(f"  [green]{label} → analyzed[/green]")
 
 
-@click.command("auto-tag")
+@click.command("tag-notes")
 @click.pass_context
 def autotag_cmd(ctx):
     """AI suggests tags for untagged notes. Interactive review."""

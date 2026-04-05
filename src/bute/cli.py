@@ -353,7 +353,7 @@ def _print_help():
     t.add_row("bt map @tag [-@ex]", "Mind map of tag analysis", "bt map @backend")
     t.add_row("bt topic <name>", "Cross-dimension synthesis", "bt topic productivity")
     t.add_row("bt nudges", "Actionable suggestions", "")
-    t.add_row("bt auto-tag", "AI suggests tags for untagged notes", "")
+    t.add_row("bt tag-notes", "AI suggests tags for untagged notes", "")
     t.add_row("bt recap <period>", "AI analysis of a period", "bt recap week")
     t.add_row("bt search <query>", "Semantic search", "bt search diet plans")
     t.add_row("bt similar <n>", "Entries similar to #n", "bt similar 3")
