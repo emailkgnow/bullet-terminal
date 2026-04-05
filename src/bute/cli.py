@@ -237,7 +237,8 @@ def _print_help():
     console.print("    [bold]bt <n> delete[/bold]      Permanently remove  [bold]bt undo[/bold]         Undo last action")
     console.print("    [bold]bt <n> chat[/bold]        AI chat session     [bold]bt <n> map[/bold]      Mind map")
     console.print("    [bold]bt <n> title[/bold]       AI-generate a topic sentence for an entry")
-    console.print("    [dim]Multiple entries: bt 1 2 3 done[/dim]")
+    console.print()
+    console.print("    [dim]Tip: most actions accept multiple entries — bt 1 2 3 done[/dim]")
     console.print()
 
     # Commands
