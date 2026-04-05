@@ -285,6 +285,64 @@ def week_cmd(ctx, period):
     save_state("week", [e.id for e in entries], config)
 
 
+@click.command("daily")
+@click.argument("period", required=False, default=None)
+@click.pass_context
+def daily_log_cmd(ctx, period):
+    """Daily log — everything that happened today. 'bt d yesterday' or 'bt d 4.3'."""
+    from datetime import timedelta
+
+    from bute.parser import resolve_date
+
+    config = ctx.obj.get("config")
+    today = date.today()
+
+    if period == "yesterday":
+        target = today - timedelta(days=1)
+    elif period:
+        try:
+            target = resolve_date(period)
+        except (ValueError, KeyError):
+            console.print(f"  [red]Invalid date: {period}. Use 'yesterday', day name, or date.[/red]")
+            return
+    else:
+        target = today
+
+    title = f"Daily Log — {target.strftime('%a %b %d')}"
+
+    # Load all entries for that day (all types, all statuses)
+    from bute.ritual_ops import get_tasks_done_today, get_tasks_dropped_today
+    from bute.storage import load_entries_by_date
+
+    entries = load_entries_by_date(target, config)
+
+    # Also include tasks tagged @today from other days (for today only)
+    if target == today:
+        today_tasks = query_and_load(config, type="task", tag="today")
+        seen = {e.id for e in entries}
+        for e in today_tasks:
+            if e.id not in seen:
+                seen.add(e.id)
+                entries.append(e)
+
+    if not entries:
+        console.print(f"  [dim]No entries for {title}.[/dim]")
+        return
+
+    # Sort: tasks first, then calendar, notes, journals
+    type_order = {EntryType.TASK: 0, EntryType.CALENDAR: 1, EntryType.NOTE: 2, EntryType.JOURNAL: 3}
+    entries.sort(key=lambda e: (type_order.get(e.type, 4), not e.important, e.created))
+
+    display_entry_list(entries, title)
+
+    # Show habits for today
+    if target == today:
+        from bute.commands.views import _show_habits
+        _show_habits(config, len(entries))
+
+    save_state("daily", [e.id for e in entries], config)
+
+
 @click.command("due")
 @click.argument("scope", required=False, default=None)
 @click.pass_context

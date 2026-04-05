@@ -65,56 +65,33 @@ def test_wp_no_tasks(runner, tmp_config, tmp_data):
 # --- Recap command tests ---
 
 
-def test_recap_shows_done_tasks(runner, tmp_config, tmp_data):
+def test_daily_log_shows_done_tasks(runner, tmp_config, tmp_data):
     _setup_config(tmp_config, tmp_data)
     e = Entry.create(EntryType.TASK, "finished task", tags=["today"])
     save_entry(e)
     e.status = TaskStatus.DONE
     update_entry(e)
 
-    result = runner.invoke(main, ["recap"])
+    result = runner.invoke(main, ["daily"])
     assert result.exit_code == 0
     assert "finished task" in result.output
-    assert "Done" in result.output
 
 
-def test_recap_shows_open_tasks(runner, tmp_config, tmp_data):
-    _setup_config(tmp_config, tmp_data)
-    e = Entry.create(EntryType.TASK, "still going", tags=["today"])
-    save_entry(e)
-
-    result = runner.invoke(main, ["recap"])
-    assert result.exit_code == 0
-    assert "still going" in result.output
-    assert "Open" in result.output
-
-
-def test_recap_shows_captured(runner, tmp_config, tmp_data):
+def test_daily_log_shows_entries(runner, tmp_config, tmp_data):
     _setup_config(tmp_config, tmp_data)
     j = Entry.create(EntryType.JOURNAL, "feeling good")
     save_entry(j)
 
-    result = runner.invoke(main, ["recap"])
+    result = runner.invoke(main, ["daily"])
     assert result.exit_code == 0
     assert "feeling good" in result.output
 
 
-def test_recap_empty_day(runner, tmp_config, tmp_data):
+def test_daily_log_empty(runner, tmp_config, tmp_data):
     _setup_config(tmp_config, tmp_data)
-    result = runner.invoke(main, ["recap"])
+    result = runner.invoke(main, ["daily"])
     assert result.exit_code == 0
-    assert "Nothing to recap" in result.output
-
-
-def test_recap_marks_done(runner, tmp_config, tmp_data):
-    _setup_config(tmp_config, tmp_data)
-    j = Entry.create(EntryType.JOURNAL, "a thought")
-    save_entry(j)
-
-    runner.invoke(main, ["recap"])
-
-    from bute.state import is_recap_done_today
-    assert is_recap_done_today()
+    assert "No entries" in result.output
 
 
 def test_recap_period_no_ai(runner, tmp_config, tmp_data):

@@ -502,17 +502,12 @@ def wp_cmd(ctx, non_interactive):
 
 
 @click.command("recap")
-@click.argument("period", required=False, default=None)
+@click.argument("period", required=True)
 @click.pass_context
 def recap_cmd(ctx, period):
-    """End-of-day summary, or AI analysis of a period (day, week, month, year)."""
+    """AI analysis of a period (day, week, month, year). Use 'bt d' for daily log."""
     config = ctx.obj.get("config")
-
-    if period is None:
-        # Structured display — no AI
-        _recap_daily(config)
-    else:
-        _recap_period(period, config)
+    _recap_period(period, config)
 
 
 def _recap_daily(config):

@@ -15,7 +15,7 @@ BULLET_PATTERN = re.compile(r"^[.=\-o]!?$")
 WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|calendar)!?$")
 
 # Short letter to view command mapping (when no text follows)
-SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog", "m": "monthly", "w": "week"}
+SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog", "d": "daily", "w": "week", "m": "monthly"}
 BULLET_TO_VIEW = {".": "tasks", "=": "journals", "-": "notes", "o": "calendar"}
 WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calendar": "calendar"}
 
@@ -44,6 +44,11 @@ class DwnGroup(click.Group):
             cmd = self.get_command(ctx, "backlog")
             if cmd is not None:
                 return "backlog", cmd, rest
+
+        if first == "d":
+            cmd = self.get_command(ctx, "daily")
+            if cmd is not None:
+                return "daily", cmd, rest
 
         if first == "m":
             cmd = self.get_command(ctx, "monthly")
@@ -205,6 +210,37 @@ class DwnGroup(click.Group):
         return super().resolve_command(ctx, args)
 
 
+def _show_random_journal(config) -> None:
+    """Show a random old journal entry at the bottom of the daily log."""
+    from bute.config import CONFIG_DIR
+
+    # Check if disabled
+    if (CONFIG_DIR / ".no-journal").exists():
+        return
+
+    import random
+    from datetime import date
+
+    from bute.display import _preview
+    from bute.storage import query_and_load
+
+    today = date.today()
+    journals = query_and_load(config, type="journal")
+    # Only journals older than today
+    old = [e for e in journals if e.created.date() < today]
+    if not old:
+        return
+
+    entry = random.choice(old)
+    age = (today - entry.created.date()).days
+
+    from rich.console import Console
+    console = Console()
+    console.print()
+    console.print(f"  [dim]= {_preview(entry.body)}[/dim]")
+    console.print(f"  [dim]{age} days ago — bt -j to stop[/dim]")
+
+
 def _print_help():
     """Print the full bute help using Rich."""
     from rich.console import Console
@@ -244,6 +280,7 @@ def _print_help():
     t.add_row("bt j", "Journals", "Grouped by date")
     t.add_row("bt c", "Events", "Grouped by date")
     t.add_row("bt h", "Habits", "Today's status")
+    t.add_row("bt d [dim][date]", "Daily Log — everything for a day", "bt d yesterday, bt d 4.3")
     t.add_row("bt w [dim][last|N]", "Weekly Log — Mon to Sun", "bt w last, bt w 14")
     t.add_row("bt m [dim][month|YYYY]", "Monthly Log", "bt m jan, bt m 2026-03, bt m 2026")
     t.add_row("bt due", "Tasks by deadline", "bt due all for everything")
@@ -286,13 +323,14 @@ def _print_help():
     t.add_row("bt dp", "Daily plan — morning ritual", "-y for non-interactive")
     t.add_row("bt wp", "Weekly plan — select tasks for the week", "-y for non-interactive")
     t.add_row("bt dump", "Rapid-fire tasks into Backlog", "")
-    t.add_row("bt recap", "End-of-day summary", "bt recap week/month/year for AI")
+    t.add_row("bt recap <period>", "AI analysis of a period", "bt recap week/month/year")
     t.add_row("bt export", "Export all data as zip", "-o path")
     t.add_row("bt init", "First-run setup (pick AI provider)", "")
     t.add_row("bt start", "Quick start guide", "")
     t.add_row("bt rebuild", "Rebuild search index", "")
     t.add_row("bt -i", "Interactive REPL", "No quoting needed")
     t.add_row("bt -d", "Toggle demo mode", "Isolated data")
+    t.add_row("bt -j", "Toggle random journal in daily log", "")
     console.print()
     console.print(t)
 
@@ -358,8 +396,9 @@ def _run_interactive(ctx):
 @click.version_option(version=__version__, prog_name="bt")
 @click.option("-i", "interactive", is_flag=True, help="Interactive REPL mode")
 @click.option("-d", "demo", is_flag=True, help="Toggle demo mode")
+@click.option("-j", "toggle_journal", is_flag=True, help="Toggle random journal in daily log")
 @click.pass_context
-def main(ctx, interactive, demo):
+def main(ctx, interactive, demo, toggle_journal):
     """bt (BuTe) — AI-powered life management CLI based on Bullet Journal."""
     ctx.ensure_object(dict)
     from bute.config import apply_demo_config, load_config
@@ -386,6 +425,19 @@ def main(ctx, interactive, demo):
         _run_interactive(ctx)
         return
 
+    # Handle -j flag — toggle random journal
+    if toggle_journal:
+        from bute.config import CONFIG_DIR
+        marker = CONFIG_DIR / ".no-journal"
+        if marker.exists():
+            marker.unlink()
+            click.echo("  Random journal enabled in daily log.")
+        else:
+            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+            marker.touch()
+            click.echo("  Random journal disabled in daily log.")
+        return
+
     if not ctx.invoked_subcommand:
         from bute.state import is_dyts_done_today
 
@@ -406,6 +458,9 @@ def main(ctx, interactive, demo):
 
             save_state("ls", [e.id for e in entries], config, habits=habit_names)
 
+            # Random old journal
+            _show_random_journal(config)
+
             from rich.console import Console
             console = Console()
             console.print(f"\n  [dim]Daily plan done. Run [bold]bt dp[/bold] to redo.[/dim]")
@@ -421,6 +476,7 @@ from bute.commands.init_cmd import init_cmd  # noqa: E402
 from bute.commands.views import (  # noqa: E402
     backlog_cmd,
     calendar_cmd,
+    daily_log_cmd,
     due_cmd,
     goal_drill_cmd,
     goals_cmd,
@@ -451,6 +507,7 @@ from bute.commands.demo import demo_cmd  # noqa: E402
 main.add_command(init_cmd)
 main.add_command(start_cmd)
 main.add_command(capture_cmd)
+main.add_command(daily_log_cmd)
 main.add_command(action_cmd)
 main.add_command(undo_cmd)
 main.add_command(tasks_cmd)

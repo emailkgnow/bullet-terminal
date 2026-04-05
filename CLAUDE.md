@@ -112,6 +112,8 @@ bute t @backend     # filtered by tag
 bute t -a           # all including done/dropped
 bute b              # Task Backlog — all active tasks
 bute n / j / c      # notes / journals / calendar (grouped by date)
+bute d              # daily log (all entries for today, retrospective)
+bute d yesterday    # yesterday's daily log
 bute w              # weekly log (all entries, Mon-Sun)
 bute w last         # last week's log
 bute w 14           # week 14 of this year (ISO week number)
@@ -164,11 +166,10 @@ bute tags                           # list all tags with stage and count
 
 **Rituals**:
 ```
-bute                # entry point — DYTS if not done today, else daily log
-bute dyts           # morning ritual (Dump, Yesterday, Tasks, Schedule)
-bute plan           # dump tasks + select for the week
-bute recap          # end-of-day summary: done, open, dropped, captured
-bute recap week     # AI analysis of the period (day, week, month, year)
+bute                # entry point — DYTS if not done today, else today's focus view
+bute dp             # morning ritual (Dump, Yesterday, Tasks, Schedule)
+bute wp             # weekly plan — select tasks for the week
+bute recap week     # AI analysis of a period (day, week, month, year)
 bute habit <name>   # track habits
 bute streak         # habit streaks and 30-day stats
 ```
