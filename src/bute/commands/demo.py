@@ -1,11 +1,11 @@
-"""Demo mode — toggle isolated demo environment for presentations."""
+"""Demo mode — isolated interactive session for presentations."""
 
 import shutil
 
 import click
 from rich.console import Console
 
-from bute.config import DEMO_DATA_DIR, DEMO_MARKER, is_demo_active
+from bute.config import DEMO_DATA_DIR
 
 console = Console()
 
@@ -13,18 +13,8 @@ console = Console()
 @click.command("demo")
 @click.pass_context
 def demo_cmd(ctx):
-    """Toggle demo mode — isolated data for presentations."""
-    if is_demo_active():
-        _end_demo()
-    else:
-        _start_demo(ctx.obj.get("config"))
-
-
-def _start_demo(config):
-    """Enter demo mode: create marker, fresh data directory."""
-    # Wipe any leftover demo data
-    if DEMO_DATA_DIR.exists():
-        shutil.rmtree(DEMO_DATA_DIR)
+    """Demo mode — isolated interactive session with auto-cleanup."""
+    config = ctx.obj.get("config")
 
     # Close any existing DB connection before switching
     try:
@@ -33,36 +23,43 @@ def _start_demo(config):
     except Exception:
         pass
 
-    # Create marker
-    DEMO_MARKER.parent.mkdir(parents=True, exist_ok=True)
-    DEMO_MARKER.touch()
+    # Wipe any leftover demo data from a previous crash
+    if DEMO_DATA_DIR.exists():
+        shutil.rmtree(DEMO_DATA_DIR)
 
-    # Set up fresh data dirs using demo path
-    from bute.config import apply_demo_config, ensure_data_dirs
-    config = apply_demo_config(config)
+    # Set up fresh demo data directory
+    from bute.config import _make_demo_config, ensure_data_dirs
+    config = _make_demo_config(config)
     ensure_data_dirs(config)
+    ctx.obj["config"] = config
 
-    console.print("\n  [bold green]Demo mode ON[/bold green]")
-    console.print("  [dim]Using isolated data at ~/bute-demo/[/dim]")
-    console.print("  [dim]Your real data is untouched. Run bt -d again to exit.[/dim]\n")
+    console.print("\n  [bold green]Demo session started[/bold green]")
+    console.print("  [dim]Using isolated data — your real data is untouched.[/dim]\n")
+
+    # Run the guided tour in demo context
+    from bute.commands.tour import run_tour
+    run_tour(ctx)
+
+    # Clean up on exit
+    _cleanup_demo()
 
 
-def _end_demo():
-    """Exit demo mode: remove marker, delete demo data."""
-    # Close DB connection to demo data
+def _cleanup_demo():
+    """Remove demo data, tour markers, and close connections."""
     try:
         from bute.db import close
         close()
     except Exception:
         pass
 
-    # Remove demo data
     if DEMO_DATA_DIR.exists():
         shutil.rmtree(DEMO_DATA_DIR)
 
-    # Remove marker
-    if DEMO_MARKER.exists():
-        DEMO_MARKER.unlink()
+    # Clean up tour markers so demo doesn't affect real first-run experience
+    from bute.config import TOUR_DONE, TOUR_PROGRESS
+    for marker in (TOUR_DONE, TOUR_PROGRESS):
+        if marker.exists():
+            marker.unlink()
 
-    console.print("\n  [bold green]Demo mode OFF[/bold green]")
+    console.print("\n  [bold green]Demo session ended[/bold green]")
     console.print("  [dim]Demo data deleted. Back to your real data.[/dim]\n")
