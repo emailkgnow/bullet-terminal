@@ -210,12 +210,12 @@ class DwnGroup(click.Group):
         return super().resolve_command(ctx, args)
 
 
-def _show_random_journal(config) -> None:
-    """Show a random old journal entry at the bottom of the daily log."""
+def _show_random_journal(config, offset: int = 0) -> str | None:
+    """Show a random old journal entry at the bottom of the daily log. Returns entry ID."""
     from bute.config import CONFIG_DIR
 
     if (CONFIG_DIR / ".no-journal").exists():
-        return
+        return None
 
     import random
     from datetime import date
@@ -227,16 +227,18 @@ def _show_random_journal(config) -> None:
     journals = query_and_load(config, type="journal")
     old = [e for e in journals if e.created.date() < today]
     if not old:
-        return
+        return None
 
     entry = random.choice(old)
     entry_date = entry.created.date().strftime("%b %d, %Y")
+    num = offset + 1
 
     from rich.console import Console
     console = Console()
     console.print()
-    console.print(f"  [dim]  = {_preview(entry.body)}[/dim]")
-    console.print(f"  [dim]  {entry_date} · bt -j to toggle[/dim]")
+    console.print(f"  [dim]{num:>3}  = {_preview(entry.body)}[/dim]")
+    console.print(f"  [dim]     {entry_date} · bt -j to toggle[/dim]")
+    return entry.id
 
 
 def _print_help():
@@ -454,10 +456,10 @@ def main(ctx, interactive, demo, toggle_journal):
             from bute.commands.views import _show_habits
             habit_names = _show_habits(config, len(entries))
 
-            save_state("ls", [e.id for e in entries], config, habits=habit_names)
+            # Random old journal whisper (numbered after entries + habits)
+            journal_id = _show_random_journal(config, len(entries) + len(habit_names))
 
-            # Random old journal whisper
-            _show_random_journal(config)
+            save_state("ls", [e.id for e in entries], config, habits=habit_names, extra_entries=[journal_id] if journal_id else None)
 
             from rich.console import Console
             console = Console()
