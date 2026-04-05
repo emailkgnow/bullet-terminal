@@ -232,13 +232,13 @@ def _show_random_journal(config) -> None:
         return
 
     entry = random.choice(old)
-    age = (today - entry.created.date()).days
+    entry_date = entry.created.date().strftime("%b %d, %Y")
 
     from rich.console import Console
     console = Console()
     console.print()
     console.print(f"  [dim]= {_preview(entry.body)}[/dim]")
-    console.print(f"  [dim]{age} days ago — bt -j to stop[/dim]")
+    console.print(f"  [dim]{entry_date} · bt -j to toggle[/dim]")
 
 
 def _print_help():
