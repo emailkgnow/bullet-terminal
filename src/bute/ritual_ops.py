@@ -58,8 +58,8 @@ def get_daily_log(config=None) -> list[Entry]:
     result = []
     for e in today_entries:
         if e.type == EntryType.TASK:
-            # Only active tasks tagged @today
-            if "today" in e.tags and e.status == TaskStatus.ACTIVE:
+            # Only active tasks tagged @today (exclude habits — shown separately)
+            if "today" in e.tags and e.status == TaskStatus.ACTIVE and "habit" not in e.tags:
                 result.append(e)
         elif e.type == EntryType.CALENDAR:
             # Calendar events created today with no scheduled_date, or scheduled for today
@@ -72,7 +72,7 @@ def get_daily_log(config=None) -> list[Entry]:
     # Also include active tasks tagged @today but created on a different day
     from bute.storage import query_and_load
     today_tasks = query_and_load(config, type="task", status="active", tag="today")
-    today_tasks = [e for e in today_tasks if e.created.date() != today]
+    today_tasks = [e for e in today_tasks if e.created.date() != today and "habit" not in e.tags]
     seen = {e.id for e in result}
     for e in today_tasks:
         if e.id not in seen:
