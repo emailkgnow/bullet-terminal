@@ -257,7 +257,16 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
             break
         entries = load_entries_by_date(d, config)
         for e in entries:
-            if e.type == EntryType.JOURNAL:
+            if e.type == EntryType.TASK:
+                from bute.models import TaskStatus
+                preview = _preview(e.body)
+                if e.status == TaskStatus.DONE:
+                    lines_by_day.setdefault(day_num, []).append(f"[dim][s][cyan].[/cyan] {preview}[/s][/dim]")
+                elif e.status == TaskStatus.DROPPED:
+                    lines_by_day.setdefault(day_num, []).append(f"[dim][s][cyan].[/cyan] {preview}[/s] dropped[/dim]")
+                else:
+                    lines_by_day.setdefault(day_num, []).append(f"[cyan].[/cyan] {preview}")
+            elif e.type == EntryType.JOURNAL:
                 lines_by_day.setdefault(day_num, []).append(f"[magenta]=[/magenta] {_preview(e.body)}")
             elif e.type == EntryType.NOTE:
                 lines_by_day.setdefault(day_num, []).append(f"[yellow]-[/yellow] {_preview(e.body)}")

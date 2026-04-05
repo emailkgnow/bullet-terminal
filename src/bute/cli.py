@@ -15,7 +15,7 @@ BULLET_PATTERN = re.compile(r"^[.=\-o]!?$")
 WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|calendar)!?$")
 
 # Short letter to view command mapping (when no text follows)
-SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog", "m": "monthly"}
+SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog", "m": "monthly", "w": "week"}
 BULLET_TO_VIEW = {".": "tasks", "=": "journals", "-": "notes", "o": "calendar"}
 WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calendar": "calendar"}
 
@@ -49,6 +49,11 @@ class DwnGroup(click.Group):
             cmd = self.get_command(ctx, "monthly")
             if cmd is not None:
                 return "monthly", cmd, rest
+
+        if first == "w":
+            cmd = self.get_command(ctx, "week")
+            if cmd is not None:
+                return "week", cmd, rest
 
         if first in ("h", "habit"):
             cmd = self.get_command(ctx, "habits")
@@ -220,8 +225,8 @@ def _print_help():
     t.add_row("bt j", "Journals", "Grouped by date")
     t.add_row("bt c", "Events", "Grouped by date")
     t.add_row("bt h", "Habits", "Today's status")
-    t.add_row("bt m [dim][period]", "Monthly log", "YYYY-MM or YYYY")
-    t.add_row("bt week [dim][last]", "Weekly spread — Mon to Sun", "")
+    t.add_row("bt w [dim][last]", "Weekly Log — Mon to Sun", "bt w last for previous")
+    t.add_row("bt m [dim][period]", "Monthly Log", "YYYY-MM or YYYY")
     t.add_row("bt due", "Tasks by deadline", "bt due all for everything")
     t.add_row("bt goals", "Goals with task progress", "")
     t.add_row("bt streak", "Habit streaks and 30-day stats", "")

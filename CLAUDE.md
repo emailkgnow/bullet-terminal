@@ -112,7 +112,8 @@ bute t @backend     # filtered by tag
 bute t -a           # all including done/dropped
 bute b              # Task Backlog — all active tasks
 bute n / j / c      # notes / journals / calendar (grouped by date)
-bute m              # monthly log (notes, journals, calendar)
+bute w              # weekly log (all entries, Mon-Sun)
+bute m              # monthly log (all entries for the month)
 bute                # daily log (or DYTS if not done today)
 bute @tagname       # cross-dimension tag filter
 bute !              # all important entries
@@ -173,7 +174,7 @@ bute init           # first-run setup (pick AI provider)
 
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. DYTS Y phase handles yesterday's unfinished items.
 - **Tags have a dual role** — `@tag` as label (organizes entries) and `@tag` as thinking tool (`analyze` clusters the group via AI). The `+collection` syntax was removed — tags absorbed collections. Stage tracking (raw → analyzed) lives in the `tag_stages` SQLite table.
-- **Monthly log is derived** — no stored file, computed from notes, journal, and calendar entries. `bt m` shows the monthly log.
+- **Logs are derived** — no stored files. Daily log (`bt`), weekly log (`bt w`), monthly log (`bt m`) all show all entry types for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label).
 - **`bute` with no args** = DYTS entry point. If DYTS done today, shows daily log.
 - **Daily log (`bute`)** shows: `@today` tasks, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bute b`) or Tasks (`bute t`).
 - **Task views**: `bt t` (Tasks) shows `@thisweek` focus tasks. `bt b` (Backlog) shows all active tasks. The flow is: backlog → weekly plan → tasks → daily log.

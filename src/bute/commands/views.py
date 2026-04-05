@@ -223,7 +223,7 @@ def tags_cmd(ctx):
 @click.argument("period", required=False, default=None)
 @click.pass_context
 def week_cmd(ctx, period):
-    """Weekly spread — all entries Mon-Sun. 'bt week last' for last week."""
+    """Weekly log — all entries Mon-Sun. 'bt week last' for last week."""
     from datetime import date, timedelta
 
     config = ctx.obj.get("config")
@@ -236,7 +236,7 @@ def week_cmd(ctx, period):
 
     monday = target - timedelta(days=target.weekday())
     sunday = monday + timedelta(days=6)
-    title = f"Week of {monday.strftime('%b %d')} — {sunday.strftime('%b %d')}"
+    title = f"Weekly Log — {monday.strftime('%b %d')} to {sunday.strftime('%b %d')}"
 
     entries = get_week_entries(target, config)
     if not entries:
