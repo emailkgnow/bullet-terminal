@@ -70,7 +70,7 @@ User input → DwnGroup.resolve_command() → capture.py
 | `models.py` | Entry dataclass, EntryType/TaskStatus enums, SIGNIFIER_MAP |
 | `storage.py` | Markdown file I/O, query by date/filter, handles legacy `migrated` status |
 | `display.py` | Rich rendering: `display_entry_list`, `display_entry_list_grouped`, confirmations |
-| `ritual_ops.py` | Pure functions for rituals (daily log, yesterday unresolved, schedule, active tasks, dump) |
+| `ritual_ops.py` | Pure functions for rituals (Focus Log, yesterday unresolved, schedule, active tasks, dump) |
 | `state.py` | View-to-action bridge, DYTS completion tracking |
 | `ai/llm.py` | Provider-agnostic OpenAI client, macOS Keychain API key resolution |
 | `ai/vectors.py` | sqlite-vec wrapper (upsert, search, delete) |
@@ -97,7 +97,7 @@ bute t! fix prod bug                       # important modifier
 bute c dentist t:14.30 d:3.30              # calendar: Mar 30 at 2:30 PM
 bute c meeting t:9                         # calendar: today at 9:00 AM
 bute c conference d:4.15                   # calendar: Apr 15, all day
-bute n check OAuth docs d:4.10             # note: resurfaces in daily log Apr 10
+bute n check OAuth docs d:4.10             # note: resurfaces in Focus Log Apr 10
 ```
 
 **Date/time metadata:**
@@ -121,7 +121,7 @@ bute m              # monthly log (all entries for the month)
 bute m jan          # January's log (full or abbreviated name)
 bute m 2026-03      # March 2026
 bute m 2026         # all months of 2026
-bute                # daily log (or DYTS if not done today)
+bute                # Focus Log (or DYTS if not done today)
 bute @tagname       # cross-dimension tag filter
 bute @bt @ai        # entries with both tags (AND)
 bute @bt -@done     # entries with @bt but not @done
@@ -166,7 +166,7 @@ bute tags                           # list all tags with stage and count
 
 **Rituals**:
 ```
-bute                # entry point — DYTS if not done today, else today's focus view
+bute                # entry point — DYTS if not done today, else Focus Log
 bute dp             # morning ritual (Dump, Yesterday, Tasks, Schedule)
 bute wp             # weekly plan — select tasks for the week
 bute recap week     # AI analysis of a period (day, week, month, year)
@@ -185,13 +185,13 @@ bute init           # first-run setup (pick AI provider)
 
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. DYTS Y phase handles yesterday's unfinished items.
 - **Tags have a dual role** — `@tag` as label (organizes entries) and `@tag` as thinking tool (`analyze` clusters the group via AI). The `+collection` syntax was removed — tags absorbed collections. Stage tracking (raw → analyzed) lives in the `tag_stages` SQLite table.
-- **Logs are derived** — no stored files. Daily log (`bt`), weekly log (`bt w`), monthly log (`bt m`) all show all entry types for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label).
-- **`bute` with no args** = DYTS entry point. If DYTS done today, shows daily log.
-- **Daily log (`bute`)** shows: `@today` tasks, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bute b`) or Tasks (`bute t`).
-- **Task views**: `bt t` (Tasks) shows `@thisweek` focus tasks. `bt b` (Backlog) shows all active tasks. The flow is: backlog → weekly plan → tasks → daily log.
+- **Logs are derived** — no stored files. Focus Log (`bt`), daily log (`bt d`), weekly log (`bt w`), monthly log (`bt m`) all query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label).
+- **`bute` with no args** = DYTS entry point. If DYTS done today, shows Focus Log.
+- **Focus Log (`bt`)** — what matters today: `@today` tasks, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bute b`) or Tasks (`bute t`). Curated and active-only — distinct from Daily Log (`bt d`) which shows everything retrospectively.
+- **Task views**: `bt t` (Tasks) shows `@thisweek` focus tasks. `bt b` (Backlog) shows all active tasks. The flow is: backlog → weekly plan → tasks → Focus Log.
 - **`bute wp`** includes task dump phase — add tasks before selecting for the week.
 - **Display**: tasks = flat list, notes/journals/calendar = grouped by date (using `scheduled_date` for calendar events).
-- **Scheduling is universal** — `d:` (scheduled_date) works on all entry types. Tasks: deadline. Calendar: event date. Notes/journals: resurface date. All surface in the daily log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
+- **Scheduling is universal** — `d:` (scheduled_date) works on all entry types. Tasks: deadline. Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
 - **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.
 - **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Preferred input: `t:9`, `t:14.30`. Legacy formats (`t:1430`, `3pm`) still accepted.
 - **Date format**: preferred input: `d:4.7`, `d:mar15`, `d:tomorrow`, `d:friday`. Legacy `d:0407` still accepted.
@@ -220,6 +220,11 @@ bute init           # first-run setup (pick AI provider)
 
 ### Tag Processing
 - **Mindmap output for `bt @tag analyze`** — after AI clusters and organizes tagged entries, render or export a mindmap visualization of the themes and their items. Could be ASCII art in the terminal, or generate a Mermaid/Markmap diagram that opens in a browser. Gives the user a spatial view of how their ideas relate.
+
+### Onboarding
+- ~~**Guided tour — first-run onboarding**~~ ✓ Done — interactive REPL teaches core concepts on first `bt` run. 11 phases: capture → see → organize → act → plan.
+- **AI tour** — triggered after `bt init` configures an AI provider. Teaches search, chat, recap, nudges, analyze, tag-notes using real entries.
+- **Redesign Daily Plan (`dp`)** — decompose Dump into individual entry types (t, n, j, c) mirroring the tour's layered approach. Rename to "Focus Process" since it flows into the Focus Log.
 
 ### Infrastructure
 - **`bt this` — capture Claude Code chat into bt** — add a Claude Code hook or slash command so `bt this` saves the current conversation's markdown export as a bt note. Turns ephemeral AI chats into searchable, tagged entries in the bt system.
