@@ -183,8 +183,9 @@ class DwnGroup(click.Group):
                 habits = state.get("habits", [])
                 if habits:
                     entry_count = len(state.get("entries", []))
+                    habit_end = entry_count + len(habits)
                     num = int(first)
-                    if num > entry_count:
+                    if entry_count < num <= habit_end:
                         # Remap to habit-relative numbers for the habits command
                         remapped = []
                         for tok in args:
