@@ -214,7 +214,6 @@ def _show_random_journal(config) -> None:
     """Show a random old journal entry at the bottom of the daily log."""
     from bute.config import CONFIG_DIR
 
-    # Check if disabled
     if (CONFIG_DIR / ".no-journal").exists():
         return
 
@@ -226,7 +225,6 @@ def _show_random_journal(config) -> None:
 
     today = date.today()
     journals = query_and_load(config, type="journal")
-    # Only journals older than today
     old = [e for e in journals if e.created.date() < today]
     if not old:
         return
@@ -237,8 +235,8 @@ def _show_random_journal(config) -> None:
     from rich.console import Console
     console = Console()
     console.print()
-    console.print(f"  [dim]= {_preview(entry.body)}[/dim]")
-    console.print(f"  [dim]{entry_date} · bt -j to toggle[/dim]")
+    console.print(f"  [dim]  = {_preview(entry.body)}[/dim]")
+    console.print(f"  [dim]  {entry_date} · bt -j to toggle[/dim]")
 
 
 def _print_help():
@@ -458,7 +456,7 @@ def main(ctx, interactive, demo, toggle_journal):
 
             save_state("ls", [e.id for e in entries], config, habits=habit_names)
 
-            # Random old journal
+            # Random old journal whisper
             _show_random_journal(config)
 
             from rich.console import Console
