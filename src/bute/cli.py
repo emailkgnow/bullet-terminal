@@ -404,18 +404,20 @@ def _run_interactive(ctx):
 def main(ctx, interactive, demo, toggle_journal):
     """bt (BuTe) — AI-powered life management CLI based on Bullet Journal."""
     ctx.ensure_object(dict)
-    from bute.config import load_config
 
-    config = load_config()
+    # Reuse config from parent context (e.g. demo mode) or load from disk
+    if "config" in ctx.obj:
+        config = ctx.obj["config"]
+    else:
+        from bute.config import load_config
+        config = load_config()
+        ctx.obj["config"] = config
 
     # Handle -d flag — start isolated demo session
     if demo:
         from bute.commands.demo import demo_cmd
-        ctx.obj["config"] = config
         ctx.invoke(demo_cmd)
         return
-
-    ctx.obj["config"] = config
 
     # Handle -i flag
     if interactive:
