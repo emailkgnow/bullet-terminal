@@ -8,6 +8,21 @@ from bute.db import get_tag_stage, upsert_tag_stage
 console = Console()
 
 
+def _parse_tag_tokens(tokens: tuple[str, ...]) -> tuple[list[str], list[str]]:
+    """Parse @tag and -@tag tokens into (include_tags, exclude_tags)."""
+    include = []
+    exclude = []
+    for t in tokens:
+        if t.startswith("-@") and len(t) > 2:
+            exclude.append(t[2:])
+        elif t.startswith("@") and len(t) > 1:
+            include.append(t[1:])
+        else:
+            # Bare word — treat as tag name (for convenience)
+            include.append(t)
+    return include, exclude
+
+
 def _format_analysis_for_note(tag: str, response: str) -> str:
     """Convert THEME: structured response into clean markdown with summaries and entries."""
     from bute.display import _parse_analyze_themes
@@ -98,15 +113,17 @@ def _run_analyze(tag: str, entries, config, *, label: str | None = None) -> str 
         return None
 
 
-@click.command("analyze_tag", hidden=True)
-@click.argument("tags", nargs=-1)
-@click.option("--exclude", "-x", multiple=True)
+@click.command("analyze")
+@click.argument("tokens", nargs=-1, required=True)
 @click.pass_context
-def analyze_tag_cmd(ctx, tags, exclude):
-    """AI analyzes entries matching tag filters."""
+def analyze_tag_cmd(ctx, tokens):
+    """AI analyzes entries matching tag filters. Usage: bt analyze @tag [@tag2] [-@excluded]."""
     config = ctx.obj.get("config")
-    include_tags = list(tags)
-    exclude_tags = list(exclude)
+    include_tags, exclude_tags = _parse_tag_tokens(tokens)
+
+    if not include_tags:
+        console.print("  [red]Usage: bt analyze @tag [@tag2] [-@excluded][/red]")
+        return
 
     entries = _load_filtered_entries(include_tags, exclude_tags, config)
     label = " ".join(f"@{t}" for t in include_tags)
@@ -121,17 +138,19 @@ def analyze_tag_cmd(ctx, tags, exclude):
     _run_analyze(tag_for_stage, entries, config, label=label if not tag_for_stage else None)
 
 
-@click.command("map_tag", hidden=True)
-@click.argument("tags", nargs=-1)
-@click.option("--exclude", "-x", multiple=True)
+@click.command("map")
+@click.argument("tokens", nargs=-1, required=True)
 @click.pass_context
-def map_tag_cmd(ctx, tags, exclude):
-    """Render a mind map for a tag — uses existing analysis or runs one on the fly."""
+def map_tag_cmd(ctx, tokens):
+    """Mind map for tagged entries. Usage: bt map @tag [@tag2] [-@excluded]."""
     from bute.display import display_analyze_map
 
     config = ctx.obj.get("config")
-    include_tags = list(tags)
-    exclude_tags = list(exclude)
+    include_tags, exclude_tags = _parse_tag_tokens(tokens)
+
+    if not include_tags:
+        console.print("  [red]Usage: bt map @tag [@tag2] [-@excluded][/red]")
+        return
 
     label = " ".join(f"@{t}" for t in include_tags)
     if exclude_tags:

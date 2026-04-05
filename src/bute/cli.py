@@ -118,47 +118,25 @@ class DwnGroup(click.Group):
             if cmd is not None:
                 return "important", cmd, rest
 
-        # 5. Tag filter — @tag [@tag2] [-@excluded] [subcommand]
+        # 5. Tag filter — @tag [@tag2] [-@excluded]
         if first.startswith("@") and len(first) > 1:
             tag_name = first[1:]
 
-            # Collect all @tag and -@tag tokens, find subcommand
+            # Collect all @tag and -@tag tokens
             include_tags = [tag_name]
             exclude_tags = []
-            subcommand = None
-            remaining = []
             for r in rest:
                 if r.startswith("@") and len(r) > 1:
                     include_tags.append(r[1:])
                 elif r.startswith("-@") and len(r) > 2:
                     exclude_tags.append(r[2:])
-                elif subcommand is None and r in ("analyze", "map"):
-                    subcommand = r
-                else:
-                    remaining.append(r)
 
-            if subcommand == "analyze":
-                cmd = self.get_command(ctx, "analyze_tag")
-                if cmd is not None:
-                    cmd_args = include_tags
-                    for ex in exclude_tags:
-                        cmd_args.extend(["--exclude", ex])
-                    return "analyze_tag", cmd, cmd_args
-            elif subcommand == "map":
-                cmd = self.get_command(ctx, "map_tag")
-                if cmd is not None:
-                    cmd_args = include_tags
-                    for ex in exclude_tags:
-                        cmd_args.extend(["--exclude", ex])
-                    return "map_tag", cmd, cmd_args
-            else:
-                cmd = self.get_command(ctx, "tag_filter")
-                if cmd is not None:
-                    # Pass as: include1 include2 --exclude ex1 --exclude ex2
-                    filter_args = include_tags
-                    for ex in exclude_tags:
-                        filter_args.extend(["--exclude", ex])
-                    return "tag_filter", cmd, filter_args
+            cmd = self.get_command(ctx, "tag_filter")
+            if cmd is not None:
+                filter_args = include_tags
+                for ex in exclude_tags:
+                    filter_args.extend(["--exclude", ex])
+                return "tag_filter", cmd, filter_args
 
         # Also handle -@tag as first token (exclude-only filter)
         if first.startswith("-@") and len(first) > 2:
@@ -316,8 +294,8 @@ def _print_help():
     t.add_row("bt recap", "End-of-day summary", "bt recap week/month/year for AI")
     t.add_row("bt topic <name>", "AI cross-dimension synthesis", "")
     t.add_row("bt nudges", "AI actionable suggestions", "")
-    t.add_row("bt @<name> analyze", "AI clusters tagged entries", "")
-    t.add_row("bt @<name> map", "Mind map of tag analysis", "")
+    t.add_row("bt analyze @tag [-@ex]", "AI clusters tagged entries", "bt analyze @bt @ai")
+    t.add_row("bt map @tag [-@ex]", "Mind map of tag analysis", "bt map @backend")
     t.add_row("bt export", "Export all data as zip", "-o path")
     t.add_row("bt init", "First-run setup (pick AI provider)", "")
     t.add_row("bt start", "Quick start guide", "")

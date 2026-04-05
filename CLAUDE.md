@@ -37,7 +37,7 @@ Custom Click group with 6-layer routing in `resolve_command()`:
    - With text → **capture** (`bute t call dentist`)
    - Without text → **view** (`bute t` → show Tasks / weekly focus)
    - With only `@tag` → **filtered view** (`bute t @backend`)
-4. **Tag filter** — `@tagname` → cross-dimension filter, `@tagname analyze` → AI analyze
+4. **Tag filter** — `@tagname` → cross-dimension filter (multi-tag: `@a @b -@c`)
 5. **Number-action** — `1 done`, `2 3 drop` → action dispatch
 6. **Fallback** — Click error
 
@@ -85,7 +85,7 @@ Three independent capability tiers — each degrades gracefully:
 2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bute rebuild`
 3. **LLM** (remote) — OpenAI-compatible API, provider-agnostic. API key via config or macOS Keychain
 
-AI is used for: `topic`, `recap [period]`, `nudges`, tag processing (`@tag analyze`), `chat` (interactive sessions with entry suggestions). Core capture/view/action loop works without AI.
+AI is used for: `topic`, `recap [period]`, `nudges`, tag processing (`bt analyze @tag`), `chat` (interactive sessions with entry suggestions). Core capture/view/action loop works without AI.
 
 ## CLI Grammar (Current)
 
@@ -156,7 +156,9 @@ Goals are notes tagged `@goal`. Other tags on the note connect tasks to the goal
 
 **Tag Processing** — ideas to clarity:
 ```
-bute @home-reno analyze             # AI clusters and organizes tagged entries
+bute analyze @home-reno             # AI clusters and organizes tagged entries
+bute analyze @bt @ai -@done         # analyze filtered intersection
+bute map @backend                   # mind map of tag analysis
 bute tags                           # list all tags with stage and count
 ```
 
