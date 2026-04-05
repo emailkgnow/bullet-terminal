@@ -7,8 +7,9 @@ import tomlkit
 CONFIG_DIR = Path.home() / ".config" / "bute"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 DATA_DIR_DEFAULT = Path.home() / "bullet-terminal"
-DEMO_MARKER = CONFIG_DIR / ".demo"
 DEMO_DATA_DIR = Path.home() / "bute-demo"
+TOUR_DONE = CONFIG_DIR / ".tour_done"
+TOUR_PROGRESS = CONFIG_DIR / ".tour_progress"
 
 # Known AI provider presets
 PROVIDER_PRESETS = {
@@ -102,27 +103,21 @@ def default_config(
     return doc
 
 
-def is_demo_active() -> bool:
-    """Check if demo mode is active."""
-    return DEMO_MARKER.exists()
-
-
-def apply_demo_config(config: tomlkit.TOMLDocument) -> tomlkit.TOMLDocument:
-    """If demo mode is active, override data directory and clear personal data."""
-    if is_demo_active():
-        if "core" not in config:
-            config["core"] = tomlkit.table()
-        config["core"]["data_dir"] = str(DEMO_DATA_DIR)
-        # Clear habits so real ones don't leak into demo
-        if "habits" in config:
-            config["habits"]["list"] = tomlkit.array("[]")
+def _make_demo_config(config: tomlkit.TOMLDocument) -> tomlkit.TOMLDocument:
+    """Create a demo config pointing to isolated demo data directory."""
+    if "core" not in config:
+        config["core"] = tomlkit.table()
+    config["core"]["data_dir"] = str(DEMO_DATA_DIR)
+    # Clear habits so real ones don't leak into demo
+    if "habits" in config:
+        config["habits"]["list"] = tomlkit.array("[]")
     return config
 
 
 def ensure_data_dirs(config: tomlkit.TOMLDocument | None = None) -> Path:
     """Create the data directory structure. Returns the data dir path."""
     data_dir = get_data_dir(config)
-    for subdir in ["entries", "collections", "habits", ".index"]:
+    for subdir in ["entries", ".index"]:
         (data_dir / subdir).mkdir(parents=True, exist_ok=True)
 
     from bute.guide import write_guide

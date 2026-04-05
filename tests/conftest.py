@@ -37,6 +37,8 @@ def tmp_config(tmp_path, monkeypatch):
     config_file = config_dir / "config.toml"
     monkeypatch.setattr("bute.config.CONFIG_DIR", config_dir)
     monkeypatch.setattr("bute.config.CONFIG_FILE", config_file)
+    monkeypatch.setattr("bute.config.TOUR_DONE", config_dir / ".tour_done")
+    monkeypatch.setattr("bute.config.TOUR_PROGRESS", config_dir / ".tour_progress")
     return config_dir
 
 
