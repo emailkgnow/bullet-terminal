@@ -118,10 +118,24 @@ class DwnGroup(click.Group):
             if cmd is not None:
                 return "important", cmd, rest
 
-        # 5. Tag filter — @tagname [subcommand]
+        # 5. Tag filter — @tag [@tag2] [-@excluded] [subcommand]
         if first.startswith("@") and len(first) > 1:
             tag_name = first[1:]
-            subcommand = rest[0] if rest else None
+
+            # Collect all @tag and -@tag tokens, find subcommand
+            include_tags = [tag_name]
+            exclude_tags = []
+            subcommand = None
+            remaining = []
+            for r in rest:
+                if r.startswith("@") and len(r) > 1:
+                    include_tags.append(r[1:])
+                elif r.startswith("-@") and len(r) > 2:
+                    exclude_tags.append(r[2:])
+                elif subcommand is None and r in ("analyze", "map"):
+                    subcommand = r
+                else:
+                    remaining.append(r)
 
             if subcommand == "analyze":
                 cmd = self.get_command(ctx, "analyze_tag")
@@ -134,7 +148,28 @@ class DwnGroup(click.Group):
             else:
                 cmd = self.get_command(ctx, "tag_filter")
                 if cmd is not None:
-                    return "tag_filter", cmd, [tag_name]
+                    # Pass as: include1 include2 --exclude ex1 --exclude ex2
+                    filter_args = include_tags
+                    for ex in exclude_tags:
+                        filter_args.extend(["--exclude", ex])
+                    return "tag_filter", cmd, filter_args
+
+        # Also handle -@tag as first token (exclude-only filter)
+        if first.startswith("-@") and len(first) > 2:
+            exclude_tags = [first[2:]]
+            include_tags = []
+            for r in rest:
+                if r.startswith("@") and len(r) > 1:
+                    include_tags.append(r[1:])
+                elif r.startswith("-@") and len(r) > 2:
+                    exclude_tags.append(r[2:])
+
+            cmd = self.get_command(ctx, "tag_filter")
+            if cmd is not None:
+                filter_args = include_tags if include_tags else ["--all"]
+                for ex in exclude_tags:
+                    filter_args.extend(["--exclude", ex])
+                return "tag_filter", cmd, filter_args
 
         # 6. Number-action — first token is a digit
         # (+collection routing was here — removed in tags-absorb-collections)
@@ -232,7 +267,7 @@ def _print_help():
     t.add_row("bt streak", "Habit streaks and 30-day stats", "")
     t.add_row("bt tags", "All tags with counts and stage", "")
     t.add_row("bt !", "Important entries", "bt t! for tasks only")
-    t.add_row("bt @<name>", "Filter by tag across all types", "")
+    t.add_row("bt @tag [@tag2] [-@ex]", "Filter by tags (AND + exclude)", "bt @backend -@done")
     t.add_row("bt find <text>", "Keyword search", "-t -n -j -c to filter")
     t.add_row("bt search <query>", "Semantic search", "AI embeddings")
     t.add_row("bt similar <n>", "Entries similar to #n", "")

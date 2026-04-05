@@ -163,14 +163,38 @@ def important_cmd(ctx, entry_type, show_all):
 
 
 @click.command("tag_filter", hidden=True)
-@click.argument("tag")
+@click.argument("tags", nargs=-1)
+@click.option("--exclude", "-x", multiple=True, help="Exclude entries with this tag.")
+@click.option("--all", "show_all", is_flag=True, hidden=True)
 @click.pass_context
-def tag_filter_cmd(ctx, tag):
-    """Show all entries with a given tag."""
+def tag_filter_cmd(ctx, tags, exclude, show_all):
+    """Show entries filtered by tags. Multiple @tags = AND. -@tag = exclude."""
     config = ctx.obj.get("config")
 
-    entries = query_and_load(config, tag=tag)
-    display_entry_list(entries, f"@{tag}")
+    include_tags = [t for t in tags if t != "--all"]
+
+    if include_tags:
+        # Start with first tag, then intersect
+        entries = query_and_load(config, tag=include_tags[0])
+        for tag in include_tags[1:]:
+            entries = [e for e in entries if tag in e.tags]
+    elif show_all or exclude:
+        # Exclude-only: start with all entries
+        entries = query_and_load(config)
+    else:
+        entries = []
+
+    # Apply exclusions
+    for ex in exclude:
+        entries = [e for e in entries if ex not in e.tags]
+
+    # Build title
+    parts = [f"@{t}" for t in include_tags]
+    for ex in exclude:
+        parts.append(f"-@{ex}")
+    title = " ".join(parts) if parts else "All"
+
+    display_entry_list(entries, title)
     save_state("tag_filter", [e.id for e in entries], config)
 
 

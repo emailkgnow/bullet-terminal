@@ -121,6 +121,9 @@ bute m 2026-03      # March 2026
 bute m 2026         # all months of 2026
 bute                # daily log (or DYTS if not done today)
 bute @tagname       # cross-dimension tag filter
+bute @bt @ai        # entries with both tags (AND)
+bute @bt -@done     # entries with @bt but not @done
+bute -@habit        # all entries excluding @habit
 bute !              # all important entries
 bute t!             # important tasks (also: n!, j!, c!)
 bute find <keyword> # keyword search in body + tags (-t -n -j -c to filter)
