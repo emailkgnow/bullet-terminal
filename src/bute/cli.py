@@ -277,6 +277,25 @@ def _print_help():
     console.print()
     console.print("    [dim]Tip: most actions accept multiple entries — bt 1 2 3 done[/dim]")
 
+    # --- Commands ---
+    t = Table(title="Commands", title_style="bold cyan",
+              box=None, pad_edge=False, padding=(0, 2), show_header=True, header_style="bold dim", expand=True)
+    t.add_column("Command", style="bold", no_wrap=True)
+    t.add_column("What it does")
+    t.add_column("Notes", style="dim")
+    t.add_row("bt dp", "Daily plan — morning ritual", "-y for non-interactive")
+    t.add_row("bt wp", "Weekly plan — select tasks for the week", "-y for non-interactive")
+    t.add_row("bt dump", "Rapid-fire tasks into Backlog", "")
+    t.add_row("bt recap", "End-of-day summary", "bt recap week/month/year for AI")
+    t.add_row("bt export", "Export all data as zip", "-o path")
+    t.add_row("bt init", "First-run setup (pick AI provider)", "")
+    t.add_row("bt start", "Quick start guide", "")
+    t.add_row("bt rebuild", "Rebuild search index", "")
+    t.add_row("bt -i", "Interactive REPL", "No quoting needed")
+    t.add_row("bt -d", "Toggle demo mode", "Isolated data")
+    console.print()
+    console.print(t)
+
     # --- AI ---
     t = Table(title="AI — requires bt init", title_style="bold cyan",
               box=None, pad_edge=False, padding=(0, 2), show_header=True, header_style="bold dim", expand=True)
@@ -297,25 +316,6 @@ def _print_help():
     t.add_row("bt recap <period>", "AI analysis of a period", "bt recap week")
     t.add_row("bt search <query>", "Semantic search", "bt search diet plans")
     t.add_row("bt similar <n>", "Entries similar to #n", "bt similar 3")
-    console.print()
-    console.print(t)
-
-    # --- Commands ---
-    t = Table(title="Commands", title_style="bold cyan",
-              box=None, pad_edge=False, padding=(0, 2), show_header=True, header_style="bold dim", expand=True)
-    t.add_column("Command", style="bold", no_wrap=True)
-    t.add_column("What it does")
-    t.add_column("Notes", style="dim")
-    t.add_row("bt dp", "Daily plan — morning ritual", "-y for non-interactive")
-    t.add_row("bt wp", "Weekly plan — select tasks for the week", "-y for non-interactive")
-    t.add_row("bt dump", "Rapid-fire tasks into Backlog", "")
-    t.add_row("bt recap", "End-of-day summary", "bt recap week/month/year for AI")
-    t.add_row("bt export", "Export all data as zip", "-o path")
-    t.add_row("bt init", "First-run setup (pick AI provider)", "")
-    t.add_row("bt start", "Quick start guide", "")
-    t.add_row("bt rebuild", "Rebuild search index", "")
-    t.add_row("bt -i", "Interactive REPL", "No quoting needed")
-    t.add_row("bt -d", "Toggle demo mode", "Isolated data")
     console.print()
     console.print(t)
     console.print()
