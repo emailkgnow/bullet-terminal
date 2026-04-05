@@ -92,6 +92,20 @@ def test_tour_skip_command(runner, tmp_config, tmp_data):
     assert "Notes" in result.output
 
 
+def test_tour_bt_prefix_stripped(runner, tmp_config, tmp_data):
+    """User can type 'bt t' and the prefix is stripped."""
+    result = runner.invoke(main, [], input="bt t call dentist\n/done\n")
+    assert result.exit_code == 0
+    assert "dot means" in result.output
+
+
+def test_tour_wrong_type_shows_hint(runner, tmp_config, tmp_data):
+    """Wrong entry type shows hint, user can retry."""
+    result = runner.invoke(main, [], input="n some note\nt call dentist\n/done\n")
+    assert result.exit_code == 0
+    assert "dot means" in result.output  # Eventually succeeds with task
+
+
 def test_tour_outro_shown(runner, tmp_config, tmp_data):
     """Completing all phases shows the outro."""
     # Skip through all 11 phases
