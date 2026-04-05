@@ -2,6 +2,9 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+openai = pytest.importorskip("openai", reason="openai not installed")
+
 from bute.cli import main
 from bute.config import default_config, save_config
 from bute.models import Entry, EntryType
@@ -21,7 +24,7 @@ def _mock_llm(response="- You have stale tasks\n- Journal shows a pattern"):
     mock_resp.choices[0].message.content = response
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = mock_resp
-    return patch("dwn.ai.llm._get_client", return_value=mock_client)
+    return patch("bute.ai.llm._get_client", return_value=mock_client)
 
 
 def test_nudges_no_ai(runner, tmp_config, tmp_data):

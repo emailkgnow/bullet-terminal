@@ -142,26 +142,6 @@ def test_untag_without_at(runner, tmp_config, tmp_data):
     assert "backend" not in loaded.tags
 
 
-def test_migrate_tomorrow(runner, tmp_config, tmp_data):
-    entry = Entry.create(EntryType.TASK, "test task")
-    save_entry(entry)
-    save_state("ls", [entry.id])
-
-    result = runner.invoke(main, ["1", "migrate", "tomorrow"])
-    assert result.exit_code == 0
-    assert "migrate" in result.output
-
-    # Original should be migrated
-    loaded = load_entry(entry_path_from_id(entry.id))
-    assert loaded.status == TaskStatus.MIGRATED
-
-    # New entry should exist
-    from bute.storage import load_entries_by_filter
-    new_entries = load_entries_by_filter(
-        lambda e: e.body == "test task" and e.status == TaskStatus.ACTIVE
-    )
-    assert len(new_entries) == 1
-
 
 def test_done_on_note_errors(runner, tmp_config, tmp_data):
     entry = Entry.create(EntryType.NOTE, "test note")

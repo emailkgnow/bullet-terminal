@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+openai = pytest.importorskip("openai", reason="openai not installed")
+
 from bute.cli import main
 from bute.config import default_config, save_config
 from bute.db import get_tag_stage

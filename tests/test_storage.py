@@ -66,14 +66,14 @@ def test_roundtrip_calendar(tmp_data):
     original = Entry.create(
         EntryType.CALENDAR,
         "1:1 with Ahmed",
-        scheduled_time="2pm",
+        scheduled_time="14:00",
         scheduled_date=date(2026, 3, 29),
         tags=["work"],
     )
     path = save_entry(original)
     loaded = load_entry(path)
     assert loaded.body == "1:1 with Ahmed"
-    assert loaded.scheduled_time == "2pm"
+    assert loaded.scheduled_time == "14:00"
     assert loaded.scheduled_date == date(2026, 3, 29)
     assert loaded.status is None  # Calendar has no status
 

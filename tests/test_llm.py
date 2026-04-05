@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+openai = pytest.importorskip("openai", reason="openai not installed")
+
 from bute.ai.llm import is_available, reset, send_message
 
 
@@ -35,7 +37,7 @@ def test_send_message_returns_text():
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = "Test response"
 
-    with patch("dwn.ai.llm._get_client") as mock_client_fn:
+    with patch("bute.ai.llm._get_client") as mock_client_fn:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
         mock_client_fn.return_value = mock_client
@@ -45,7 +47,7 @@ def test_send_message_returns_text():
 
 
 def test_send_message_error_returns_fallback():
-    with patch("dwn.ai.llm._get_client") as mock_client_fn:
+    with patch("bute.ai.llm._get_client") as mock_client_fn:
         mock_client = MagicMock()
         mock_client.chat.completions.create.side_effect = Exception("API error")
         mock_client_fn.return_value = mock_client
@@ -67,7 +69,7 @@ def test_send_with_entries_formats_context():
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = "Synthesis"
 
-    with patch("dwn.ai.llm._get_client") as mock_client_fn:
+    with patch("bute.ai.llm._get_client") as mock_client_fn:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
         mock_client_fn.return_value = mock_client

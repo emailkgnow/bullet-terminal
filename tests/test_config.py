@@ -48,17 +48,15 @@ def test_get_data_dir_default(tmp_data):
 def test_get_data_dir_from_config():
     doc = default_config()
     data_dir = get_data_dir(doc)
-    assert str(data_dir).endswith("dwn")
+    assert str(data_dir).endswith("bullet-terminal")
 
 
 def test_ensure_data_dirs_creates_structure(tmp_data):
     path = ensure_data_dirs(None)
     assert (path / "entries").is_dir()
     assert (path / "collections").is_dir()
-    assert (path / "linelog").is_dir()
-    assert (path / "tasks").is_dir()
-    assert (path / "archive").is_dir()
-    assert (path / ".vectors").is_dir()
+    assert (path / "habits").is_dir()
+    assert (path / ".index").is_dir()
 
 
 def test_init_command_with_flags(runner, tmp_config, tmp_data):

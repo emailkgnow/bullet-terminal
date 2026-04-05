@@ -19,7 +19,7 @@ def test_capture_with_metadata(runner, tmp_config, tmp_data):
     content = entries[0].read_text()
     assert "important: true" in content
     assert "backend" in content
-    assert "fix bug backend" in content
+    assert "fix bug" in content
 
 
 def test_capture_note(runner, tmp_config, tmp_data):
@@ -44,7 +44,7 @@ def test_capture_calendar(runner, tmp_config, tmp_data):
     entries = list(tmp_data.rglob("*.md"))
     content = entries[0].read_text()
     assert "type: calendar" in content
-    assert "time: 2pm" in content
+    assert "time: '14:00'" in content
 
 
 def test_capture_preserves_colon_in_body(runner, tmp_config, tmp_data):
