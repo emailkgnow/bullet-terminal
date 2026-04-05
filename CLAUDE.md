@@ -113,7 +113,12 @@ bute t -a           # all including done/dropped
 bute b              # Task Backlog — all active tasks
 bute n / j / c      # notes / journals / calendar (grouped by date)
 bute w              # weekly log (all entries, Mon-Sun)
+bute w last         # last week's log
+bute w 14           # week 14 of this year (ISO week number)
 bute m              # monthly log (all entries for the month)
+bute m jan          # January's log (full or abbreviated name)
+bute m 2026-03      # March 2026
+bute m 2026         # all months of 2026
 bute                # daily log (or DYTS if not done today)
 bute @tagname       # cross-dimension tag filter
 bute !              # all important entries
@@ -196,7 +201,7 @@ bute init           # first-run setup (pick AI provider)
 ### Commands — Medium Value
 - ~~`bt streak`~~ Done — 7-day grid, current streak count, 30-day completion rate.
 - ~~`bt reflect`~~ Done as `bt recap` — end-of-day summary. `bt recap [period]` runs AI analyze pipeline for day/week/month/year.
-- ~~`bt week`~~ Done — weekly spread across all dimensions, Mon-Sun. `bt week last` for previous week.
+- ~~`bt week`~~ Done — Weekly Log across all dimensions, Mon-Sun. `bt w last` for previous week, `bt w 14` for week 14.
 - ~~**Notes as reference layer**~~ Partially addressed by tag processing — `@tag analyze` clusters tagged notes. Full PKM features (pinned notes, AI recall, linked references) remain future work.
 
 ### Commands — Nice to Have
