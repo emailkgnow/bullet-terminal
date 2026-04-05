@@ -32,24 +32,35 @@ class ChatSession:
     last_bt_results: list[Entry] = field(default_factory=list)
 
     @classmethod
-    def start(cls, entry: Entry, config: dict) -> ChatSession:
-        """Create a new chat session anchored to an entry."""
+    def start(cls, entries: list[Entry] | Entry, config: dict) -> ChatSession:
+        """Create a new chat session anchored to one or more entries."""
         from bute.ai.prompts import chat_prompt, format_entries
 
+        if not isinstance(entries, list):
+            entries = [entries]
+        anchor = entries[0]
+
+        if len(entries) == 1:
+            user_msg = (
+                f"I want to think through this entry:\n\n"
+                f"{format_entries(entries)}\n\n"
+                f"Help me process it."
+            )
+        else:
+            user_msg = (
+                f"I want to think through these {len(entries)} entries together:\n\n"
+                f"{format_entries(entries)}\n\n"
+                f"If they are related, help me explore the connections and think through them as a group. "
+                f"If they seem unrelated, point that out and ask me which one I want to focus on or what connects them in my mind."
+            )
+
         session = cls(
-            anchor=entry,
+            anchor=anchor,
             config=config,
-            context_entries=[entry],
+            context_entries=list(entries),
             messages=[
                 {"role": "system", "content": chat_prompt()},
-                {
-                    "role": "user",
-                    "content": (
-                        f"I want to think through this entry:\n\n"
-                        f"{format_entries([entry])}\n\n"
-                        f"Help me process it."
-                    ),
-                },
+                {"role": "user", "content": user_msg},
             ],
             proposals=[],
             last_bt_results=[],
@@ -186,28 +197,35 @@ def execute_bt_view(args: list[str], config) -> list:
 
 
 def display_chat_header(session) -> None:
-    """Display the chat session header with the anchor entry."""
-    entry = session.anchor
-    style = TYPE_STYLE[entry.type]
+    """Display the chat session header with the context entries."""
+    entries = session.context_entries
 
-    parts = [entry.body]
-    meta = []
-    if entry.due:
-        meta.append(f"due:{entry.due}")
-    if entry.tags:
-        meta.append(" ".join(f"@{t}" for t in entry.tags))
-    if meta:
-        parts.append(f"[dim]{'  '.join(meta)}[/dim]")
+    if len(entries) == 1:
+        entry = entries[0]
+        style = TYPE_STYLE[entry.type]
+        parts = [entry.body]
+        meta = []
+        if entry.due:
+            meta.append(f"due:{entry.due}")
+        if entry.tags:
+            meta.append(" ".join(f"@{t}" for t in entry.tags))
+        if meta:
+            parts.append(f"[dim]{'  '.join(meta)}[/dim]")
+        icon = "!" if entry.important else ""
+        title_text = f"[bold]Chat[/bold]  {icon}{style['icon']} {style['label']}"
+        body = "  ".join(parts)
+        border = style["color"]
+    else:
+        lines = []
+        for e in entries:
+            style = TYPE_STYLE[e.type]
+            icon = "!" if e.important else " "
+            lines.append(f"  {icon}{style['icon']} {e.body}")
+        title_text = f"[bold]Chat[/bold]  {len(entries)} entries"
+        body = "\n".join(lines)
+        border = "cyan"
 
-    icon = "!" if entry.important else ""
-    title_text = f"[bold]Chat[/bold]  {icon}{style['icon']} {style['label']}"
-
-    panel = Panel(
-        "  ".join(parts),
-        title=title_text,
-        border_style=style["color"],
-        padding=(0, 1),
-    )
+    panel = Panel(body, title=title_text, border_style=border, padding=(0, 1))
     console.print()
     console.print(panel)
 
@@ -332,15 +350,18 @@ def _stream_and_record(session: ChatSession) -> None:
         display_ai_response(response_text)
 
 
-def start_chat_session(entry, config) -> None:
-    """Start an interactive AI chat session anchored to an entry."""
+def start_chat_session(entries, config) -> None:
+    """Start an interactive AI chat session anchored to one or more entries."""
     from bute.ai import _LLM_INSTALL_MSG, is_llm_available
 
     if not is_llm_available(config):
         console.print(_LLM_INSTALL_MSG)
         return
 
-    session = ChatSession.start(entry, config)
+    if not isinstance(entries, list):
+        entries = [entries]
+
+    session = ChatSession.start(entries, config)
     display_chat_header(session)
 
     # Initial AI response

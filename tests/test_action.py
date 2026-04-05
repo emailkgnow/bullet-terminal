@@ -195,15 +195,12 @@ def test_chat_action_parsed():
     assert args == []
 
 
-def test_chat_rejects_multiple_entries(runner, tmp_config, tmp_data):
-    e1 = Entry.create(EntryType.TASK, "task one")
-    e2 = Entry.create(EntryType.TASK, "task two")
-    save_entry(e1)
-    save_entry(e2)
-    save_state("ls", [e1.id, e2.id])
-
-    result = runner.invoke(main, ["1", "2", "chat"])
-    assert "single entry" in result.output.lower()
+def test_chat_accepts_multiple_entries():
+    """Verify chat action parses correctly with multiple entry numbers."""
+    nums, action, args = parse_action_tokens(("1", "2", "chat"))
+    assert nums == [1, 2]
+    assert action == "chat"
+    assert args == []
 
 
 def test_handle_delete_removes_from_db(tmp_data):
