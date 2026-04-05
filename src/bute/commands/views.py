@@ -223,7 +223,7 @@ def tags_cmd(ctx):
 @click.argument("period", required=False, default=None)
 @click.pass_context
 def week_cmd(ctx, period):
-    """Weekly log — all entries Mon-Sun. 'bt week last' for last week."""
+    """Weekly log — all entries Mon-Sun. 'bt w last' or 'bt w 14' (week number)."""
     from datetime import date, timedelta
 
     config = ctx.obj.get("config")
@@ -231,6 +231,20 @@ def week_cmd(ctx, period):
 
     if period == "last":
         target = today - timedelta(weeks=1)
+    elif period and period.isdigit():
+        week_num = int(period)
+        if week_num < 1 or week_num > 53:
+            console.print(f"  [red]Invalid week number: {period}. Use 1-53.[/red]")
+            return
+        # ISO week: find Monday of that week in the current year
+        jan1 = date(today.year, 1, 1)
+        # ISO week 1 contains Jan 4
+        jan4 = date(today.year, 1, 4)
+        monday_w1 = jan4 - timedelta(days=jan4.weekday())
+        target = monday_w1 + timedelta(weeks=week_num - 1)
+    elif period:
+        console.print(f"  [red]Invalid period: {period}. Use 'last' or a week number (1-53).[/red]")
+        return
     else:
         target = today
 

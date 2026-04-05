@@ -366,8 +366,16 @@ def dump_cmd(ctx):
 @click.argument("period", required=False, default=None)
 @click.pass_context
 def monthly_cmd(ctx, period):
-    """Monthly log. No args = this month. YYYY-MM = month. YYYY = full year."""
+    """Monthly log. No args = this month. 'bt m jan', YYYY-MM, or YYYY."""
     config = ctx.obj.get("config")
+
+    MONTH_NAMES = {
+        "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+        "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+        "january": 1, "february": 2, "march": 3, "april": 4, "june": 6,
+        "july": 7, "august": 8, "september": 9, "october": 10,
+        "november": 11, "december": 12,
+    }
 
     if period and len(period) == 4 and period.isdigit():
         # Year mode — show all months
@@ -387,11 +395,16 @@ def monthly_cmd(ctx, period):
             console.print(f"  [dim]No entries for {year}.[/dim]")
     else:
         if period:
-            try:
-                target = date.fromisoformat(f"{period}-01")
-            except ValueError:
-                console.print(f"  [red]Invalid format. Use YYYY-MM or YYYY.[/red]")
-                return
+            # Try month name first (jan, february, etc.)
+            month_num = MONTH_NAMES.get(period.lower())
+            if month_num:
+                target = date(date.today().year, month_num, 1)
+            else:
+                try:
+                    target = date.fromisoformat(f"{period}-01")
+                except ValueError:
+                    console.print(f"  [red]Invalid period: {period}. Use month name (jan), YYYY-MM, or YYYY.[/red]")
+                    return
         else:
             target = date.today()
 
