@@ -212,7 +212,7 @@ class DwnGroup(click.Group):
 
 
 def _show_random_journal(config, offset: int = 0) -> str | None:
-    """Show a random old journal entry at the bottom of the daily log. Returns entry ID."""
+    """Show a random old journal entry at the bottom of the Focus Log. Returns entry ID."""
     from bute.config import CONFIG_DIR
 
     if (CONFIG_DIR / ".no-journal").exists():
@@ -331,8 +331,8 @@ def _print_help():
     t.add_row("bt start", "Quick start guide", "")
     t.add_row("bt rebuild", "Rebuild search index", "")
     t.add_row("bt -i", "Interactive REPL", "No quoting needed")
-    t.add_row("bt -d", "Toggle demo mode", "Isolated data")
-    t.add_row("bt -j", "Toggle random journal in daily log", "")
+    t.add_row("bt -d", "Demo session", "Isolated data, auto-cleanup")
+    t.add_row("bt -j", "Toggle random journal in Focus Log", "")
     console.print()
     console.print(t)
 
@@ -399,29 +399,23 @@ def _run_interactive(ctx):
 @click.version_option(version=__version__, prog_name="bt")
 @click.option("-i", "interactive", is_flag=True, help="Interactive REPL mode")
 @click.option("-d", "demo", is_flag=True, help="Toggle demo mode")
-@click.option("-j", "toggle_journal", is_flag=True, help="Toggle random journal in daily log")
+@click.option("-j", "toggle_journal", is_flag=True, help="Toggle random journal in Focus Log")
 @click.pass_context
 def main(ctx, interactive, demo, toggle_journal):
     """bt (BuTe) — AI-powered life management CLI based on Bullet Journal."""
     ctx.ensure_object(dict)
-    from bute.config import apply_demo_config, load_config
+    from bute.config import load_config
 
     config = load_config()
 
-    # Handle -d flag before applying demo config
+    # Handle -d flag — start isolated demo session
     if demo:
         from bute.commands.demo import demo_cmd
-        config = apply_demo_config(config)
         ctx.obj["config"] = config
         ctx.invoke(demo_cmd)
         return
 
-    config = apply_demo_config(config)
     ctx.obj["config"] = config
-
-    from bute.config import is_demo_active
-    if is_demo_active():
-        click.echo("  ▶ DEMO MODE — bt -d to exit")
 
     # Handle -i flag
     if interactive:
@@ -434,26 +428,34 @@ def main(ctx, interactive, demo, toggle_journal):
         marker = CONFIG_DIR / ".no-journal"
         if marker.exists():
             marker.unlink()
-            click.echo("  Random journal enabled in daily log.")
+            click.echo("  Random journal enabled in Focus Log.")
         else:
             CONFIG_DIR.mkdir(parents=True, exist_ok=True)
             marker.touch()
-            click.echo("  Random journal disabled in daily log.")
+            click.echo("  Random journal disabled in Focus Log.")
         return
 
     if not ctx.invoked_subcommand:
-        from bute.state import is_dyts_done_today
+        from bute.commands.tour import should_run_tour
 
         config = ctx.obj["config"]
+
+        # First-run tour — no entries and tour not completed
+        if should_run_tour(config):
+            from bute.commands.tour import run_tour
+            run_tour(ctx)
+            return
+
+        from bute.state import is_dyts_done_today
         if is_dyts_done_today(config):
-            # Daily plan already done — show daily log (focus view)
+            # Daily plan already done — show Focus Log
             from datetime import date
             from bute.display import display_entry_list
             from bute.ritual_ops import get_daily_log
             from bute.state import save_state
 
             entries = get_daily_log(config)
-            display_entry_list(entries, f"Today — {date.today().strftime('%a %b %d')}", hide_tags={"today", "thisweek"})
+            display_entry_list(entries, f"Focus Log — {date.today().strftime('%a %b %d')}", hide_tags={"today", "thisweek"})
 
             # Show habits
             from bute.commands.views import _show_habits
@@ -466,7 +468,7 @@ def main(ctx, interactive, demo, toggle_journal):
 
             from rich.console import Console
             console = Console()
-            console.print(f"\n  [dim]Daily plan done. Run [bold]bt dp[/bold] to redo.[/dim]")
+            console.print(f"\n  [dim]Focus logged. Run [bold]bt dp[/bold] to redo.[/dim]")
         else:
             ctx.invoke(dp_cmd)
 

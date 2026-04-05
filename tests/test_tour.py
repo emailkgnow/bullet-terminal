@@ -53,3 +53,36 @@ def test_step_has_required_fields():
     assert len(step.prompt) > 0
     assert step.validate is not None
     assert len(step.feedback) > 0
+
+
+# ---------------------------------------------------------------------------
+# REPL / integration tests
+# ---------------------------------------------------------------------------
+
+from click.testing import CliRunner
+from bute.cli import main
+
+
+def test_tour_phase1_capture(runner, tmp_config, tmp_data):
+    """Capturing a task in phase 1 advances the step."""
+    result = runner.invoke(main, [], input="t call dentist\n/done\n")
+    assert result.exit_code == 0
+    assert "dot means" in result.output  # Phase 1 Step A feedback
+
+
+def test_tour_skip_command(runner, tmp_config, tmp_data):
+    """User can /skip to advance to next phase."""
+    result = runner.invoke(main, [], input="/skip\n/done\n")
+    assert result.exit_code == 0
+    # Should have shown Phase 1 intro, then Phase 2 intro after /skip
+    assert "Notes" in result.output
+
+
+def test_tour_outro_shown(runner, tmp_config, tmp_data):
+    """Completing all phases shows the outro."""
+    # Skip through all 11 phases
+    skip_all = "/skip\n" * 11
+    result = runner.invoke(main, [], input=skip_all)
+    assert result.exit_code == 0
+    assert "bt start" in result.output  # Outro mentions cheat sheet
+    assert "bt -h" in result.output

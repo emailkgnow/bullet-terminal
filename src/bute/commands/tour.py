@@ -4,6 +4,13 @@ import bute.config as _config
 from dataclasses import dataclass, field
 from typing import Callable
 
+import click
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+
+_console = Console()
+
 
 def is_tour_done() -> bool:
     """Check if the tour has been completed."""
@@ -340,3 +347,177 @@ PHASES = [
         ],
     ),
 ]
+
+
+# ---------------------------------------------------------------------------
+# REPL engine
+# ---------------------------------------------------------------------------
+
+
+def _has_entries(config) -> bool:
+    """Check if any entries exist on disk."""
+    from bute.config import get_data_dir
+    data_dir = get_data_dir(config)
+    entries_dir = data_dir / "entries"
+    if not entries_dir.exists():
+        return False
+    for month_dir in entries_dir.iterdir():
+        if month_dir.is_dir() and any(month_dir.glob("*.md")):
+            return True
+    return False
+
+
+def should_run_tour(config) -> bool:
+    """Determine if the tour should run: no entries and not completed."""
+    return not is_tour_done() and not _has_entries(config)
+
+
+def _execute_command(args: list[str], ctx: click.Context) -> None:
+    """Run a bt command inside the tour REPL."""
+    from bute.cli import main as bt_main
+    try:
+        bt_main(args, standalone_mode=False, parent=ctx)
+    except click.exceptions.UsageError as e:
+        _console.print(f"  [red]{e.format_message()}[/red]")
+    except SystemExit:
+        pass
+    except Exception as e:
+        _console.print(f"  [red]{e}[/red]")
+
+
+def _show_focus_log(config) -> None:
+    """Show Focus Log directly, avoiding re-triggering the tour via main()."""
+    from datetime import date
+    from bute.display import display_entry_list
+    from bute.ritual_ops import get_daily_log
+    from bute.state import save_state
+    entries = get_daily_log(config)
+    display_entry_list(entries, f"Focus Log — {date.today().strftime('%a %b %d')}", hide_tags={"today", "thisweek"})
+    save_state("ls", [e.id for e in entries], config)
+
+
+def _show_phase_intro(phase: Phase) -> None:
+    """Display the phase intro banner."""
+    _console.print()
+    title = Text(f" {phase.name} ", style="bold")
+    _console.print(Panel(
+        Text.from_markup(f"  {phase.intro}"),
+        title=title,
+        border_style="cyan",
+        padding=(0, 1),
+    ))
+    _console.print()
+
+
+def _show_step_prompt(step: Step) -> None:
+    """Display the step prompt/suggestion."""
+    _console.print(f"  {step.prompt}")
+    _console.print()
+
+
+def _show_feedback(step: Step) -> None:
+    """Display feedback after a successful step."""
+    _console.print()
+    _console.print(f"  [green]\u2713[/green] {step.feedback}")
+    _console.print()
+
+
+def _show_outro() -> None:
+    """Display the tour outro."""
+    _console.print()
+    outro = Text.from_markup(
+        "[bold]That's bt.[/bold] Capture fast, act by number, plan each morning.\n"
+        "\n"
+        "  [bold cyan]bt -i[/bold cyan]      interactive mode (like this tour)\n"
+        "  [bold]bt t[/bold] call mom  in the terminal, prefix with bt\n"
+        "  [bold]bt init[/bold]     set up AI features (search, chat, analysis)\n"
+        "\n"
+        "  [dim]Cheat sheet:[/dim] [bold]bt start[/bold]  \u00b7  [dim]Full help:[/dim] [bold]bt -h[/bold]"
+    )
+    _console.print(Panel(outro, border_style="green", padding=(1, 2)))
+    _console.print()
+
+
+def run_tour(ctx: click.Context) -> None:
+    """Run the interactive guided tour."""
+    from bute.config import ensure_data_dirs
+    config = ctx.obj.get("config")
+    ensure_data_dirs(config)
+
+    _console.print()
+    _console.print("  [bold]Welcome to bt![/bold] Let's learn the basics by doing.")
+    _console.print("  [dim]Type /skip to skip a section, /done to finish early.[/dim]")
+
+    start_phase = load_tour_progress()
+
+    for phase_idx in range(start_phase, len(PHASES)):
+        phase = PHASES[phase_idx]
+        save_tour_progress(phase_idx)
+
+        # Dynamic prompt for Phase 6 (Tag Filter) — suggest a real tag
+        if phase.name == "Tag Filter":
+            used_tags = _get_used_tags(config)
+            if used_tags:
+                tag = used_tags[0]
+                phase.steps[0].prompt = f"Type: [bold]@{tag}[/bold]"
+            else:
+                phase.steps[0].prompt = "Type: [bold]@health[/bold]"
+
+        _show_phase_intro(phase)
+
+        skip_phase = False
+        for step in phase.steps:
+            if step.prompt:
+                _show_step_prompt(step)
+
+            while True:
+                try:
+                    user_input = input("> ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    _console.print()
+                    _console.print("  [dim]Tour paused. Run [bold]bt[/bold] to pick up where you left off.[/dim]")
+                    save_tour_progress(phase_idx)
+                    return
+
+                if not user_input:
+                    if step.prompt:
+                        _show_step_prompt(step)
+                    continue
+
+                if user_input == "/done":
+                    mark_tour_done()
+                    _show_outro()
+                    return
+
+                if user_input == "/skip":
+                    skip_phase = True
+                    break
+
+                # Parse and execute the command
+                args = user_input.split()
+                if args and args[0] == "bt":
+                    args = args[1:]
+
+                # "bt" with no args — show Focus Log directly (avoid re-triggering tour)
+                if not args:
+                    _show_focus_log(config)
+                else:
+                    _execute_command(args, ctx)
+
+                # Validate
+                if step.validate(user_input, config):
+                    _show_feedback(step)
+                    break
+                else:
+                    # Command ran but didn't match expected action
+                    if step.hint:
+                        _console.print(f"  [dim]{step.hint}[/dim]")
+                    elif step.prompt:
+                        _show_step_prompt(step)
+
+            if skip_phase:
+                break
+
+    # All phases complete
+    mark_tour_done()
+    _show_outro()
