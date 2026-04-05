@@ -280,7 +280,9 @@ def autotag_cmd(ctx):
             console.print(f"  [dim]AI: {response}[/dim]\n")
             continue
 
-        console.print(f"  Suggested: [bold]{' '.join(f'@{t}' for t in suggested)}[/bold]")
+        # Display numbered suggestions
+        numbered = "  ".join(f"[bold]{j}[/bold] @{t}" for j, t in enumerate(suggested, 1))
+        console.print(f"  Suggested: {numbered}")
 
         if accept_all:
             entry.tags.extend(suggested)
@@ -289,37 +291,50 @@ def autotag_cmd(ctx):
             tagged_count += 1
             continue
 
-        choice = click.prompt(
-            "  ",
-            type=click.Choice(["a", "e", "s", "A", "q"], case_sensitive=True),
-            prompt_suffix="[a]ccept  [e]dit  [s]kip  [A]ccept all  [q]uit > ",
-            default="a",
-            show_choices=False,
-        )
+        # Unified prompt: numbers to pick, @tag to add custom, a/A/s/q
+        console.print("  [dim]Numbers to pick, @tag to add, [a]ll [A]ccept remaining [s]kip [q]uit[/dim]")
+        user_input = click.prompt("  ", default="a", prompt_suffix="> ").strip()
 
-        if choice == "a":
-            entry.tags.extend(suggested)
-            update_entry(entry, config)
-            console.print(f"  [green]✓ {' '.join(f'@{t}' for t in suggested)}[/green]\n")
-            tagged_count += 1
-        elif choice == "e":
-            tags_input = click.prompt("  Tags", default=" ".join(f"@{t}" for t in suggested)).strip()
-            tags = [t.lstrip("@").strip() for t in tags_input.split() if t.lstrip("@").strip()]
-            if tags:
-                entry.tags.extend(tags)
-                update_entry(entry, config)
-                console.print(f"  [green]✓ {' '.join(f'@{t}' for t in tags)}[/green]\n")
-                tagged_count += 1
-            else:
-                console.print()
-        elif choice == "A":
+        if user_input == "q":
+            break
+        elif user_input == "s":
+            console.print()
+            continue
+        elif user_input == "A":
             accept_all = True
             entry.tags.extend(suggested)
             update_entry(entry, config)
             console.print(f"  [green]✓ {' '.join(f'@{t}' for t in suggested)}[/green]\n")
             tagged_count += 1
-        elif choice == "q":
-            break
+            continue
+        elif user_input == "a":
+            tags = list(suggested)
+        else:
+            # Parse mixed input: numbers + @tags
+            tags = []
+            for tok in user_input.split():
+                if tok.isdigit():
+                    idx = int(tok) - 1
+                    if 0 <= idx < len(suggested):
+                        tags.append(suggested[idx])
+                elif tok.startswith("@") and len(tok) > 1:
+                    tags.append(tok[1:])
+                else:
+                    # Bare word — treat as tag
+                    tags.append(tok)
+
+        if tags:
+            # Deduplicate while preserving order
+            seen = set()
+            unique = []
+            for t in tags:
+                if t not in seen:
+                    seen.add(t)
+                    unique.append(t)
+            entry.tags.extend(unique)
+            update_entry(entry, config)
+            console.print(f"  [green]✓ {' '.join(f'@{t}' for t in unique)}[/green]\n")
+            tagged_count += 1
         else:
             console.print()
 
