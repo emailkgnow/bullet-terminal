@@ -140,11 +140,17 @@ class DwnGroup(click.Group):
             if subcommand == "analyze":
                 cmd = self.get_command(ctx, "analyze_tag")
                 if cmd is not None:
-                    return "analyze_tag", cmd, [tag_name]
+                    cmd_args = include_tags
+                    for ex in exclude_tags:
+                        cmd_args.extend(["--exclude", ex])
+                    return "analyze_tag", cmd, cmd_args
             elif subcommand == "map":
                 cmd = self.get_command(ctx, "map_tag")
                 if cmd is not None:
-                    return "map_tag", cmd, [tag_name]
+                    cmd_args = include_tags
+                    for ex in exclude_tags:
+                        cmd_args.extend(["--exclude", ex])
+                    return "map_tag", cmd, cmd_args
             else:
                 cmd = self.get_command(ctx, "tag_filter")
                 if cmd is not None:

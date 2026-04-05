@@ -30,6 +30,20 @@ def _load_tagged_entries(tag: str, config=None):
     return query_and_load(config, tag=tag)
 
 
+def _load_filtered_entries(include_tags: list[str], exclude_tags: list[str], config=None):
+    """Load entries matching all include tags, excluding all exclude tags."""
+    from bute.storage import query_and_load
+
+    if not include_tags:
+        return []
+    entries = query_and_load(config, tag=include_tags[0])
+    for tag in include_tags[1:]:
+        entries = [e for e in entries if tag in e.tags]
+    for tag in exclude_tags:
+        entries = [e for e in entries if tag not in e.tags]
+    return entries
+
+
 def _run_analyze(tag: str, entries, config, *, label: str | None = None) -> str | None:
     """Run the analyze stage. Returns analysis text or None if rejected.
 
@@ -85,41 +99,56 @@ def _run_analyze(tag: str, entries, config, *, label: str | None = None) -> str 
 
 
 @click.command("analyze_tag", hidden=True)
-@click.argument("tag_name")
+@click.argument("tags", nargs=-1)
+@click.option("--exclude", "-x", multiple=True)
 @click.pass_context
-def analyze_tag_cmd(ctx, tag_name):
-    """AI analyzes all entries with the given tag."""
+def analyze_tag_cmd(ctx, tags, exclude):
+    """AI analyzes entries matching tag filters."""
     config = ctx.obj.get("config")
+    include_tags = list(tags)
+    exclude_tags = list(exclude)
 
-    entries = _load_tagged_entries(tag_name, config)
+    entries = _load_filtered_entries(include_tags, exclude_tags, config)
+    label = " ".join(f"@{t}" for t in include_tags)
+    if exclude_tags:
+        label += " " + " ".join(f"-@{t}" for t in exclude_tags)
+
     if not entries:
-        console.print(f"  [dim]No entries found with @{tag_name}.[/dim]")
+        console.print(f"  [dim]No entries found with {label}.[/dim]")
         return
 
-    _run_analyze(tag_name, entries, config)
+    tag_for_stage = include_tags[0] if len(include_tags) == 1 and not exclude_tags else ""
+    _run_analyze(tag_for_stage, entries, config, label=label if not tag_for_stage else None)
 
 
 @click.command("map_tag", hidden=True)
-@click.argument("tag_name")
+@click.argument("tags", nargs=-1)
+@click.option("--exclude", "-x", multiple=True)
 @click.pass_context
-def map_tag_cmd(ctx, tag_name):
+def map_tag_cmd(ctx, tags, exclude):
     """Render a mind map for a tag — uses existing analysis or runs one on the fly."""
     from bute.display import display_analyze_map
 
     config = ctx.obj.get("config")
+    include_tags = list(tags)
+    exclude_tags = list(exclude)
 
-    # Check for existing analysis
-    stage_row = get_tag_stage(tag_name, config=config)
-    analysis = stage_row["analysis"] if stage_row else None
+    label = " ".join(f"@{t}" for t in include_tags)
+    if exclude_tags:
+        label += " " + " ".join(f"-@{t}" for t in exclude_tags)
 
-    if analysis:
-        display_analyze_map(tag_name, analysis)
-        return
+    # Check for existing analysis (only for single-tag, no excludes)
+    if len(include_tags) == 1 and not exclude_tags:
+        stage_row = get_tag_stage(include_tags[0], config=config)
+        analysis = stage_row["analysis"] if stage_row else None
+        if analysis:
+            display_analyze_map(include_tags[0], analysis)
+            return
 
     # No analysis — run one on the fly
-    entries = _load_tagged_entries(tag_name, config)
+    entries = _load_filtered_entries(include_tags, exclude_tags, config)
     if not entries:
-        console.print(f"  [dim]No entries found with @{tag_name}.[/dim]")
+        console.print(f"  [dim]No entries found with {label}.[/dim]")
         return
 
     from bute.ai import _LLM_INSTALL_MSG, is_llm_available, llm_send
@@ -129,11 +158,11 @@ def map_tag_cmd(ctx, tag_name):
         console.print(_LLM_INSTALL_MSG)
         return
 
-    console.print(f"  [dim]Analyzing {len(entries)} entries for @{tag_name}...[/dim]")
+    console.print(f"  [dim]Analyzing {len(entries)} entries for {label}...[/dim]")
     formatted = format_entries(entries)
-    response = llm_send(analyze_prompt(), f"Tag: \"@{tag_name}\"\n\nEntries:\n{formatted}", config)
+    response = llm_send(analyze_prompt(), f"Tag: \"{label}\"\n\nEntries:\n{formatted}", config)
 
-    display_analyze_map(tag_name, response)
+    display_analyze_map(label, response)
 
     # Offer to save
     if click.confirm("\n  Save this analysis?", default=True):
@@ -142,16 +171,19 @@ def map_tag_cmd(ctx, tag_name):
         from bute.models import Entry, EntryType
         from bute.storage import save_entry
 
-        upsert_tag_stage(tag_name, "analyzed", analysis=response, config=config)
+        tag_for_stage = include_tags[0] if len(include_tags) == 1 and not exclude_tags else None
+        if tag_for_stage:
+            upsert_tag_stage(tag_for_stage, "analyzed", analysis=response, config=config)
 
+        note_tags = include_tags + ["ai-analysis"]
         entry = Entry.create(
             entry_type=EntryType.NOTE,
-            body=_format_analysis_for_note(tag_name, response),
-            tags=[tag_name, "ai-analysis"],
+            body=_format_analysis_for_note(label, response),
+            tags=note_tags,
         )
         save_entry(entry, config)
         embed_entry(entry.id, entry.body, config)
         confirm_capture(entry)
-        console.print(f"  [green]@{tag_name} → analyzed[/green]")
+        console.print(f"  [green]{label} → analyzed[/green]")
 
 
