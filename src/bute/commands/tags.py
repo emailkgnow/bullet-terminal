@@ -292,7 +292,7 @@ def autotag_cmd(ctx):
             continue
 
         # Unified prompt: numbers to pick, @tag to add custom, a/A/s/q
-        console.print("  [dim]Numbers to pick, @tag to add, [a]ll [A]ccept remaining [s]kip [q]uit[/dim]")
+        console.print("  [dim]Numbers to pick, @tag to add, a=all  A=accept remaining  s=skip  q=quit[/dim]")
         user_input = click.prompt("  ", default="a", prompt_suffix="> ").strip()
 
         if user_input == "q":
