@@ -66,25 +66,6 @@ class Phase:
 # Storage helpers (lazy imports to avoid circular dependencies)
 # ---------------------------------------------------------------------------
 
-def _has_new_entry(entry_type: str, config) -> bool:
-    """Check if at least one entry of the given type exists."""
-    from bute.storage import load_entries_by_filter
-    from bute.models import EntryType
-    type_map = {"task": EntryType.TASK, "note": EntryType.NOTE,
-                "journal": EntryType.JOURNAL, "calendar": EntryType.CALENDAR}
-    et = type_map.get(entry_type)
-    if not et:
-        return False
-    entries = load_entries_by_filter(lambda e: e.type == et, config)
-    return len(entries) > 0
-
-
-def _count_entries(config) -> int:
-    """Count total entries."""
-    from bute.storage import load_entries_by_filter
-    return len(load_entries_by_filter(lambda e: True, config))
-
-
 def _last_entry(config):
     """Return the most recently created entry, or None."""
     from bute.storage import load_entries_by_filter
@@ -455,20 +436,23 @@ def run_tour(ctx: click.Context) -> None:
         save_tour_progress(phase_idx)
 
         # Dynamic prompt for Phase 6 (Tag Filter) — suggest a real tag
+        tag_filter_prompt = None
         if phase.name == "Tag Filter":
             used_tags = _get_used_tags(config)
             if used_tags:
-                tag = used_tags[0]
-                phase.steps[0].prompt = f"Type: [bold]@{tag}[/bold]"
+                tag_filter_prompt = f"Type: [bold]@{used_tags[0]}[/bold]"
             else:
-                phase.steps[0].prompt = "Type: [bold]@health[/bold]"
+                tag_filter_prompt = "Type: [bold]@health[/bold]"
 
         _show_phase_intro(phase)
 
         skip_phase = False
-        for step in phase.steps:
-            if step.prompt:
-                _show_step_prompt(step)
+        for step_idx, step in enumerate(phase.steps):
+            # Use dynamic prompt for Tag Filter phase
+            prompt = tag_filter_prompt if (phase.name == "Tag Filter" and step_idx == 0) else step.prompt
+            if prompt:
+                _console.print(f"  {prompt}")
+                _console.print()
 
             while True:
                 try:
@@ -480,8 +464,9 @@ def run_tour(ctx: click.Context) -> None:
                     return
 
                 if not user_input:
-                    if step.prompt:
-                        _show_step_prompt(step)
+                    if prompt:
+                        _console.print(f"  {prompt}")
+                        _console.print()
                     continue
 
                 if user_input == "/done":
@@ -512,8 +497,9 @@ def run_tour(ctx: click.Context) -> None:
                     # Command ran but didn't match expected action
                     if step.hint:
                         _console.print(f"  [dim]{step.hint}[/dim]")
-                    elif step.prompt:
-                        _show_step_prompt(step)
+                    elif prompt:
+                        _console.print(f"  {prompt}")
+                        _console.print()
 
             if skip_phase:
                 break

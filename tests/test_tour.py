@@ -63,6 +63,20 @@ from click.testing import CliRunner
 from bute.cli import main
 
 
+def test_tour_runs_on_empty_system(runner, tmp_config, tmp_data):
+    """Tour triggers when no entries exist and tour not done."""
+    result = runner.invoke(main, [], input="/done\n")
+    assert result.exit_code == 0
+    assert "Tasks" in result.output  # Phase 1 intro
+
+
+def test_tour_skips_when_done(runner, tmp_config, tmp_data):
+    """Tour does not trigger when .tour_done marker exists."""
+    mark_tour_done()
+    result = runner.invoke(main, [], input="")
+    assert "Tasks are things" not in result.output
+
+
 def test_tour_phase1_capture(runner, tmp_config, tmp_data):
     """Capturing a task in phase 1 advances the step."""
     result = runner.invoke(main, [], input="t call dentist\n/done\n")
