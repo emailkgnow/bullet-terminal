@@ -42,6 +42,10 @@ def test_dp_non_interactive_no_tasks(runner, tmp_config, tmp_data):
     assert result.exit_code == 0
     assert "No active tasks" in result.output
     assert "Ready" in result.output
+    # Old phases should NOT appear
+    assert "Dump" not in result.output
+    assert "Yesterday" not in result.output
+    assert "Schedule" not in result.output
 
 
 def test_dp_non_interactive_marks_done(runner, tmp_config, tmp_data):
@@ -51,7 +55,7 @@ def test_dp_non_interactive_marks_done(runner, tmp_config, tmp_data):
     _setup_config(tmp_config, tmp_data)
     result = runner.invoke(main, ["dp", "--non-interactive"])
     assert result.exit_code == 0
-    assert is_dyts_done_today(tmp_data) or is_dyts_done_today()
+    assert is_dyts_done_today()
 
 
 # --- Weekly Plan (wp) command tests ---
