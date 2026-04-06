@@ -128,11 +128,20 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
     return str(i), icon, body, meta
 
 
+def _display_sort_key(e: Entry) -> tuple[bool, bool]:
+    """Sort key: important active → regular active → done/dropped."""
+    is_resolved = e.status in (TaskStatus.DONE, TaskStatus.DROPPED)
+    return (is_resolved, not e.important)
+
+
 def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | None = None) -> None:
     """Render a numbered list of entries as a Rich Table."""
     if not entries:
         console.print(f"  [dim]No entries found.[/dim]")
         return
+
+    # Stable sort: important first, done/dropped last
+    entries.sort(key=_display_sort_key)
 
     table = Table(
         title=title or None,
@@ -174,9 +183,9 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
             grouped[date_key] = []
         grouped[date_key].append(entry)
 
-    # Important entries first within each date group (stable sort preserves existing order)
+    # Important first, done/dropped last within each date group (stable sort)
     for items in grouped.values():
-        items.sort(key=lambda e: not e.important)
+        items.sort(key=_display_sort_key)
 
     # Rebuild entries list in display order so caller's state matches
     entries.clear()
