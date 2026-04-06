@@ -23,12 +23,6 @@ exported on {date}.
 entries/          Your entries — tasks, notes, journals, calendar events
   YYYY-MM/        Organized by month
     <ULID>.md     One Markdown file per entry (YAML frontmatter + body)
-
-collections/      Your collections — idea-to-action funnels
-  <name>.md       One file per collection (Input/Analysis/Tasks sections)
-
-habits/           Your habit tracking data
-  <name>/         One folder per habit
 ```
 
 ## Entry Format
@@ -59,12 +53,6 @@ The entry body text goes here.
   grow over time. ULIDs encode their creation timestamp, so entries
   naturally sort chronologically within each folder.
 
-- **Collections** are sectioned Markdown files that progress through
-  stages: raw input -> AI analysis -> sequenced tasks. Each stage
-  appends a new section, preserving the full trail.
-
-- **Habits** store daily check-in data as simple files.
-
 ## Using This Export
 
 These are plain Markdown files. You can:
@@ -89,7 +77,7 @@ Bullet Terminal: https://github.com/emailkgnow/bullet-terminal
               help="Output directory (default: current directory).")
 @click.pass_context
 def export_cmd(ctx, output_dir):
-    """Export all entries, collections, and habits as a zip file."""
+    """Export all entries as a zip file."""
     config = ctx.obj.get("config")
     data_dir = get_data_dir(config)
 
@@ -110,7 +98,7 @@ def export_cmd(ctx, output_dir):
         zip_path = out_path / zip_name
 
     # Collect files from user data directories
-    include_dirs = ["entries", "collections", "habits"]
+    include_dirs = ["entries"]
     files_to_zip: list[tuple[Path, str]] = []
 
     for dirname in include_dirs:
