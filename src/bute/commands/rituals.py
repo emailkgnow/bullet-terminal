@@ -7,21 +7,17 @@ from rich.console import Console
 
 from bute.display import (
     confirm_capture,
-    display_action_confirmation,
     display_entry_list,
     display_ritual_header,
 )
-from bute.models import Entry, TaskStatus
 from bute.ritual_ops import (
     clear_weekly_selection,
     get_all_active_tasks,
-    get_today_schedule,
     get_weekly_active_tasks,
     get_yesterday_unresolved,
     process_dump_line,
     set_weekly_selection,
 )
-from bute.state import save_state
 from bute.storage import update_entry
 
 console = Console()
@@ -34,116 +30,51 @@ console = Console()
 @click.option("-y", "--non-interactive", is_flag=True, help="Skip prompts.")
 @click.pass_context
 def dp_cmd(ctx, non_interactive):
-    """Morning ritual — Dump, Yesterday, Tasks, Schedule."""
+    """Morning ritual — pick today's tasks from weekly focus."""
     config = ctx.obj.get("config")
 
-    # --- D: Dump ---
-    display_ritual_header("D · Dump", "Get everything out of your head")
+    display_ritual_header("Daily Plan", "Pick your focus for today")
 
-    if non_interactive:
-        console.print("  [dim]Skipped (non-interactive)[/dim]")
-    else:
-        console.print("  [dim]What's on your mind? Tasks, thoughts, anything.[/dim]")
-        console.print("  [dim]Prefix with[/dim] [cyan]t[/cyan] [yellow]n[/yellow] [magenta]j[/magenta] [green]c[/green] [dim]for type. No prefix = journal.[/dim]")
-        console.print("  [dim]Blank line when done.[/dim]")
-        dump_count = 0
-        while True:
-            try:
-                line = click.prompt("", prompt_suffix="  > ", default="", show_default=False)
-            except (EOFError, click.Abort):
-                break
-            if not line.strip():
-                if dump_count == 0:
-                    console.print("  [dim]Nothing to dump — clear head. Moving on.[/dim]")
-                break
-            entry = process_dump_line(line, config, auto_tags=["thisweek"])
-            if entry:
-                confirm_capture(entry)
-                dump_count += 1
-
-    # --- Y: Yesterday ---
-    display_ritual_header("Y · Yesterday", "Unfinished from yesterday")
-
+    # 1. Gather yesterday's unresolved tasks
     yesterday = get_yesterday_unresolved(config)
-    if not yesterday:
-        console.print("  [dim]Nothing carried from yesterday.[/dim]")
-    else:
-        display_entry_list(yesterday, "")
-        if not non_interactive:
-            for i, entry in enumerate(yesterday, 1):
-                choice = click.prompt(
-                    f"  {i}. {entry.body}",
-                    type=click.Choice(["k", "d", "x", "l"], case_sensitive=False),
-                    prompt_suffix=" [k]eep [d]rop [x]done [l]ater > ",
-                    default="k",
-                    show_choices=False,
-                )
-                if choice == "k":
-                    if "today" not in entry.tags:
-                        entry.tags.append("today")
-                    update_entry(entry, config)
-                    display_action_confirmation(entry, "keep → today")
-                elif choice == "d":
-                    entry.status = TaskStatus.DROPPED
-                    update_entry(entry, config)
-                    display_action_confirmation(entry, "drop")
-                elif choice == "x":
-                    entry.status = TaskStatus.DONE
-                    update_entry(entry, config)
-                    display_action_confirmation(entry, "done")
-                elif choice == "l":
-                    if "today" in entry.tags:
-                        entry.tags.remove("today")
-                        update_entry(entry, config)
-                    display_action_confirmation(entry, "later")
+    yesterday_ids = {e.id for e in yesterday}
 
+    # 2. Gather weekly/backlog pool (excluding yesterday dupes)
+    pool = get_weekly_active_tasks(config)
+    pool = [e for e in pool if e.id not in yesterday_ids]
 
-    # --- T: Tasks ---
-    display_ritual_header("T · Tasks", "Pick your focus for today")
+    all_tasks = yesterday + pool
 
-    active = get_weekly_active_tasks(config)
-    if not active:
+    if not all_tasks:
         console.print("  [dim]No active tasks.[/dim]")
-        if not non_interactive:
-            console.print("  [dim]Capture some with[/dim] [cyan]bt t <task>[/cyan] [dim]or add them now:[/dim]")
-            while True:
-                try:
-                    line = click.prompt("", prompt_suffix="  t > ", default="", show_default=False)
-                except (EOFError, click.Abort):
-                    break
-                if not line.strip():
-                    break
-                entry = process_dump_line(f"t {line}", config, auto_tags=["thisweek"])
-                if entry:
-                    confirm_capture(entry)
-            active = get_weekly_active_tasks(config)
     else:
-        display_entry_list(active, "")
-        save_state("dyts_tasks", [e.id for e in active], config)
-
         if non_interactive:
-            console.print("  [dim]Skipped selection (non-interactive)[/dim]")
+            display_entry_list(all_tasks, "")
         else:
             try:
                 import questionary
 
-                choices = [
-                    questionary.Choice(
-                        f"{e.body}" + (" [today]" if "today" in e.tags else ""),
-                        value=e.id,
-                        checked="today" in e.tags,
-                    )
-                    for e in active
-                ]
+                choices = []
+                for e in yesterday:
+                    label = f"\u21a9 {e.body}"
+                    choices.append(questionary.Choice(
+                        label, value=e.id, checked="today" in e.tags,
+                    ))
+                for e in pool:
+                    choices.append(questionary.Choice(
+                        e.body, value=e.id, checked="today" in e.tags,
+                    ))
+
                 selected = questionary.checkbox(
                     "Select tasks for today:", choices=choices
                 ).ask()
+
                 if selected is not None:
                     from bute.storage import entry_path_from_id, load_entry
 
-                    # Tag newly selected, untag deselected
                     selected_set = set(selected)
-                    for e in active:
+                    count = 0
+                    for e in all_tasks:
                         path = entry_path_from_id(e.id, config)
                         if not path:
                             continue
@@ -151,80 +82,14 @@ def dp_cmd(ctx, non_interactive):
                         if e.id in selected_set and "today" not in entry.tags:
                             entry.tags.append("today")
                             update_entry(entry, config)
+                            count += 1
                         elif e.id not in selected_set and "today" in entry.tags:
                             entry.tags.remove("today")
                             update_entry(entry, config)
                     console.print(f"  [green]{len(selected)} tasks tagged for today[/green]")
             except ImportError:
                 console.print("  [dim]questionary not available — skipping selection[/dim]")
-
-    # --- S: Schedule ---
-    display_ritual_header("S · Schedule", "Today's events")
-
-    schedule = get_today_schedule(config)
-    if not schedule:
-        console.print("  [dim]Nothing scheduled today.[/dim]")
-    else:
-        display_entry_list(schedule, "")
-        if not non_interactive:
-            # Let user pick which events to tag for today's log
-            for i, entry in enumerate(schedule, 1):
-                if "today" not in entry.tags:
-                    choice = click.prompt(
-                        f"  {i}. {entry.body}",
-                        type=click.Choice(["y", "n"], case_sensitive=False),
-                        prompt_suffix=" include in today's log? [y]es [n]o > ",
-                        default="y",
-                        show_choices=False,
-                    )
-                    if choice == "y":
-                        entry.tags.append("today")
-                        update_entry(entry, config)
-
-    if not non_interactive:
-        console.print("  [dim]Any new events? Blank to skip.[/dim]")
-        while True:
-            try:
-                line = click.prompt("", prompt_suffix="  c > ", default="", show_default=False)
-            except (EOFError, click.Abort):
-                break
-            if not line.strip():
-                break
-            entry = process_dump_line(f"c {line}", config)
-            if entry:
-                confirm_capture(entry)
-
-    # --- H: Habits ---
-    from bute.commands.habits import _get_habit_entries
-
-    habit_entries = _get_habit_entries(config)
-
-    if habit_entries:
-        display_ritual_header("H · Habits", "Check in on your habits")
-
-        today = date.today()
-        today_iso = today.isoformat()
-
-        if non_interactive:
-            from bute.display import display_habit_line_entries
-            display_habit_line_entries(habit_entries, today)
-        else:
-            for entry in habit_entries:
-                if entry.is_completed_for_date(today):
-                    console.print(f"  [green]●[/green] {entry.body} [dim](done)[/dim]")
-                    continue
-
-                choice = click.prompt(
-                    f"  ○ {entry.body}",
-                    type=click.Choice(["y", "s"], case_sensitive=False),
-                    prompt_suffix=" [y]es [s]kip > ",
-                    default="s",
-                    show_choices=False,
-                )
-                if choice == "y":
-                    entry.completions.append(today_iso)
-                    update_entry(entry, config)
-                    console.print(f"  [green]●[/green] {entry.body}")
+                display_entry_list(all_tasks, "")
 
     from bute.state import mark_dyts_done
     mark_dyts_done(config)
