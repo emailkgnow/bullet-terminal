@@ -18,27 +18,40 @@ def _setup_config(tmp_config, tmp_data):
 # --- Daily Plan (dp) command tests ---
 
 
-def test_dp_non_interactive(runner, tmp_config, tmp_data):
+def test_dp_non_interactive_shows_tasks(runner, tmp_config, tmp_data):
+    """dp -y shows weekly tasks and marks daily plan done."""
     _setup_config(tmp_config, tmp_data)
-    e = Entry.create(EntryType.TASK, "test task", tags=["thisweek"])
+    e = Entry.create(EntryType.TASK, "deploy staging", tags=["thisweek"])
     save_entry(e)
 
     result = runner.invoke(main, ["dp", "--non-interactive"])
     assert result.exit_code == 0
-    assert "Dump" in result.output
-    assert "Yesterday" in result.output
-    assert "Tasks" in result.output
-    assert "Schedule" in result.output
+    assert "Daily Plan" in result.output
+    assert "deploy staging" in result.output
+    assert "Ready" in result.output
+    # Old phases should NOT appear
+    assert "Dump" not in result.output
+    assert "Yesterday" not in result.output
+    assert "Schedule" not in result.output
+
+
+def test_dp_non_interactive_no_tasks(runner, tmp_config, tmp_data):
+    """dp -y with no active tasks shows empty message."""
+    _setup_config(tmp_config, tmp_data)
+    result = runner.invoke(main, ["dp", "--non-interactive"])
+    assert result.exit_code == 0
+    assert "No active tasks" in result.output
     assert "Ready" in result.output
 
 
-def test_dp_shows_schedule(runner, tmp_config, tmp_data):
-    _setup_config(tmp_config, tmp_data)
-    e = Entry.create(EntryType.CALENDAR, "standup", scheduled_time="10:00")
-    save_entry(e)
+def test_dp_non_interactive_marks_done(runner, tmp_config, tmp_data):
+    """dp -y marks daily plan as done so bt shows Focus Log."""
+    from bute.state import is_dyts_done_today
 
+    _setup_config(tmp_config, tmp_data)
     result = runner.invoke(main, ["dp", "--non-interactive"])
-    assert "standup" in result.output
+    assert result.exit_code == 0
+    assert is_dyts_done_today(tmp_data) or is_dyts_done_today()
 
 
 # --- Weekly Plan (wp) command tests ---
