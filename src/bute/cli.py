@@ -322,7 +322,7 @@ def _print_help():
     t.add_column("Command", style="bold", no_wrap=True)
     t.add_column("What it does")
     t.add_column("Notes", style="dim")
-    t.add_row("bt dp", "Daily plan — morning ritual", "-y for non-interactive")
+    t.add_row("bt dp", "Daily plan — pick today's tasks", "-y for non-interactive")
     t.add_row("bt wp", "Weekly plan — select tasks for the week", "-y for non-interactive")
     t.add_row("bt dump", "Rapid-fire tasks into Backlog", "")
     t.add_row("bt recap <period>", "AI analysis of a period", "bt recap week/month/year")

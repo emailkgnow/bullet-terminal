@@ -167,7 +167,7 @@ bute tags                           # list all tags with stage and count
 **Rituals**:
 ```
 bute                # entry point — DYTS if not done today, else Focus Log
-bute dp             # morning ritual (Dump, Yesterday, Tasks, Schedule)
+bute dp             # morning ritual — pick today's tasks
 bute wp             # weekly plan — select tasks for the week
 bute recap week     # AI analysis of a period (day, week, month, year)
 bute habit <name>   # track habits
@@ -186,7 +186,7 @@ bute init           # first-run setup (pick AI provider)
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. DYTS Y phase handles yesterday's unfinished items.
 - **Tags have a dual role** — `@tag` as label (organizes entries) and `@tag` as thinking tool (`analyze` clusters the group via AI). The `+collection` syntax was removed — tags absorbed collections. Stage tracking (raw → analyzed) lives in the `tag_stages` SQLite table.
 - **Logs are derived** — no stored files. Focus Log (`bt`), daily log (`bt d`), weekly log (`bt w`), monthly log (`bt m`) all query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label).
-- **`bute` with no args** = DYTS entry point. If DYTS done today, shows Focus Log.
+- **`bute` with no args** = Daily Plan entry point. If daily plan done today, shows Focus Log.
 - **Focus Log (`bt`)** — what matters today: `@today` tasks, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bute b`) or Tasks (`bute t`). Curated and active-only — distinct from Daily Log (`bt d`) which shows everything retrospectively.
 - **Task views**: `bt t` (Tasks) shows `@thisweek` focus tasks. `bt b` (Backlog) shows all active tasks. The flow is: backlog → weekly plan → tasks → Focus Log.
 - **`bute wp`** includes task dump phase — add tasks before selecting for the week.
@@ -224,7 +224,7 @@ bute init           # first-run setup (pick AI provider)
 ### Onboarding
 - ~~**Guided tour — first-run onboarding**~~ ✓ Done — interactive REPL teaches core concepts on first `bt` run. 11 phases: capture → see → organize → act → plan.
 - **AI tour** — triggered after `bt init` configures an AI provider. Teaches search, chat, recap, nudges, analyze, tag-notes using real entries.
-- **Redesign Daily Plan (`dp`)** — decompose Dump into individual entry types (t, n, j, c) mirroring the tour's layered approach. Rename to "Focus Process" since it flows into the Focus Log.
+- ~~**Redesign Daily Plan (`dp`)**~~ ✓ Done — simplified to single-phase task picker. Yesterday's unresolved highlighted at top, @thisweek/backlog pool below.
 
 ### Infrastructure
 - **`bt this` — capture Claude Code chat into bt** — add a Claude Code hook or slash command so `bt this` saves the current conversation's markdown export as a bt note. Turns ephemeral AI chats into searchable, tagged entries in the bt system.
