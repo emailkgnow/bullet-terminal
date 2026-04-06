@@ -44,7 +44,7 @@ def get_today_schedule(config=None) -> list[Entry]:
 
 
 def get_daily_log(config=None) -> list[Entry]:
-    """The daily log — today's focus view.
+    """The Focus Log — what matters today.
 
     Shows:
     - Tasks tagged @today only

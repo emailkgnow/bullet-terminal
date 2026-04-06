@@ -237,8 +237,8 @@ def _show_random_journal(config, offset: int = 0) -> str | None:
     from rich.console import Console
     console = Console()
     console.print()
-    console.print(f"  [dim]{num:>3}  = {_preview(entry.body)}[/dim]")
-    console.print(f"  [dim]     {entry_date} · bt -j to toggle[/dim]")
+    console.print(f"  [dim italic]{num:>3}  = {_preview(entry.body)}[/dim italic]")
+    console.print(f"  [dim italic]     {entry_date} · bt -j to toggle[/dim italic]")
     return entry.id
 
 

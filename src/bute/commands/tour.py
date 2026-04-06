@@ -425,6 +425,11 @@ def run_tour(ctx: click.Context) -> None:
     config = ctx.obj.get("config")
     ensure_data_dirs(config)
 
+    # Pre-initialize the DB so _auto_rebuild doesn't fire mid-tour
+    # (no .md files exist yet, so it's a no-op)
+    from bute.db import get_connection
+    get_connection(config)
+
     _console.print()
     _console.print("  [bold]Welcome to bt![/bold] Let's learn the basics by doing.")
     _console.print("  [dim]Type /skip to skip a section, /done to finish early.[/dim]")
