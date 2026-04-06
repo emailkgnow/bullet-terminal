@@ -73,7 +73,6 @@ def dp_cmd(ctx, non_interactive):
                     from bute.storage import entry_path_from_id, load_entry
 
                     selected_set = set(selected)
-                    count = 0
                     for e in all_tasks:
                         path = entry_path_from_id(e.id, config)
                         if not path:
@@ -82,7 +81,6 @@ def dp_cmd(ctx, non_interactive):
                         if e.id in selected_set and "today" not in entry.tags:
                             entry.tags.append("today")
                             update_entry(entry, config)
-                            count += 1
                         elif e.id not in selected_set and "today" in entry.tags:
                             entry.tags.remove("today")
                             update_entry(entry, config)
