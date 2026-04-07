@@ -316,15 +316,6 @@ def daily_log_cmd(ctx, period):
 
     entries = load_entries_by_date(target, config)
 
-    # Also include tasks tagged @today from other days (for today only)
-    if target == today:
-        today_tasks = query_and_load(config, type="task", tag="today")
-        seen = {e.id for e in entries}
-        for e in today_tasks:
-            if e.id not in seen:
-                seen.add(e.id)
-                entries.append(e)
-
     if not entries:
         console.print(f"  [dim]No entries for {title}.[/dim]")
         return

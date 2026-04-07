@@ -469,7 +469,12 @@ def main(ctx, interactive, demo, toggle_journal):
             from bute.state import save_state
 
             entries = get_daily_log(config)
-            display_entry_list(entries, f"Focus Log — {date.today().strftime('%a %b %d')}", hide_tags={"today", "thisweek"})
+            from bute.models import EntryType as _ET
+            has_tasks = any(e.type == _ET.TASK for e in entries)
+            title = f"Focus Log — {date.today().strftime('%a %b %d')}"
+            if not has_tasks:
+                title = f"[strike]{title}[/strike]"
+            display_entry_list(entries, title, hide_tags={"today", "thisweek"})
 
             # Show habits
             from bute.commands.views import _show_habits

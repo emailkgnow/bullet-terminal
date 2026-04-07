@@ -107,14 +107,8 @@ def handle_mod(entry: Entry, args: list[str], config) -> None:
     update_entry(entry, config)
 
 
-def handle_edit(entry: Entry, args: list[str], config) -> None:
-    """Open entry in $EDITOR for full editing."""
-    path = entry_path_from_id(entry.id, config)
-    if path is None:
-        raise DwnError("Entry file not found.")
-    editor = os.environ.get("EDITOR", "nano")
-    subprocess.call([editor, str(path)])
-    # Re-index after manual edits so DB and embeddings stay in sync
+def _reindex_entry(path, config):
+    """Re-index an entry after edits so DB and embeddings stay in sync."""
     updated = load_entry(path)
     try:
         from bute.db import upsert_entry
@@ -123,6 +117,16 @@ def handle_edit(entry: Entry, args: list[str], config) -> None:
         pass
     from bute.ai import embed_entry
     embed_entry(updated.id, updated.body, config)
+
+
+def handle_edit(entry: Entry, args: list[str], config) -> None:
+    """Open entry in $EDITOR for full editing."""
+    path = entry_path_from_id(entry.id, config)
+    if path is None:
+        raise DwnError("Entry file not found.")
+    editor = os.environ.get("EDITOR", "nano")
+    subprocess.call([editor, str(path)])
+    _reindex_entry(path, config)
 
 
 def handle_add_tag(entry: Entry, tag: str, config) -> None:

@@ -105,6 +105,14 @@ def get_daily_log(config=None) -> list[Entry]:
             seen.add(e.id)
             result.append(e)
 
+    # Filter out past timed calendar events — they're noise in the Focus Log
+    from datetime import datetime
+    now = datetime.now().strftime("%H:%M")
+    result = [
+        e for e in result
+        if not (e.type == EntryType.CALENDAR and e.scheduled_time and e.scheduled_time < now)
+    ]
+
     def _daily_sort_key(e):
         """Sort: tasks first, then calendar (timed→untimed), notes, journals.
         Important entries first within each type group."""
