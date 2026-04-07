@@ -35,6 +35,12 @@ class DwnGroup(click.Group):
         rest = args[1:]
 
         # 1. Named command — delegate to normal Click routing
+        # Alias: bt overdue → bt due overdue
+        if first == "overdue":
+            cmd = self.get_command(ctx, "due")
+            if cmd is not None:
+                return "due", cmd, ["overdue"] + list(rest)
+
         cmd = self.get_command(ctx, first)
         if cmd is not None:
             return cmd.name, cmd, rest
@@ -258,7 +264,8 @@ def _print_help():
     t.add_column("What")
     t.add_column("Example", style="dim")
     t.add_row("[cyan]bt t[/cyan] <text>", "Task", "bt t call dentist due:friday")
-    t.add_row("[cyan]bt t -l[/cyan] <text>", "Backlog task (skip focus)", "bt t -l research flights")
+    t.add_row("[cyan]bt t -l[/cyan] <text>", "Task log (this week, not today)", "bt t -l research flights")
+    t.add_row("[cyan]bt t -b[/cyan] <text>", "Backlog task (no focus tags)", "bt t -b someday idea")
     t.add_row("[yellow]bt n[/yellow] <text>", "Note / idea", "bt n OAuth2 tokens expire in 30 days")
     t.add_row("[magenta]bt j[/magenta] <text>", "Journal", "bt j rough morning, couldn't focus")
     t.add_row("[green]bt c[/green] <text>", "Calendar event", "bt c standup t:9")
@@ -286,6 +293,7 @@ def _print_help():
     t.add_row("bt w [dim][last|N]", "Weekly Log — Mon to Sun", "bt w last, bt w 14")
     t.add_row("bt m [dim][month|YYYY]", "Monthly Log", "bt m jan, bt m 2026-03, bt m 2026")
     t.add_row("bt due", "Tasks by deadline", "bt due all for everything")
+    t.add_row("bt overdue", "Past-due tasks only", "")
     t.add_row("bt goals", "Goals with task progress", "")
     t.add_row("bt streak", "Habit streaks and 30-day stats", "")
     t.add_row("bt tags", "All tags with counts and stage", "")
@@ -304,11 +312,15 @@ def _print_help():
     t.add_row("bt <n> done", "Mark task(s) complete", "bt 1 done")
     t.add_row("bt <n> drop", "Consciously delete", "bt 2 3 drop")
     t.add_row("bt <n> !", "Toggle important flag", "bt 1 !")
-    t.add_row("bt <n> later", "Defer — remove from today's log", "bt 3 later")
+    t.add_row("bt <n> later", "Defer to Task log (keep @thisweek)", "bt 3 later")
+    t.add_row("bt <n> backlog", "Send to Backlog (remove all focus)", "bt 3 backlog")
     t.add_row("bt <n> open", "Open in $EDITOR", "bt 1 open")
     t.add_row("bt <n> mod <text>", "Replace entry text", "bt 1 mod new text here")
     t.add_row("bt <n> @tag", "Add a tag", "bt 1 @backend")
     t.add_row("bt <n> untag @tag", "Remove a tag", "bt 1 untag @backend")
+    t.add_row("bt <n> due:<date>", "Set or clear due date", "bt 1 due:friday")
+    t.add_row("bt <n> d:<date>", "Set or clear scheduled date", "bt 1 d:tomorrow")
+    t.add_row("bt <n> t:<time>", "Set or clear time", "bt 1 t:14.30")
     t.add_row("bt <n> delete", "Permanently remove from disk", "bt 1 delete")
     t.add_row("bt undo", "Undo last action", "bt undo")
     console.print()

@@ -114,6 +114,15 @@ def handle_edit(entry: Entry, args: list[str], config) -> None:
         raise DwnError("Entry file not found.")
     editor = os.environ.get("EDITOR", "nano")
     subprocess.call([editor, str(path)])
+    # Re-index after manual edits so DB and embeddings stay in sync
+    updated = load_entry(path)
+    try:
+        from bute.db import upsert_entry
+        upsert_entry(updated, config)
+    except Exception:
+        pass
+    from bute.ai import embed_entry
+    embed_entry(updated.id, updated.body, config)
 
 
 def handle_add_tag(entry: Entry, tag: str, config) -> None:
@@ -140,7 +149,7 @@ def handle_title(entry: Entry, args: list[str], config) -> None:
 
 
 def handle_later(entry: Entry, args: list[str], config) -> None:
-    """Remove @today tag — defer task to backlog."""
+    """Remove @today tag — defer task to Task log."""
     _require_task(entry, "later")
     if "today" in entry.tags:
         record_undo(entry.id, "later", {"tag": "today"}, config)
@@ -148,6 +157,88 @@ def handle_later(entry: Entry, args: list[str], config) -> None:
         update_entry(entry, config)
     else:
         Console().print(f"  [dim]Not in today's log[/dim]")
+
+
+def handle_backlog(entry: Entry, args: list[str], config) -> None:
+    """Remove @today and @thisweek — send task to Backlog."""
+    _require_task(entry, "backlog")
+    removed = []
+    if "today" in entry.tags:
+        entry.tags.remove("today")
+        removed.append("today")
+    if "thisweek" in entry.tags:
+        entry.tags.remove("thisweek")
+        removed.append("thisweek")
+    if removed:
+        record_undo(entry.id, "backlog", {"tags": removed}, config)
+        update_entry(entry, config)
+    else:
+        Console().print(f"  [dim]Already in backlog[/dim]")
+
+
+# Metadata keys that map to entry fields
+META_KEYS = {"due", "d", "date", "t", "time"}
+
+
+def _is_meta_token(token: str) -> bool:
+    """Check if a token is a key:value metadata token."""
+    if ":" not in token:
+        return False
+    key = token.split(":", 1)[0].lower()
+    return key in META_KEYS
+
+
+def _parse_meta_tokens(tokens: list[str]) -> dict[str, str]:
+    """Extract metadata key:value pairs from tokens."""
+    meta = {}
+    for token in tokens:
+        key, value = token.split(":", 1)
+        meta[key.lower()] = value
+    return meta
+
+
+def handle_set_meta(entry: Entry, meta: dict[str, str], config) -> None:
+    """Update due date, scheduled date, or time on an entry."""
+    from bute.parser import resolve_date, resolve_time
+
+    prev = {}
+    labels = []
+
+    # due: or due:<date> (empty clears)
+    if "due" in meta:
+        prev["due"] = entry.due.isoformat() if entry.due else None
+        if not meta["due"] or meta["due"].lower() == "none":
+            entry.due = None
+            labels.append("due:cleared")
+        else:
+            entry.due = resolve_date(meta["due"])
+            labels.append(f"due:{entry.due}")
+
+    # d: or date: (empty clears)
+    raw_date = meta.get("d", meta.get("date"))
+    if raw_date is not None:
+        prev["scheduled_date"] = entry.scheduled_date.isoformat() if entry.scheduled_date else None
+        if not raw_date or raw_date.lower() == "none":
+            entry.scheduled_date = None
+            labels.append("d:cleared")
+        else:
+            entry.scheduled_date = resolve_date(raw_date)
+            labels.append(f"d:{entry.scheduled_date}")
+
+    # t: or time: (empty clears)
+    raw_time = meta.get("t", meta.get("time"))
+    if raw_time is not None:
+        prev["scheduled_time"] = entry.scheduled_time
+        if not raw_time or raw_time.lower() == "none":
+            entry.scheduled_time = None
+            labels.append("t:cleared")
+        else:
+            entry.scheduled_time = resolve_time(raw_time)
+            labels.append(f"t:{entry.scheduled_time}")
+
+    record_undo(entry.id, "meta", prev, config)
+    update_entry(entry, config)
+    return " ".join(labels)
 
 
 def handle_remove_tag(entry: Entry, tag: str, config) -> None:
@@ -225,8 +316,22 @@ def apply_undo(record: dict, config) -> None:
         if tag not in entry.tags:
             entry.tags.append(tag)
         update_entry(entry, config)
+    elif action == "backlog":
+        for tag in prev["tags"]:
+            if tag not in entry.tags:
+                entry.tags.append(tag)
+        update_entry(entry, config)
     elif action == "title":
         entry.body = prev["body"]
+        update_entry(entry, config)
+    elif action == "meta":
+        from datetime import date as date_type
+        if "due" in prev:
+            entry.due = date_type.fromisoformat(prev["due"]) if prev["due"] else None
+        if "scheduled_date" in prev:
+            entry.scheduled_date = date_type.fromisoformat(prev["scheduled_date"]) if prev["scheduled_date"] else None
+        if "scheduled_time" in prev:
+            entry.scheduled_time = prev["scheduled_time"]
         update_entry(entry, config)
     else:
         raise DwnError(f"Cannot undo '{action}'.")
@@ -245,6 +350,7 @@ ACTION_HANDLERS = {
     "open": handle_edit,
     "edit": handle_edit,
     "later": handle_later,
+    "backlog": handle_backlog,
     "title": handle_title,
 }
 
@@ -278,7 +384,6 @@ def action_cmd(ctx, tokens):
                 continue
             entry = load_entry(path)
             handle_add_tag(entry, tag, config)
-            display_action_confirmation(entry, f"@{tag}")
         return
 
     # Handle untag action: bt 1 untag @backend  or  bt 1 untag backend
@@ -293,7 +398,6 @@ def action_cmd(ctx, tokens):
                 continue
             entry = load_entry(path)
             handle_remove_tag(entry, tag, config)
-            display_action_confirmation(entry, f"untag @{tag}")
         return
 
     # Handle map: bt <n> map (single @ai-analysis note)
@@ -328,6 +432,23 @@ def action_cmd(ctx, tokens):
         start_chat_session(entries, config)
         return
 
+    # Handle metadata updates: bt 3 due:friday, bt 3 d:tomorrow t:14.30
+    if _is_meta_token(action):
+        all_meta_tokens = [action] + [a for a in args if _is_meta_token(a)]
+        meta = _parse_meta_tokens(all_meta_tokens)
+        for entry_id in entry_ids:
+            path = entry_path_from_id(entry_id, config)
+            if path is None:
+                console.print(f"  [red]Entry {entry_id[:8]} not found.[/red]")
+                continue
+            entry = load_entry(path)
+            try:
+                label = handle_set_meta(entry, meta, config)
+                display_action_confirmation(entry, label)
+            except (ValueError, KeyError) as e:
+                console.print(f"  [red]Invalid value: {e}[/red]")
+        return
+
     # Standard actions
     handler = ACTION_HANDLERS.get(action)
     if handler is None:
@@ -341,7 +462,8 @@ def action_cmd(ctx, tokens):
         entry = load_entry(path)
         try:
             handler(entry, args, config)
-            display_action_confirmation(entry, action)
+            if action not in ("edit", "open"):
+                display_action_confirmation(entry, action)
         except DwnError as e:
             console.print(f"  [red]{e.format_message()}[/red]")
 

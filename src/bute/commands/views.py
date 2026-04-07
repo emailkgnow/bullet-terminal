@@ -80,7 +80,7 @@ def tasks_cmd(ctx, tag, show_all):
         entries = get_weekly_active_tasks(config)
         if tag:
             entries = [e for e in entries if tag in e.tags]
-        title = "Tasks" + (f" @{tag}" if tag else "")
+        title = "Task Log" + (f" @{tag}" if tag else "")
 
     display_entry_list(entries, title)
     save_state("tasks", [e.id for e in entries], config)
@@ -368,6 +368,15 @@ def due_cmd(ctx, scope):
         return
 
     overdue = [e for e in entries if e.due < today]
+
+    if scope == "overdue":
+        overdue.sort(key=lambda e: (e.due, not e.important))
+        if not overdue:
+            console.print("  [dim]Nothing overdue.[/dim]")
+            return
+        display_entry_list(overdue, "Overdue")
+        save_state("due", [e.id for e in overdue], config)
+        return
     due_today = [e for e in entries if e.due == today]
     due_week = [e for e in entries if today < e.due <= end_of_week]
 

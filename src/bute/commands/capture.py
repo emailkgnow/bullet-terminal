@@ -18,10 +18,11 @@ from bute.storage import save_entry
 
 
 @click.command("capture", hidden=True)
-@click.option("--later", "-l", is_flag=True, help="Skip @thisweek — backlog only.")
+@click.option("--later", "-l", is_flag=True, help="This week, not today (Task log).")
+@click.option("--backlog", "-b", is_flag=True, help="Backlog only — no focus tags.")
 @click.argument("tokens", nargs=-1, required=True)
 @click.pass_context
-def capture_cmd(ctx, later, tokens):
+def capture_cmd(ctx, later, backlog, tokens):
     """Capture a new entry."""
     # Interactive fallback: if only the signifier is given, prompt for text
     if len(tokens) == 1 and (SIGNIFIER_RE.match(tokens[0]) or BULLET_RE.match(tokens[0]) or WORD_SIGNIFIER_RE.match(tokens[0])):
@@ -77,13 +78,16 @@ def capture_cmd(ctx, later, tokens):
         extra_meta=meta,
     )
 
-    # Auto-add @thisweek and @today for tasks unless --later flag or has a future date
+    # Auto-tag tasks based on flags:
+    #   default  → @thisweek + @today (Focus Log)
+    #   -l       → @thisweek only (Task log, not today)
+    #   -b       → no focus tags (Backlog)
     has_future_date = entry.scheduled_date and entry.scheduled_date > date.today()
     has_future_due = entry.due and entry.due > date.today()
-    if entry.type == EntryType.TASK and not later and not has_future_date and not has_future_due:
+    if entry.type == EntryType.TASK and not backlog and not has_future_date and not has_future_due:
         if "thisweek" not in entry.tags:
             entry.tags.append("thisweek")
-        if "today" not in entry.tags:
+        if not later and "today" not in entry.tags:
             entry.tags.append("today")
 
     config = ctx.obj.get("config")
