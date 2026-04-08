@@ -342,10 +342,7 @@ def _has_entries(config) -> bool:
     entries_dir = data_dir / "entries"
     if not entries_dir.exists():
         return False
-    for month_dir in entries_dir.iterdir():
-        if month_dir.is_dir() and any(month_dir.glob("*.md")):
-            return True
-    return False
+    return any(entries_dir.rglob("*.md"))
 
 
 def should_run_tour(config) -> bool:
