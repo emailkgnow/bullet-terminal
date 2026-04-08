@@ -129,8 +129,7 @@ bute -@habit        # all entries excluding @habit
 bute !              # all important entries
 bute t!             # important tasks (also: n!, j!, c!)
 bute find <keyword> # keyword search in body + tags (-t -n -j -c to filter)
-bute search <query> # semantic search (AI embeddings)
-bute similar <n>    # entries similar to #n
+bute like <input>   # semantic similarity (bt like 3, bt like productivity)
 ```
 
 **Actions** — number + command:
