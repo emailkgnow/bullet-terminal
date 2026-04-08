@@ -96,8 +96,8 @@ def _preview(text: str) -> str:
     return preview
 
 
-def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tuple[str, Text, Text, Text]:
-    """Build the common columns for an entry row: (#, icon, body, meta)."""
+def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tuple[str, Text, Text]:
+    """Build the common columns for an entry row: (#, icon, body with inline meta)."""
     style = TYPE_STYLE[entry.type]
 
     icon = Text()
@@ -117,13 +117,9 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
     else:
         body.append(preview)
 
-    # Build styled meta: user tags (dim) · dates (cyan)
-    meta = Text()
-
-    # User tags — filter system tags and hide_tags
+    # Inline meta: user tags (dim) · dates (cyan)
     user_tags = [t for t in entry.tags if t not in SYSTEM_TAGS and (not hide_tags or t not in hide_tags)]
 
-    # Date parts
     date_parts = []
     if entry.due:
         date_parts.append(f"due:{entry.due}")
@@ -133,13 +129,13 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
         date_parts.append(f"d:{entry.scheduled_date.strftime('%b %-d')}")
 
     if user_tags:
-        meta.append("· ", style="dim")
-        meta.append(" ".join(f"@{t}" for t in user_tags), style="dim")
+        body.append(" · ", style="dim")
+        body.append(" ".join(f"@{t}" for t in user_tags), style="dim")
     if date_parts:
-        meta.append(" · ", style="dim") if meta.plain else meta.append("· ", style="dim")
-        meta.append(" ".join(date_parts), style="cyan")
+        body.append(" · ", style="dim")
+        body.append(" ".join(date_parts), style="cyan")
 
-    return str(i), icon, body, meta
+    return str(i), icon, body
 
 
 def _display_sort_key(e: Entry) -> tuple[bool, bool]:
@@ -172,7 +168,6 @@ def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | N
     table.add_column("#", style="bold dim", width=3, justify="right")
     table.add_column("", width=2)  # type icon (e.g. .!)
     table.add_column("Entry", ratio=1, overflow="fold")
-    table.add_column("Meta", style="dim")
 
     for i, entry in enumerate(entries, 1):
         table.add_row(*_build_entry_row(i, entry, hide_tags=hide_tags))
@@ -222,14 +217,13 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
     table.add_column("#", style="bold dim", width=3, justify="right")
     table.add_column("", width=2)  # type icon (e.g. .!)
     table.add_column("Entry", ratio=1, overflow="fold")
-    table.add_column("Meta", style="dim")
 
     counter = 1
     for date_label, items in grouped.items():
         for row_idx, entry in enumerate(items):
-            num, icon, body, meta = _build_entry_row(counter, entry)
+            num, icon, body = _build_entry_row(counter, entry)
             date_col = date_label if row_idx == 0 else ""
-            table.add_row(date_col, num, icon, body, meta)
+            table.add_row(date_col, num, icon, body)
             counter += 1
         table.add_section()
 
@@ -374,11 +368,10 @@ def display_search_results(
     table.add_column("#", style="bold dim", width=4, justify="right")
     table.add_column("", width=2)  # type icon
     table.add_column("", ratio=1)  # body
-    table.add_column("")  # meta
 
     for i, entry in enumerate(entries, 1):
-        num, icon, body, meta = _build_entry_row(i, entry)
-        table.add_row(num, icon, body, meta)
+        num, icon, body = _build_entry_row(i, entry)
+        table.add_row(num, icon, body)
 
     title = f'Like: "{query}"' if query else "Like"
     console.print(f"\n  [bold]{title}[/bold]")
