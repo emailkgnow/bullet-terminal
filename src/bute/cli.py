@@ -424,6 +424,19 @@ def main(ctx, interactive, demo, toggle_journal):
         config = load_config()
         ctx.obj["config"] = config
 
+    # One-time migration: month-first → type-first storage layout
+    if not ctx.obj.get("_migrated"):
+        from bute.migration import needs_migration, migrate_entries
+        if needs_migration(config):
+            from rich.console import Console
+            console = Console()
+            result = migrate_entries(config)
+            console.print(f"\n  [green]Migrated {result['total']} entries "
+                          f"({result['task']} tasks, {result['note']} notes, "
+                          f"{result['journal']} journals, {result['calendar']} calendar)[/green]")
+            console.print(f"  [dim]Backup saved to ~/bullet-terminal/entries-backup-*.zip[/dim]\n")
+        ctx.obj["_migrated"] = True
+
     # Handle -d flag — start isolated demo session
     if demo:
         from bute.commands.demo import demo_cmd
