@@ -137,6 +137,8 @@ def _display_sort_key(e: Entry) -> tuple[bool, bool]:
 def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | None = None) -> None:
     """Render a numbered list of entries as a Rich Table."""
     if not entries:
+        if title:
+            console.print(f"[bold]{title}[/bold]", justify="center")
         console.print(f"  [dim]No entries found.[/dim]")
         return
 
@@ -381,7 +383,7 @@ def display_search_results(
 
         table.add_row(str(i), icon, body, meta)
 
-    title = f'Search: "{query}"' if query else "Similar entries"
+    title = f'Like: "{query}"' if query else "Like"
     console.print(f"\n  [bold]{title}[/bold]")
     console.print(table)
 
