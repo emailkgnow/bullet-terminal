@@ -3,7 +3,7 @@
 from datetime import date
 
 from bute.models import Entry, EntryType, TaskStatus
-from bute.storage import load_entry, save_entry
+from bute.storage import entry_path_from_id, load_entries_by_date, load_entries_by_filter, load_entry, save_entry
 
 
 def test_save_creates_file(tmp_data):
@@ -32,8 +32,7 @@ def test_save_file_contains_frontmatter(tmp_data):
 def test_save_path_structure(tmp_data):
     entry = Entry.create(EntryType.TASK, "test")
     path = save_entry(entry)
-    # Path should be: tmp_data/entries/YYYY-MM/<ulid>.md
-    assert "entries" in str(path)
+    assert "/entries/task/" in str(path)
     assert entry.id in path.name
 
 
@@ -126,3 +125,77 @@ def test_update_entry_updates_db(tmp_data):
     assert row[0] == "updated"
     assert row[1] == "done"
     close()
+
+
+def test_save_path_includes_type(tmp_data):
+    entry = Entry.create(EntryType.TASK, "test path")
+    path = save_entry(entry)
+    assert "/entries/task/" in str(path)
+
+
+def test_save_path_note_type(tmp_data):
+    entry = Entry.create(EntryType.NOTE, "test note path")
+    path = save_entry(entry)
+    assert "/entries/note/" in str(path)
+
+
+def test_save_path_journal_type(tmp_data):
+    entry = Entry.create(EntryType.JOURNAL, "test journal path")
+    path = save_entry(entry)
+    assert "/entries/journal/" in str(path)
+
+
+def test_save_path_calendar_type(tmp_data):
+    entry = Entry.create(EntryType.CALENDAR, "test calendar path")
+    path = save_entry(entry)
+    assert "/entries/calendar/" in str(path)
+
+
+def test_entry_path_from_id_finds_task(tmp_data):
+    entry = Entry.create(EntryType.TASK, "findable task")
+    save_entry(entry)
+    path = entry_path_from_id(entry.id)
+    assert path is not None
+    assert path.exists()
+    assert "/entries/task/" in str(path)
+
+
+def test_entry_path_from_id_finds_journal(tmp_data):
+    entry = Entry.create(EntryType.JOURNAL, "findable journal")
+    save_entry(entry)
+    path = entry_path_from_id(entry.id)
+    assert path is not None
+    assert "/entries/journal/" in str(path)
+
+
+def test_entry_path_from_id_returns_none_for_missing(tmp_data):
+    path = entry_path_from_id("01ZZZZZZZZZZZZZZZZZZZZZZZZ")
+    assert path is None
+
+
+def test_load_entries_by_date_across_types(tmp_data):
+    task = Entry.create(EntryType.TASK, "today task")
+    note = Entry.create(EntryType.NOTE, "today note")
+    journal = Entry.create(EntryType.JOURNAL, "today journal")
+    for e in [task, note, journal]:
+        save_entry(e)
+
+    entries = load_entries_by_date(date.today())
+    types = {e.type for e in entries}
+    assert EntryType.TASK in types
+    assert EntryType.NOTE in types
+    assert EntryType.JOURNAL in types
+    assert len(entries) == 3
+
+
+def test_load_entries_by_filter_finds_all_types(tmp_data):
+    task = Entry.create(EntryType.TASK, "filter task")
+    note = Entry.create(EntryType.NOTE, "filter note")
+    for e in [task, note]:
+        save_entry(e)
+
+    entries = load_entries_by_filter(lambda e: True)
+    assert len(entries) == 2
+    types = {e.type for e in entries}
+    assert EntryType.TASK in types
+    assert EntryType.NOTE in types

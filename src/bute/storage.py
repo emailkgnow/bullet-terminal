@@ -10,9 +10,9 @@ from bute.models import Entry, EntryType, TaskStatus
 
 
 def entry_path(entry: Entry, config=None) -> Path:
-    """Compute the file path for an entry: ~/bute/entries/YYYY-MM/<ulid>.md"""
+    """Compute the file path for an entry: entries/{type}/YYYY-MM/<ulid>.md"""
     data_dir = get_data_dir(config)
-    month_dir = data_dir / "entries" / entry.created.strftime("%Y-%m")
+    month_dir = data_dir / "entries" / entry.type.value / entry.created.strftime("%Y-%m")
     filename = f"{entry.id}.md"
     return month_dir / filename
 
@@ -79,17 +79,22 @@ def update_entry(entry: Entry, config=None) -> Path:
     return save_entry(entry, config)
 
 
+ENTRY_TYPE_DIRS = ["task", "note", "journal", "calendar"]
+
+
 def load_entries_by_date(target_date: date, config=None) -> list[Entry]:
     """Load all entries created on a specific date, sorted chronologically."""
     data_dir = get_data_dir(config)
-    month_dir = data_dir / "entries" / target_date.strftime("%Y-%m")
-    if not month_dir.exists():
-        return []
+    month = target_date.strftime("%Y-%m")
     entries = []
-    for path in month_dir.glob("*.md"):
-        entry = load_entry(path)
-        if entry.created.date() == target_date and entry.status != TaskStatus.DROPPED:
-            entries.append(entry)
+    for type_name in ENTRY_TYPE_DIRS:
+        month_dir = data_dir / "entries" / type_name / month
+        if not month_dir.exists():
+            continue
+        for path in month_dir.glob("*.md"):
+            entry = load_entry(path)
+            if entry.created.date() == target_date and entry.status != TaskStatus.DROPPED:
+                entries.append(entry)
     return sorted(entries, key=lambda e: e.created)
 
 
@@ -102,13 +107,17 @@ def load_entries_by_filter(
     if not entries_dir.exists():
         return []
     entries = []
-    for month_dir in sorted(entries_dir.iterdir()):
-        if not month_dir.is_dir():
+    for type_name in ENTRY_TYPE_DIRS:
+        type_dir = entries_dir / type_name
+        if not type_dir.exists():
             continue
-        for path in month_dir.glob("*.md"):
-            entry = load_entry(path)
-            if predicate(entry):
-                entries.append(entry)
+        for month_dir in sorted(type_dir.iterdir()):
+            if not month_dir.is_dir():
+                continue
+            for path in month_dir.glob("*.md"):
+                entry = load_entry(path)
+                if predicate(entry):
+                    entries.append(entry)
     return sorted(entries, key=lambda e: e.created, reverse=True)
 
 
@@ -140,16 +149,17 @@ def query_and_load(config=None, sort_key=None, reverse=False, **kwargs) -> list[
 
 
 def entry_path_from_id(entry_id: str, config=None) -> Path | None:
-    """Find an entry file by ULID. Derives month from ULID timestamp."""
+    """Find an entry file by ULID. Checks all type dirs for the entry."""
     from ulid import ULID
 
     ulid = ULID.from_str(entry_id)
     ts = ulid.datetime
     data_dir = get_data_dir(config)
-    month_dir = data_dir / "entries" / ts.strftime("%Y-%m")
-    candidate = month_dir / f"{entry_id}.md"
-    if candidate.exists():
-        return candidate
+    month = ts.strftime("%Y-%m")
+    for type_name in ENTRY_TYPE_DIRS:
+        candidate = data_dir / "entries" / type_name / month / f"{entry_id}.md"
+        if candidate.exists():
+            return candidate
     return None
 
 
