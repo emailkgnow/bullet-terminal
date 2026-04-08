@@ -243,8 +243,8 @@ def _show_random_journal(config, offset: int = 0) -> str | None:
     from rich.console import Console
     console = Console()
     console.print()
-    console.print(f"  [dim italic]{num:>3}  = {_preview(entry.body)}[/dim italic]")
-    console.print(f"  [dim italic]     {entry_date} · bt -j to toggle[/dim italic]")
+    console.print(f"  [dim italic]{num:>3}  = {_preview(entry.body)}[/dim italic]", justify="right")
+    console.print(f"  [dim italic]{entry_date}[/dim italic]", justify="right")
     return entry.id
 
 
@@ -485,9 +485,6 @@ def main(ctx, interactive, demo, toggle_journal):
 
             save_state("ls", [e.id for e in entries], config, habits=habit_names, extra_entries=[journal_id] if journal_id else None)
 
-            from rich.console import Console
-            console = Console()
-            console.print(f"\n  [dim]Focus logged. Run [bold]bt dp[/bold] to redo.[/dim]")
         else:
             ctx.invoke(dp_cmd)
 
@@ -521,7 +518,7 @@ from bute.commands.rituals import (  # noqa: E402
 )
 from bute.commands.habits import habits_cmd, migrate_habits_cmd, streak_cmd  # noqa: E402
 from bute.commands.export import export_cmd  # noqa: E402
-from bute.commands.search import find_cmd, rebuild_cmd, search_cmd, similar_cmd  # noqa: E402
+from bute.commands.search import find_cmd, like_cmd, rebuild_cmd  # noqa: E402
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
@@ -553,9 +550,8 @@ main.add_command(streak_cmd)
 main.add_command(monthly_cmd)
 main.add_command(wp_cmd)
 main.add_command(recap_cmd)
-main.add_command(search_cmd)
+main.add_command(like_cmd)
 main.add_command(find_cmd)
-main.add_command(similar_cmd)
 main.add_command(rebuild_cmd)
 main.add_command(export_cmd)
 main.add_command(topic_cmd)
