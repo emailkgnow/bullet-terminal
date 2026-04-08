@@ -6,7 +6,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
-from bute.models import Entry, EntryType, SYSTEM_TAGS, TaskStatus
+from bute.models import Entry, EntryType, TaskStatus
 from bute.parser import format_time_display
 
 console = Console()
@@ -48,9 +48,7 @@ def confirm_capture(entry: Entry) -> None:
     if entry.repeat:
         meta_parts.append(f"repeat:{entry.repeat}")
     if entry.tags:
-        user_tags = [t for t in entry.tags if t not in SYSTEM_TAGS]
-        if user_tags:
-            meta_parts.append(" ".join(f"@{t}" for t in user_tags))
+        meta_parts.append(" ".join(f"@{t}" for t in entry.tags))
 
     subtitle = Text(f" {' | '.join(meta_parts)} ", style="dim") if meta_parts else None
 
@@ -96,8 +94,8 @@ def _preview(text: str) -> str:
     return preview
 
 
-def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tuple[str, Text, Text]:
-    """Build the common columns for an entry row: (#, icon, body with inline meta)."""
+def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tuple[str, Text, Text, str]:
+    """Build the common columns for an entry row: (#, icon, body, meta)."""
     style = TYPE_STYLE[entry.type]
 
     icon = Text()
@@ -117,25 +115,17 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
     else:
         body.append(preview)
 
-    # Inline meta: user tags (dim) · dates (cyan)
-    user_tags = [t for t in entry.tags if t not in SYSTEM_TAGS and (not hide_tags or t not in hide_tags)]
-
-    date_parts = []
+    meta_parts = []
     if entry.due:
-        date_parts.append(f"due:{entry.due}")
+        meta_parts.append(f"due:{entry.due}")
     if entry.scheduled_time:
-        date_parts.append(f"t:{format_time_display(entry.scheduled_time)}")
-    if entry.scheduled_date:
-        date_parts.append(f"d:{entry.scheduled_date.strftime('%b %-d')}")
+        meta_parts.append(format_time_display(entry.scheduled_time))
+    if entry.tags:
+        tags = [t for t in entry.tags if not hide_tags or t not in hide_tags]
+        meta_parts.extend(f"@{t}" for t in tags)
+    meta = " ".join(meta_parts)
 
-    if user_tags:
-        body.append(" · ", style="dim")
-        body.append(" ".join(f"@{t}" for t in user_tags), style="dim")
-    if date_parts:
-        body.append(" · ", style="dim")
-        body.append(" ".join(date_parts), style="cyan")
-
-    return str(i), icon, body
+    return str(i), icon, body, meta
 
 
 def _display_sort_key(e: Entry) -> tuple[bool, bool]:
@@ -168,6 +158,7 @@ def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | N
     table.add_column("#", style="bold dim", width=3, justify="right")
     table.add_column("", width=2)  # type icon (e.g. .!)
     table.add_column("Entry", ratio=1, overflow="fold")
+    table.add_column("Meta", style="dim")
 
     for i, entry in enumerate(entries, 1):
         table.add_row(*_build_entry_row(i, entry, hide_tags=hide_tags))
@@ -217,13 +208,14 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
     table.add_column("#", style="bold dim", width=3, justify="right")
     table.add_column("", width=2)  # type icon (e.g. .!)
     table.add_column("Entry", ratio=1, overflow="fold")
+    table.add_column("Meta", style="dim")
 
     counter = 1
     for date_label, items in grouped.items():
         for row_idx, entry in enumerate(items):
-            num, icon, body = _build_entry_row(counter, entry)
+            num, icon, body, meta = _build_entry_row(counter, entry)
             date_col = date_label if row_idx == 0 else ""
-            table.add_row(date_col, num, icon, body)
+            table.add_row(date_col, num, icon, body, meta)
             counter += 1
         table.add_section()
 
@@ -353,7 +345,7 @@ def display_habit_line_entries(
 def display_search_results(
     entries: list[Entry], distances: list[float], query: str = ""
 ) -> None:
-    """Render search results."""
+    """Render search results with relevance scores."""
     if not entries:
         console.print("  [dim]No results found.[/dim]")
         return
@@ -366,12 +358,30 @@ def display_search_results(
         padding=(0, 1),
     )
     table.add_column("#", style="bold dim", width=4, justify="right")
-    table.add_column("", width=2)  # type icon
+    table.add_column("", width=2)  # type icon (e.g. .!)
     table.add_column("", ratio=1)  # body
+    table.add_column("", style="dim")  # relevance + tags
 
-    for i, entry in enumerate(entries, 1):
-        num, icon, body = _build_entry_row(i, entry)
-        table.add_row(num, icon, body)
+    for i, (entry, dist) in enumerate(zip(entries, distances), 1):
+        style = TYPE_STYLE[entry.type]
+        icon = Text()
+        if entry.important:
+            icon.append("!", style="bold red")
+        else:
+            icon.append(" ")
+        icon.append(style["icon"], style=style["color"])
+
+        body = Text()
+        body.append(entry.body)
+
+        # Relevance: lower distance = more similar
+        relevance = max(0, 100 - int(dist * 50))
+        meta_parts = [f"{relevance}%"]
+        if entry.tags:
+            meta_parts.extend(f"@{t}" for t in entry.tags)
+        meta = " ".join(meta_parts)
+
+        table.add_row(str(i), icon, body, meta)
 
     title = f'Like: "{query}"' if query else "Like"
     console.print(f"\n  [bold]{title}[/bold]")
