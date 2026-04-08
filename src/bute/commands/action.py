@@ -276,7 +276,8 @@ def apply_undo(record: dict, config) -> None:
         if isinstance(created, str):
             from datetime import datetime
             created = datetime.fromisoformat(created)
-        month_dir = data_dir / "entries" / created.strftime("%Y-%m")
+        entry_type = post.metadata.get("type", "note")
+        month_dir = data_dir / "entries" / entry_type / created.strftime("%Y-%m")
         month_dir.mkdir(parents=True, exist_ok=True)
         restored_path = month_dir / f"{entry_id}.md"
         restored_path.write_text(file_content)
