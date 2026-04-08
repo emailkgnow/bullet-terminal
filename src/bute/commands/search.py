@@ -168,3 +168,18 @@ def rebuild_cmd(ctx):
         vec_msg = f", {count} vectors embedded" if include_vectors else " (vectors skipped — embeddings not installed)"
         console.print(f"  [green]Rebuilt index: {count} entries indexed{vec_msg}.[/green]")
         console.print("  [dim]Your .md files are untouched — they're always the source of truth.[/dim]")
+
+        from bute.guide import write_guide
+        from bute.config import get_data_dir
+        write_guide(get_data_dir(config))
+
+
+@click.command("readme")
+@click.pass_context
+def readme_cmd(ctx):
+    """Regenerate the data directory README.md."""
+    config = ctx.obj.get("config")
+    from bute.guide import write_guide
+    from bute.config import get_data_dir
+    path = write_guide(get_data_dir(config))
+    console.print(f"  [green]README regenerated:[/green] {path}")

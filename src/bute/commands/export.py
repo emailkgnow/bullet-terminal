@@ -20,15 +20,24 @@ exported on {date}.
 ## What's Inside
 
 ```
-entries/          Your entries — tasks, notes, journals, calendar events
-  YYYY-MM/        Organized by month
-    <ULID>.md     One Markdown file per entry (YAML frontmatter + body)
+entries/              Your entries — organized by type, then by month
+  task/
+    YYYY-MM/
+      <ULID>.md       Tasks — actions with a status lifecycle
+  note/
+    YYYY-MM/
+      <ULID>.md       Notes — ideas, facts, reference material
+  journal/
+    YYYY-MM/
+      <ULID>.md       Journals — reflections, stream of thought
+  calendar/
+    YYYY-MM/
+      <ULID>.md       Calendar — events with optional date and time
 ```
 
 ## Entry Format
 
-Each `.md` file in `entries/` is a standalone Markdown file with YAML
-frontmatter containing structured metadata:
+Each `.md` file is a standalone Markdown file with YAML frontmatter:
 
 ```yaml
 ---
@@ -40,18 +49,12 @@ tags:                    # Optional tags
   - backend
   - urgent
 due: 2026-01-20          # Optional due date (tasks)
-date: 2026-01-20         # Optional scheduled date (calendar)
-time: '14:30'            # Optional scheduled time (calendar)
+date: 2026-01-20         # Optional scheduled date
+time: '14:30'            # Optional scheduled time
 ---
 
 The entry body text goes here.
 ```
-
-## Directory Structure Rationale
-
-- **Month folders** (`YYYY-MM/`) keep the filesystem manageable as entries
-  grow over time. ULIDs encode their creation timestamp, so entries
-  naturally sort chronologically within each folder.
 
 ## Using This Export
 
@@ -61,6 +64,9 @@ These are plain Markdown files. You can:
 - Import them into Obsidian, Notion, or any PKM tool
 - Search them with grep, ripgrep, or your editor's search
 - Reinstall Bullet Terminal and point it at these files to restore
+
+To read one type: `entries/task/**/*.md` or `entries/journal/**/*.md`
+To read one period across types: `entries/*/2026-04/*.md`
 
 The `.md` files are the source of truth — Bullet Terminal's SQLite
 index is just a performance cache and is rebuilt automatically from

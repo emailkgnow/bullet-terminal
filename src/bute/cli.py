@@ -530,7 +530,7 @@ from bute.commands.rituals import (  # noqa: E402
 )
 from bute.commands.habits import habits_cmd, migrate_habits_cmd, streak_cmd  # noqa: E402
 from bute.commands.export import export_cmd  # noqa: E402
-from bute.commands.search import find_cmd, like_cmd, rebuild_cmd  # noqa: E402
+from bute.commands.search import find_cmd, like_cmd, rebuild_cmd, readme_cmd  # noqa: E402
 from bute.commands.topic import topic_cmd  # noqa: E402
 from bute.commands.nudges import nudges_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
@@ -565,6 +565,7 @@ main.add_command(recap_cmd)
 main.add_command(like_cmd)
 main.add_command(find_cmd)
 main.add_command(rebuild_cmd)
+main.add_command(readme_cmd)
 main.add_command(export_cmd)
 main.add_command(topic_cmd)
 main.add_command(nudges_cmd)
