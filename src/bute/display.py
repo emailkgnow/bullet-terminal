@@ -48,7 +48,9 @@ def confirm_capture(entry: Entry) -> None:
     if entry.repeat:
         meta_parts.append(f"repeat:{entry.repeat}")
     if entry.tags:
-        meta_parts.append(" ".join(f"@{t}" for t in entry.tags))
+        user_tags = [t for t in entry.tags if t not in SYSTEM_TAGS]
+        if user_tags:
+            meta_parts.append(" ".join(f"@{t}" for t in user_tags))
 
     subtitle = Text(f" {' | '.join(meta_parts)} ", style="dim") if meta_parts else None
 
