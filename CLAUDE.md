@@ -46,7 +46,7 @@ Custom Click group with 6-layer routing in `resolve_command()`:
 - **Entry types**: task (`.`), note (`-`), journal (`=`), calendar (`o`)
 - **Task statuses**: `active`, `done`, `dropped` (no `migrated` — removed by design)
 - **IDs**: ULID (time-sortable, 26 chars)
-- **Storage**: one `.md` file per entry at `~/bute/entries/YYYY-MM/<ULID>.md`
+- **Storage**: one `.md` file per entry at `~/bullet-terminal/entries/{type}/YYYY-MM/<ULID>.md`
 - **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter. Tags have a dual role: organizing entries (label) and processing groups via AI (analyze). Stage tracking in `tag_stages` SQLite table.
 
 ### Data Flow

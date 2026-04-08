@@ -54,8 +54,6 @@ def test_get_data_dir_from_config():
 def test_ensure_data_dirs_creates_structure(tmp_data):
     path = ensure_data_dirs(None)
     assert (path / "entries").is_dir()
-    assert (path / "collections").is_dir()
-    assert (path / "habits").is_dir()
     assert (path / ".index").is_dir()
 
 

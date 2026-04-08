@@ -120,6 +120,10 @@ def ensure_data_dirs(config: tomlkit.TOMLDocument | None = None) -> Path:
     for subdir in ["entries", ".index"]:
         (data_dir / subdir).mkdir(parents=True, exist_ok=True)
 
+    from bute.migration import needs_migration, migrate_entries
+    if needs_migration(config):
+        migrate_entries(config)
+
     from bute.guide import write_guide
     write_guide(data_dir)
 
