@@ -120,9 +120,6 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
         meta_parts.append(f"due:{entry.due}")
     if entry.scheduled_time:
         meta_parts.append(format_time_display(entry.scheduled_time))
-    if entry.tags:
-        tags = [t for t in entry.tags if not hide_tags or t not in hide_tags]
-        meta_parts.extend(f"@{t}" for t in tags)
     meta = " ".join(meta_parts)
 
     return str(i), icon, body, meta
@@ -358,30 +355,13 @@ def display_search_results(
         padding=(0, 1),
     )
     table.add_column("#", style="bold dim", width=4, justify="right")
-    table.add_column("", width=2)  # type icon (e.g. .!)
+    table.add_column("", width=2)  # type icon
     table.add_column("", ratio=1)  # body
-    table.add_column("", style="dim")  # relevance + tags
+    table.add_column("", style="dim")  # meta
 
-    for i, (entry, dist) in enumerate(zip(entries, distances), 1):
-        style = TYPE_STYLE[entry.type]
-        icon = Text()
-        if entry.important:
-            icon.append("!", style="bold red")
-        else:
-            icon.append(" ")
-        icon.append(style["icon"], style=style["color"])
-
-        body = Text()
-        body.append(entry.body)
-
-        # Relevance: lower distance = more similar
-        relevance = max(0, 100 - int(dist * 50))
-        meta_parts = [f"{relevance}%"]
-        if entry.tags:
-            meta_parts.extend(f"@{t}" for t in entry.tags)
-        meta = " ".join(meta_parts)
-
-        table.add_row(str(i), icon, body, meta)
+    for i, entry in enumerate(entries, 1):
+        num, icon, body, meta = _build_entry_row(i, entry)
+        table.add_row(num, icon, body, meta)
 
     title = f'Like: "{query}"' if query else "Like"
     console.print(f"\n  [bold]{title}[/bold]")
