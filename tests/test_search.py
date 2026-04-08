@@ -1,4 +1,4 @@
-"""Integration tests for search commands."""
+"""Integration tests for like and find commands."""
 
 from unittest.mock import patch
 
@@ -32,10 +32,10 @@ def _mock_embeddings():
         yield
 
 
-def test_search_no_embeddings(runner, tmp_config, tmp_data):
+def test_like_no_embeddings(runner, tmp_config, tmp_data):
     """Without embeddings, show install message."""
     with patch("dwn.ai.embeddings.is_available", return_value=False):
-        result = runner.invoke(main, ["search", "test"])
+        result = runner.invoke(main, ["like", "test"])
     assert result.exit_code == 0
     assert "embeddings" in result.output.lower()
 
@@ -78,7 +78,7 @@ class TestWithVectorDB:
 
         assert count() == 3
 
-    def test_search_returns_results(self, runner, tmp_config, tmp_data, _mock_embeddings):
+    def test_like_returns_results(self, runner, tmp_config, tmp_data, _mock_embeddings):
         # Create and embed entries
         e1 = Entry.create(EntryType.TASK, "call dentist")
         e2 = Entry.create(EntryType.NOTE, "OAuth2 tokens")
@@ -90,10 +90,10 @@ class TestWithVectorDB:
         upsert(e1.id, _fake_embed_text(e1.body))
         upsert(e2.id, _fake_embed_text(e2.body))
 
-        result = runner.invoke(main, ["search", "dentist"])
+        result = runner.invoke(main, ["like", "dentist"])
         assert result.exit_code == 0
 
-    def test_search_saves_state(self, runner, tmp_config, tmp_data, _mock_embeddings):
+    def test_like_saves_state(self, runner, tmp_config, tmp_data, _mock_embeddings):
         e = Entry.create(EntryType.TASK, "test")
         save_entry(e)
 
@@ -101,14 +101,14 @@ class TestWithVectorDB:
 
         upsert(e.id, _fake_embed_text(e.body))
 
-        runner.invoke(main, ["search", "test"])
+        runner.invoke(main, ["like", "test"])
 
         from bute.state import load_state
 
         state = load_state()
-        assert state["view"] == "search"
+        assert state["view"] == "like"
 
-    def test_similar_excludes_source(self, runner, tmp_config, tmp_data, _mock_embeddings):
+    def test_like_entry_excludes_source(self, runner, tmp_config, tmp_data, _mock_embeddings):
         e1 = Entry.create(EntryType.TASK, "source entry")
         e2 = Entry.create(EntryType.NOTE, "related entry")
         save_entry(e1)
@@ -120,6 +120,6 @@ class TestWithVectorDB:
         upsert(e2.id, _fake_embed_text(e2.body))
 
         save_state("ls", [e1.id, e2.id])
-        result = runner.invoke(main, ["similar", "1"])
+        result = runner.invoke(main, ["like", "1"])
         assert result.exit_code == 0
-        assert "source entry" not in result.output or "Similar to:" in result.output
+        assert "source entry" not in result.output or "Like:" in result.output
