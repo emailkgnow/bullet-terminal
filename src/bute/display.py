@@ -6,7 +6,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
-from bute.models import Entry, EntryType, TaskStatus
+from bute.models import Entry, EntryType, SYSTEM_TAGS, TaskStatus
 from bute.parser import format_time_display
 
 console = Console()
@@ -94,7 +94,7 @@ def _preview(text: str) -> str:
     return preview
 
 
-def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tuple[str, Text, Text, str]:
+def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tuple[str, Text, Text, Text]:
     """Build the common columns for an entry row: (#, icon, body, meta)."""
     style = TYPE_STYLE[entry.type]
 
@@ -115,15 +115,27 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
     else:
         body.append(preview)
 
-    meta_parts = []
+    # Build styled meta: user tags (dim) · dates (cyan)
+    meta = Text()
+
+    # User tags — filter system tags and hide_tags
+    user_tags = [t for t in entry.tags if t not in SYSTEM_TAGS and (not hide_tags or t not in hide_tags)]
+
+    # Date parts
+    date_parts = []
     if entry.due:
-        meta_parts.append(f"due:{entry.due}")
+        date_parts.append(f"due:{entry.due}")
     if entry.scheduled_time:
-        meta_parts.append(format_time_display(entry.scheduled_time))
-    if entry.tags:
-        tags = [t for t in entry.tags if not hide_tags or t not in hide_tags]
-        meta_parts.extend(f"@{t}" for t in tags)
-    meta = " ".join(meta_parts)
+        date_parts.append(f"t:{format_time_display(entry.scheduled_time)}")
+    if entry.scheduled_date:
+        date_parts.append(f"d:{entry.scheduled_date.strftime('%b %-d')}")
+
+    if user_tags:
+        meta.append("· ", style="dim")
+        meta.append(" ".join(f"@{t}" for t in user_tags), style="dim")
+    if date_parts:
+        meta.append(" · ", style="dim") if meta.plain else meta.append("· ", style="dim")
+        meta.append(" ".join(date_parts), style="cyan")
 
     return str(i), icon, body, meta
 
