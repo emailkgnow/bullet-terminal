@@ -1,5 +1,6 @@
 """Rich terminal display for bute."""
 
+from rich.align import Align
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -10,6 +11,8 @@ from bute.models import Entry, EntryType, TaskStatus
 from bute.parser import format_time_display
 
 console = Console()
+
+_MAX_WIDTH = 100
 
 # Type-to-style mapping
 TYPE_STYLE = {
@@ -150,7 +153,7 @@ def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | N
         box=None,
         pad_edge=False,
         padding=(0, 1),
-        expand=True,
+        width=min(console.width, _MAX_WIDTH),
     )
     table.add_column("#", style="bold dim", width=3, justify="right")
     table.add_column("", width=2)  # type icon (e.g. .!)
@@ -161,7 +164,7 @@ def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | N
         table.add_row(*_build_entry_row(i, entry, hide_tags=hide_tags))
 
     console.print()
-    console.print(table)
+    console.print(Align.center(table))
 
 
 def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
@@ -199,7 +202,7 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
         box=None,
         pad_edge=False,
         padding=(0, 1),
-        expand=True,
+        width=min(console.width, _MAX_WIDTH),
     )
     table.add_column("Date", style="bold", width=10)
     table.add_column("#", style="bold dim", width=3, justify="right")
@@ -217,7 +220,7 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
         table.add_section()
 
     console.print()
-    console.print(table)
+    console.print(Align.center(table))
 
 
 def display_action_confirmation(entry: Entry, action: str) -> None:
@@ -353,6 +356,7 @@ def display_search_results(
         pad_edge=False,
         box=None,
         padding=(0, 1),
+        width=min(console.width, _MAX_WIDTH),
     )
     table.add_column("#", style="bold dim", width=4, justify="right")
     table.add_column("", width=2)  # type icon
@@ -365,7 +369,7 @@ def display_search_results(
 
     title = f'Like: "{query}"' if query else "Like"
     console.print(f"\n  [bold]{title}[/bold]")
-    console.print(table)
+    console.print(Align.center(table))
 
 
 # Rotating colors for analyze tree branches
