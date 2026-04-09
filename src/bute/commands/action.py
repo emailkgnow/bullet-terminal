@@ -423,18 +423,11 @@ def action_cmd(ctx, tokens):
         display_analyze_map(entry.tags[0] if entry.tags[0] != "ai-analysis" else "analysis", entry.body)
         return
 
-    # Handle chat: bt <n> chat or bt <n> <m> chat (multi-entry)
+    # Handle chat: bt chat (blank start, no entries needed)
     if action == "chat":
-        entries = []
-        for entry_id in entry_ids:
-            path = entry_path_from_id(entry_id, config)
-            if path is None:
-                console.print(f"  [red]Entry {entry_id[:8]} not found.[/red]")
-                return
-            entries.append(load_entry(path))
         from bute.commands.chat import start_chat_session
 
-        start_chat_session(entries, config)
+        start_chat_session(config)
         return
 
     # Handle metadata updates: bt 3 due:friday, bt 3 d:tomorrow t:14.30

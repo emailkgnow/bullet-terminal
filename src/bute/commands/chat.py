@@ -1,14 +1,13 @@
-"""Interactive AI chat sessions anchored to bt entries."""
+"""Interactive AI chat sessions with tool calling support."""
 
 from __future__ import annotations
 
-import re
+import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import click
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
@@ -24,45 +23,22 @@ console = Console()
 class ChatSession:
     """Holds state for an interactive chat session."""
 
-    anchor: Entry
     config: dict
     context_entries: list[Entry] = field(default_factory=list)
     messages: list[dict] = field(default_factory=list)
-    proposals: list[dict] = field(default_factory=list)
     last_bt_results: list[Entry] = field(default_factory=list)
 
     @classmethod
-    def start(cls, entries: list[Entry] | Entry, config: dict) -> ChatSession:
-        """Create a new chat session anchored to one or more entries."""
-        from bute.ai.prompts import chat_prompt, format_entries
-
-        if not isinstance(entries, list):
-            entries = [entries]
-        anchor = entries[0]
-
-        if len(entries) == 1:
-            user_msg = (
-                f"I want to think through this entry:\n\n"
-                f"{format_entries(entries)}\n\n"
-                f"Help me process it."
-            )
-        else:
-            user_msg = (
-                f"I want to think through these {len(entries)} entries together:\n\n"
-                f"{format_entries(entries)}\n\n"
-                f"If they are related, help me explore the connections and think through them as a group. "
-                f"If they seem unrelated, point that out and ask me which one I want to focus on or what connects them in my mind."
-            )
+    def start(cls, config: dict) -> ChatSession:
+        """Create a new blank chat session with just the system prompt."""
+        from bute.ai.prompts import chat_system_prompt
 
         session = cls(
-            anchor=anchor,
             config=config,
-            context_entries=list(entries),
+            context_entries=[],
             messages=[
-                {"role": "system", "content": chat_prompt()},
-                {"role": "user", "content": user_msg},
+                {"role": "system", "content": chat_system_prompt()},
             ],
-            proposals=[],
             last_bt_results=[],
         )
         return session
@@ -88,70 +64,6 @@ class ChatSession:
     def add_assistant_message(self, text: str) -> None:
         """Add an assistant response to the history."""
         self.messages.append({"role": "assistant", "content": text})
-
-
-_BT_BLOCK_RE = re.compile(r"```bt\s*\n(.*?)```", re.DOTALL)
-
-_SIGNIFIER_TO_TYPE = {".": "task", "-": "note", "=": "journal", "o": "calendar"}
-_TYPE_TO_SIG = {"task": ".", "note": "-", "journal": "=", "calendar": "o"}
-
-
-def parse_proposals(response_text: str) -> list[dict]:
-    """Extract proposed entries from ```bt code blocks in AI response.
-
-    Returns list of dicts with keys: type, important, body, tags, metadata.
-    """
-    proposals = []
-    for match in _BT_BLOCK_RE.finditer(response_text):
-        block = match.group(1)
-        for line in block.strip().splitlines():
-            parsed = _parse_proposal_line(line.strip())
-            if parsed:
-                proposals.append(parsed)
-    return proposals
-
-
-def _parse_proposal_line(line: str) -> dict | None:
-    """Parse a single proposal line like '. task text @tag due:date'."""
-    if not line:
-        return None
-
-    tokens = line.split()
-    if not tokens:
-        return None
-
-    first = tokens[0]
-    signifier = first.rstrip("!")
-    important = first.endswith("!") and len(first) > 1
-
-    if signifier not in _SIGNIFIER_TO_TYPE:
-        return None
-
-    entry_type = _SIGNIFIER_TO_TYPE[signifier]
-
-    body_parts = []
-    tags = []
-    metadata = {}
-
-    for token in tokens[1:]:
-        if re.match(r"^@[a-zA-Z0-9_-]+$", token):
-            tags.append(token[1:])
-        elif ":" in token and not token.startswith(":") and token.split(":")[0] in ("due", "d", "t", "r", "repeat"):
-            key, value = token.split(":", 1)
-            metadata[key] = value
-        else:
-            body_parts.append(token)
-
-    if not body_parts:
-        return None
-
-    return {
-        "type": entry_type,
-        "important": important,
-        "body": " ".join(body_parts),
-        "tags": tags,
-        "metadata": metadata,
-    }
 
 
 def execute_bt_view(args: list[str], config) -> list:
@@ -196,59 +108,6 @@ def execute_bt_view(args: list[str], config) -> list:
     return []
 
 
-def display_chat_header(session) -> None:
-    """Display the chat session header with the context entries."""
-    entries = session.context_entries
-
-    if len(entries) == 1:
-        entry = entries[0]
-        style = TYPE_STYLE[entry.type]
-        parts = [entry.body]
-        meta = []
-        if entry.due:
-            meta.append(f"due:{entry.due}")
-        if entry.tags:
-            meta.append(" ".join(f"@{t}" for t in entry.tags))
-        if meta:
-            parts.append(f"[dim]{'  '.join(meta)}[/dim]")
-        icon = "!" if entry.important else ""
-        title_text = f"[bold]Chat[/bold]  {icon}{style['icon']} {style['label']}"
-        body = "  ".join(parts)
-        border = style["color"]
-    else:
-        lines = []
-        for e in entries:
-            style = TYPE_STYLE[e.type]
-            icon = "!" if e.important else " "
-            lines.append(f"  {icon}{style['icon']} {e.body}")
-        title_text = f"[bold]Chat[/bold]  {len(entries)} entries"
-        body = "\n".join(lines)
-        border = "cyan"
-
-    panel = Panel(body, title=title_text, border_style=border, padding=(0, 1))
-    console.print()
-    console.print(panel)
-
-
-def display_chat_context(session) -> None:
-    """Show the current context entries."""
-    console.print(f"\n  [bold dim]Context ({len(session.context_entries)} entries)[/bold dim]")
-    for entry in session.context_entries:
-        style = TYPE_STYLE[entry.type]
-        bang = "!" if entry.important else " "
-        tags = " ".join(f"@{t}" for t in entry.tags) if entry.tags else ""
-        meta_parts = []
-        if entry.due:
-            meta_parts.append(f"due:{entry.due}")
-        if tags:
-            meta_parts.append(tags)
-        meta = " ".join(meta_parts)
-        console.print(
-            f"  [dim]│[/dim] [{style['color']}]{bang}{style['icon']}[/{style['color']}] "
-            f"{entry.body} [dim]{meta}[/dim]"
-        )
-
-
 def display_bt_results(entries: list, context_ids: set[str]) -> None:
     """Display bt query results with in-context markers."""
     if not entries:
@@ -289,99 +148,32 @@ def display_bt_results(entries: list, context_ids: set[str]) -> None:
     console.print(table)
 
 
-def display_proposed_entries(proposals: list[dict]) -> None:
-    """Display proposed entries for batch review."""
-    sig_style = {".": "cyan", "-": "yellow", "=": "magenta", "o": "green"}
-
-    table = Table(
-        title="Proposed entries",
-        title_style="bold",
-        show_header=False, box=None, pad_edge=False,
-        padding=(0, 1), expand=True,
-    )
-    table.add_column("#", style="bold dim", width=4, justify="right")
-    table.add_column("", width=2)
-    table.add_column("", ratio=1, overflow="fold")
-    table.add_column("", style="dim")
-
-    for i, p in enumerate(proposals, 1):
-        sig = _sig_for_type(p["type"])
-        color = sig_style.get(sig, "white")
-        icon = Text()
-        if p.get("important"):
-            icon.append("!", style="bold red")
-        else:
-            icon.append(" ")
-        icon.append(sig, style=color)
-
-        body = Text(p["body"])
-
-        meta_parts = []
-        for key in ("due", "d", "t"):
-            if key in p.get("metadata", {}):
-                meta_parts.append(f"{key}:{p['metadata'][key]}")
-        if p.get("tags"):
-            meta_parts.extend(f"@{t}" for t in p["tags"])
-
-        table.add_row(str(i), icon, body, " ".join(meta_parts))
-
-    console.print()
-    console.print(table)
-
-
-def _stream_and_record(session: ChatSession) -> None:
-    """Stream the next AI response, record it, and parse proposals."""
-    from rich.live import Live
-
-    from bute.ai.llm import stream_chat
-    from bute.display import display_ai_response
-
-    full_response = []
-    with Live(Text(""), refresh_per_second=10, console=console, transient=True) as live:
-        for chunk in stream_chat(session.messages, session.config):
-            full_response.append(chunk)
-            live.update(Text("".join(full_response)))
-
-    response_text = "".join(full_response)
-    session.add_assistant_message(response_text)
-
-    # Render full response (including any ```bt blocks — they're conversational here)
-    if response_text.strip():
-        display_ai_response(response_text)
-
-
-def start_chat_session(entries, config) -> None:
-    """Start an interactive AI chat session anchored to one or more entries."""
-    from bute.ai import _LLM_INSTALL_MSG, is_llm_available
+def start_chat_session(config) -> None:
+    """Start an interactive AI chat session with tool access."""
+    from bute.ai import _LLM_INSTALL_MSG, is_embedding_available, is_llm_available
 
     if not is_llm_available(config):
         console.print(_LLM_INSTALL_MSG)
         return
 
-    if not isinstance(entries, list):
-        entries = [entries]
+    session = ChatSession.start(config)
+    embeddings_available = is_embedding_available()
 
-    session = ChatSession.start(entries, config)
-    display_chat_header(session)
+    console.print()
+    console.print("  [bold]bt chat[/bold] — AI session with tool access")
+    console.print("  [dim]/bt <args> to pull entries, /done to exit[/dim]")
 
-    # Initial AI response
-    _stream_and_record(session)
-
-    # REPL loop
-    save_requested = _run_repl(session)
-
-    # Exit flow
-    _exit_flow(session, save_requested)
+    _run_repl(session, embeddings_available)
 
 
-def _run_repl(session: ChatSession) -> bool:
-    """Run the chat REPL. Returns True if /save was requested."""
+def _run_repl(session: ChatSession, embeddings_available: bool) -> None:
+    """Run the chat REPL."""
     while True:
         try:
             user_input = input("\n> ").strip()
         except (EOFError, KeyboardInterrupt):
             console.print()
-            return False
+            return
 
         if not user_input:
             continue
@@ -390,9 +182,7 @@ def _run_repl(session: ChatSession) -> bool:
         if user_input.startswith("/"):
             result = _handle_slash_command(session, user_input)
             if result == "exit":
-                return False
-            if result == "save":
-                return True
+                return
             continue
 
         # Number-action
@@ -401,31 +191,90 @@ def _run_repl(session: ChatSession) -> bool:
             _handle_number_action(session, tokens)
             continue
 
-        # Regular message → send to AI
+        # Regular message → send to AI with tools
         session.add_user_message(user_input)
-        _stream_and_record(session)
+        _stream_with_tools(session, embeddings_available)
+
+
+def _stream_with_tools(session: ChatSession, embeddings_available: bool) -> None:
+    """Stream an AI response, handling tool calls in a loop."""
+    from rich.live import Live
+
+    from bute.ai.llm import stream_chat_with_tools
+    from bute.ai.tools import execute_tool, get_tool_schemas
+    from bute.display import display_ai_response
+
+    tools = get_tool_schemas(embeddings_available=embeddings_available)
+
+    while True:
+        content_parts = []
+        tool_calls = []
+
+        with Live(Text(""), refresh_per_second=10, console=console, transient=True) as live:
+            for event in stream_chat_with_tools(session.messages, tools, session.config):
+                if event["type"] == "content":
+                    content_parts.append(event["content"])
+                    live.update(Text("".join(content_parts)))
+                elif event["type"] == "tool_call":
+                    tool_calls.append(event)
+                elif event["type"] == "done":
+                    break
+
+        content_text = "".join(content_parts)
+
+        # No tool calls — display response and return
+        if not tool_calls:
+            if content_text.strip():
+                session.add_assistant_message(content_text)
+                display_ai_response(content_text)
+            return
+
+        # Has tool calls — record assistant message with tool_calls, execute, loop
+        assistant_msg = {
+            "role": "assistant",
+            "tool_calls": [
+                {
+                    "id": tc["id"],
+                    "type": "function",
+                    "function": {
+                        "name": tc["name"],
+                        "arguments": tc["arguments"],
+                    },
+                }
+                for tc in tool_calls
+            ],
+        }
+        if content_text:
+            assistant_msg["content"] = content_text
+        session.messages.append(assistant_msg)
+
+        # Execute each tool call and add results
+        for tc in tool_calls:
+            try:
+                args = json.loads(tc["arguments"]) if tc["arguments"] else {}
+            except json.JSONDecodeError:
+                args = {}
+
+            console.print(f"  [dim]→ {tc['name']}[/dim]")
+            result = execute_tool(tc["name"], args, session.config)
+
+            session.messages.append({
+                "role": "tool",
+                "tool_call_id": tc["id"],
+                "content": result,
+            })
+
+        # Loop back to let the AI process tool results
 
 
 def _handle_slash_command(session: ChatSession, command: str) -> str | None:
-    """Handle a slash command. Returns 'exit', 'save', or None to continue."""
+    """Handle a slash command. Returns 'exit' or None to continue."""
     parts = command.split(None, 1)
     cmd = parts[0].lower()
     args_str = parts[1] if len(parts) > 1 else ""
 
     if cmd == "/done":
         return "exit"
-
-    if cmd == "/save":
-        return "save"
-
-    if cmd == "/context":
-        display_chat_context(session)
-        return None
-
-    if cmd == "/clear":
-        session.context_entries = [session.anchor]
-        console.print("  [dim]Context reset to anchor entry.[/dim]")
-        return None
 
     if cmd == "/bt":
         bt_args = args_str.split() if args_str else []
@@ -448,19 +297,19 @@ def _handle_slash_command(session: ChatSession, command: str) -> str | None:
         return None
 
     console.print(f"  [dim]Unknown command: {cmd}[/dim]")
-    console.print("  [dim]Available: /bt <args>, /context, /clear, /done, /save[/dim]")
+    console.print("  [dim]Available: /bt <args>, /done[/dim]")
     return None
 
 
 def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
-    """Handle number-action commands in chat (e.g., '1 2 5 add', '3 done')."""
+    """Handle number-action commands in chat (e.g., '3 done', '1 @tag')."""
     numbers = []
     rest = list(tokens)
     while rest and rest[0].isdigit():
         numbers.append(int(rest.pop(0)))
 
     if not rest:
-        console.print("  [dim]No action specified. Usage: 1 2 add, 3 done[/dim]")
+        console.print("  [dim]No action specified. Usage: 3 done, 1 @tag[/dim]")
         return
 
     action = rest[0]
@@ -480,21 +329,7 @@ def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
             return
         resolved.append(session.last_bt_results[n - 1])
 
-    # Chat-specific: add to context
-    if action == "add":
-        before = len(session.context_entries)
-        session.add_to_context(resolved)
-        added = len(session.context_entries) - before
-        if added:
-            console.print(
-                f"  [green]Added {added} "
-                f"{'entry' if added == 1 else 'entries'} to context.[/green]"
-            )
-        else:
-            console.print("  [dim]Already in context.[/dim]")
-        return
-
-    # Standard bt actions (done, drop, !, @tag, untag, later)
+    # Standard bt actions (done, drop, !, @tag, untag, later, backlog)
     from bute.commands.action import ACTION_HANDLERS, handle_add_tag, handle_remove_tag
     from bute.errors import DwnError
     from bute.display import display_action_confirmation
@@ -530,217 +365,3 @@ def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
             display_action_confirmation(entry, action)
         except DwnError as e:
             console.print(f"  [red]{e.format_message()}[/red]")
-
-
-def _exit_flow(session: ChatSession, save_requested: bool) -> None:
-    """Handle exit — ask AI to suggest entries, then optional summary."""
-    # Only suggest entries if chat was substantive
-    if len(session.messages) > 4:
-        _suggest_entries(session)
-
-    # Offer summary if chat was substantive
-    if save_requested:
-        _generate_summary(session)
-    elif len(session.messages) > 4:
-        if click.confirm("\n  Save summary note?", default=False):
-            _generate_summary(session)
-
-
-def _suggest_entries(session: ChatSession) -> None:
-    """Ask the AI to review the conversation and suggest entries to create."""
-    from bute.ai.llm import stream_chat
-    from rich.live import Live
-
-    console.print("\n  [dim]Reviewing chat for entries...[/dim]")
-
-    review_messages = list(session.messages) + [{
-        "role": "user",
-        "content": (
-            "Review our conversation and suggest concrete entries I should "
-            "create from it — tasks, notes, journal reflections, or calendar "
-            "events. Use ```bt blocks. Only suggest entries that are clearly "
-            "worth capturing. If nothing stands out, say so."
-        ),
-    }]
-
-    full_response = []
-    with Live(Text(""), refresh_per_second=10, console=console, transient=True) as live:
-        for chunk in stream_chat(review_messages, session.config):
-            full_response.append(chunk)
-            live.update(Text("".join(full_response)))
-
-    response_text = "".join(full_response)
-
-    # Parse proposals from the response
-    proposals = parse_proposals(response_text)
-    if not proposals:
-        # Show the AI's response (e.g. "nothing stands out")
-        display_text = _BT_BLOCK_RE.sub("", response_text).strip()
-        if display_text:
-            from bute.display import display_ai_response
-            display_ai_response(display_text)
-        return
-
-    # Show the AI's reasoning then the proposals
-    display_text = _BT_BLOCK_RE.sub("", response_text).strip()
-    if display_text:
-        from bute.display import display_ai_response
-        display_ai_response(display_text)
-
-    session.proposals = proposals
-    _batch_review(session)
-
-
-def _batch_review(session: ChatSession) -> None:
-    """Present proposals for review."""
-    display_proposed_entries(session.proposals)
-
-    choice = click.prompt(
-        "\n  Accept all?",
-        type=click.Choice(["y", "n", "p"], case_sensitive=False),
-        prompt_suffix=" [y]es [n]o [p]ick > ",
-        default="y",
-        show_choices=False,
-    )
-
-    if choice == "n":
-        console.print("  [dim]All proposals discarded.[/dim]")
-        session.proposals = []
-        return
-
-    to_create = session.proposals
-    if choice == "p":
-        try:
-            import questionary
-
-            choices = [
-                questionary.Choice(
-                    f"{_sig_for_type(p['type'])} {p['body']}",
-                    value=i,
-                    checked=True,
-                )
-                for i, p in enumerate(session.proposals)
-            ]
-            selected = questionary.checkbox(
-                "Select entries to create:", choices=choices
-            ).ask()
-            if selected is None:
-                return
-            to_create = [session.proposals[i] for i in selected]
-        except ImportError:
-            console.print("  [dim]questionary not available — accepting all[/dim]")
-
-    created = create_proposals(to_create, session)
-    console.print(
-        f"\n  [green]{len(created)} "
-        f"{'entry' if len(created) == 1 else 'entries'} created.[/green]"
-    )
-
-
-def _sig_for_type(entry_type: str) -> str:
-    """Map type name back to signifier."""
-    return _TYPE_TO_SIG.get(entry_type, "?")
-
-
-def create_proposals(proposals: list[dict], session: ChatSession) -> list:
-    """Create Entry objects from proposals, save to disk, and return them."""
-    from bute.ai import embed_entry
-    from bute.display import confirm_capture
-    from bute.models import Entry, EntryType
-    from bute.parser import resolve_date, resolve_time
-    from bute.storage import save_entry
-
-    type_map = {
-        "task": EntryType.TASK,
-        "note": EntryType.NOTE,
-        "journal": EntryType.JOURNAL,
-        "calendar": EntryType.CALENDAR,
-    }
-
-    created = []
-    for p in proposals:
-        entry_type = type_map[p["type"]]
-        metadata = p.get("metadata", {})
-
-        kwargs = {
-            "entry_type": entry_type,
-            "body": p["body"],
-            "important": p.get("important", False),
-            "tags": list(p.get("tags", [])),
-        }
-
-        if "due" in metadata:
-            try:
-                kwargs["due"] = resolve_date(metadata["due"])
-            except Exception:
-                pass
-        if "d" in metadata:
-            try:
-                kwargs["scheduled_date"] = resolve_date(metadata["d"])
-            except Exception:
-                pass
-        if "t" in metadata:
-            try:
-                kwargs["scheduled_time"] = resolve_time(metadata["t"])
-            except Exception:
-                pass
-        repeat = metadata.get("r") or metadata.get("repeat")
-        if repeat:
-            kwargs["repeat"] = repeat
-
-        # Auto-tag: tasks → @thisweek, notes/journals → @today
-        tags = kwargs["tags"]
-        if entry_type == EntryType.TASK and "thisweek" not in tags:
-            tags.append("thisweek")
-        elif entry_type in (EntryType.NOTE, EntryType.JOURNAL) and "today" not in tags:
-            tags.append("today")
-
-        entry = Entry.create(**kwargs)
-        save_entry(entry, session.config)
-        embed_entry(entry.id, entry.body, session.config)
-        confirm_capture(entry)
-        created.append(entry)
-
-    return created
-
-
-def _generate_summary(session: ChatSession) -> None:
-    """Generate a summary note from the chat conversation."""
-    from bute.ai import embed_entry, llm_send
-    from bute.ai.prompts import chat_summary_prompt
-    from bute.display import confirm_capture
-    from bute.models import Entry, EntryType
-    from bute.storage import save_entry
-
-    console.print("  [dim]Generating summary...[/dim]")
-
-    # Build conversation text (skip system prompt)
-    conversation = []
-    for msg in session.messages:
-        if msg["role"] == "system":
-            continue
-        prefix = "User" if msg["role"] == "user" else "AI"
-        conversation.append(f"{prefix}: {msg['content']}")
-
-    response = llm_send(
-        chat_summary_prompt(),
-        "\n\n".join(conversation),
-        session.config,
-    )
-
-    if response == "[AI unavailable]":
-        console.print("  [dim]Could not generate summary.[/dim]")
-        return
-
-    # Create note with anchor's tags + ai-chat marker
-    tags = list(session.anchor.tags)
-    if "ai-chat" not in tags:
-        tags.append("ai-chat")
-    entry = Entry.create(
-        entry_type=EntryType.NOTE,
-        body=response,
-        tags=tags,
-    )
-    save_entry(entry, session.config)
-    embed_entry(entry.id, entry.body, session.config)
-    confirm_capture(entry)
