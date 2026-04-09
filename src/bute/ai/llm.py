@@ -147,6 +147,64 @@ def stream_chat(messages: list[dict], config=None):
         yield "[AI unavailable]"
 
 
+def stream_chat_with_tools(messages: list[dict], tools: list[dict], config=None):
+    """Stream a multi-turn chat completion with tool calling support.
+
+    Yields dicts with either:
+      {"type": "content", "content": "text chunk"}
+      {"type": "tool_call", "id": "call_xxx", "name": "func", "arguments": "json_str"}
+      {"type": "done"}
+
+    On error, yields a single content chunk with the error message.
+    """
+    try:
+        client = _get_client(config)
+        model = _get_model(config)
+        stream = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=tools if tools else None,
+            stream=True,
+        )
+
+        # Accumulate tool call data across chunks
+        tool_calls: dict[int, dict] = {}  # index -> {id, name, arguments}
+
+        for chunk in stream:
+            delta = chunk.choices[0].delta
+
+            # Content chunks
+            if delta.content:
+                yield {"type": "content", "content": delta.content}
+
+            # Tool call chunks — accumulate across deltas
+            if delta.tool_calls:
+                for tc in delta.tool_calls:
+                    idx = tc.index
+                    if idx not in tool_calls:
+                        tool_calls[idx] = {"id": "", "name": "", "arguments": ""}
+                    if tc.id:
+                        tool_calls[idx]["id"] = tc.id
+                    if tc.function and tc.function.name:
+                        tool_calls[idx]["name"] = tc.function.name
+                    if tc.function and tc.function.arguments:
+                        tool_calls[idx]["arguments"] += tc.function.arguments
+
+            # Check for finish reason
+            if chunk.choices[0].finish_reason == "tool_calls":
+                for idx in sorted(tool_calls.keys()):
+                    tc = tool_calls[idx]
+                    yield {"type": "tool_call", "id": tc["id"], "name": tc["name"], "arguments": tc["arguments"]}
+                tool_calls.clear()
+
+        yield {"type": "done"}
+
+    except Exception as e:
+        logger.debug("LLM stream failed: %s", e, exc_info=True)
+        yield {"type": "content", "content": "[AI unavailable]"}
+        yield {"type": "done"}
+
+
 def send_with_entries(
     system: str, entries: list[Entry], question: str, config=None
 ) -> str:

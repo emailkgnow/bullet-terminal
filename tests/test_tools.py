@@ -338,3 +338,14 @@ def test_handler_dict_completeness():
         f"Missing handlers: {schema_names - handler_names}, "
         f"Extra handlers: {handler_names - schema_names}"
     )
+
+
+# ---------------------------------------------------------------------------
+# stream_chat_with_tools (Task 4)
+# ---------------------------------------------------------------------------
+
+
+def test_stream_chat_with_tools_is_callable():
+    """Test that stream_chat_with_tools exists and is callable."""
+    from bute.ai.llm import stream_chat_with_tools
+    assert callable(stream_chat_with_tools)
