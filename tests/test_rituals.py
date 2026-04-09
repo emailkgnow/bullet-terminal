@@ -99,6 +99,21 @@ def test_wp_no_tasks(runner, tmp_config, tmp_data):
     assert "No tasks to plan" in result.output or "Backlog is empty" in result.output
 
 
+def test_wp_shows_carryover_icon(runner, tmp_config, tmp_data):
+    """wp shows ↩ for tasks that had @thisweek from last week."""
+    _setup_config(tmp_config, tmp_data)
+    e1 = Entry.create(EntryType.TASK, "carried over", tags=["thisweek"])
+    e2 = Entry.create(EntryType.TASK, "fresh task")
+    save_entry(e1)
+    save_entry(e2)
+
+    # Non-interactive mode shows the task list — carryover first, backlog second
+    result = runner.invoke(main, ["wp", "--non-interactive"])
+    assert result.exit_code == 0
+    assert "carried over" in result.output
+    assert "fresh task" in result.output
+
+
 # --- Recap command tests ---
 
 

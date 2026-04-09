@@ -294,12 +294,15 @@ def wp_cmd(ctx, non_interactive):
 
     display_ritual_header("Plan", "Review your backlog and select for this week")
 
+    # Separate carryover (@thisweek from last week) from fresh backlog
     active = get_all_active_tasks(config)
+    carryover = [e for e in active if "thisweek" in e.tags]
+    carryover_ids = {e.id for e in carryover}
+    backlog = [e for e in active if e.id not in carryover_ids]
 
-    # Show current task log
-    if active:
-        display_entry_list(active, "Task Backlog")
-    else:
+    all_tasks = carryover + backlog
+
+    if not all_tasks and not non_interactive:
         console.print("  [dim]Backlog is empty.[/dim]")
 
     # Dump phase — add new tasks
@@ -321,19 +324,24 @@ def wp_cmd(ctx, non_interactive):
             console.print(f"  [green]{added} tasks added.[/green]")
             # Reload with new tasks
             active = get_all_active_tasks(config)
+            carryover = [e for e in active if "thisweek" in e.tags]
+            carryover_ids = {e.id for e in carryover}
+            backlog = [e for e in active if e.id not in carryover_ids]
+            all_tasks = carryover + backlog
 
-    if not active:
+    if not all_tasks:
         console.print("  [dim]No tasks to plan. Capture some first.[/dim]")
         from bute.state import mark_wp_done
         mark_wp_done(config)
         return
 
     if non_interactive:
-        thisweek = [e for e in active if "thisweek" in e.tags]
-        if thisweek:
-            display_entry_list(thisweek, "This week's tasks")
-        else:
-            display_entry_list(active, "Task Backlog (none selected for week)")
+        if carryover:
+            display_entry_list(carryover, "This week's tasks")
+        if backlog:
+            display_entry_list(backlog, "Backlog")
+        if not carryover and not backlog:
+            console.print("  [dim]No tasks.[/dim]")
         from bute.state import mark_wp_done
         mark_wp_done(config)
         return
@@ -342,19 +350,24 @@ def wp_cmd(ctx, non_interactive):
     try:
         import questionary
 
-        choices = [
-            questionary.Choice(
-                f"{e.body}" + (" [thisweek]" if "thisweek" in e.tags else ""),
-                value=e.id,
-                checked="thisweek" in e.tags,
-            )
-            for e in active
-        ]
+        choices = []
+        for e in carryover:
+            label = f"\u21a9 {e.body}"
+            choices.append(questionary.Choice(
+                label, value=e.id, checked=True,
+            ))
+        for e in backlog:
+            choices.append(questionary.Choice(
+                e.body, value=e.id, checked=False,
+            ))
+
         selected = questionary.checkbox(
             "Select tasks for this week:", choices=choices
         ).ask()
 
         if selected is None:
+            from bute.state import mark_wp_done
+            mark_wp_done(config)
             return  # user cancelled
 
         cleared = clear_weekly_selection(config)
