@@ -188,3 +188,67 @@ def test_get_wp_day_from_config(tmp_config, tmp_data):
     config = load_config()
     config["core"]["wp_day"] = "monday"
     assert get_wp_day(config) == 0
+
+
+# --- bt (no args) wp trigger tests ---
+
+
+def test_bt_noargs_chains_wp_then_dp(runner, tmp_config, tmp_data, monkeypatch):
+    """bt (no args) on trigger day runs wp then dp in sequence."""
+    _setup_config(tmp_config, tmp_data)
+    # Mark tour as done so bt doesn't show tour
+    from bute.config import TOUR_DONE
+    TOUR_DONE.parent.mkdir(parents=True, exist_ok=True)
+    TOUR_DONE.touch()
+
+    # Force wp_day to today's weekday so trigger fires
+    from bute.config import load_config, save_config
+    config = load_config()
+    today_name = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][date.today().weekday()]
+    config["core"]["wp_day"] = today_name
+    save_config(config)
+
+    e = Entry.create(EntryType.TASK, "weekly task")
+    save_entry(e)
+
+    # Mock questionary to avoid interactive TUI in test
+    import questionary
+    monkeypatch.setattr(questionary, "checkbox", lambda *a, **kw: type("Q", (), {"ask": lambda self: []})())
+
+    # bt (no args) should trigger wp (non-interactive fallback) then dp
+    result = runner.invoke(main, [], input="\n")
+    assert result.exit_code == 0
+    # wp should have run (Plan header)
+    assert "Plan" in result.output
+
+
+def test_bt_noargs_skips_wp_when_done(runner, tmp_config, tmp_data, monkeypatch):
+    """bt (no args) skips wp when already done this week."""
+    _setup_config(tmp_config, tmp_data)
+    from bute.config import TOUR_DONE
+    TOUR_DONE.parent.mkdir(parents=True, exist_ok=True)
+    TOUR_DONE.touch()
+
+    # Force wp_day to today
+    from bute.config import load_config, save_config
+    config = load_config()
+    today_name = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][date.today().weekday()]
+    config["core"]["wp_day"] = today_name
+    save_config(config)
+
+    # Mark wp as already done
+    from bute.state import mark_wp_done
+    mark_wp_done()
+
+    # Mock questionary to avoid interactive TUI
+    import questionary
+    monkeypatch.setattr(questionary, "checkbox", lambda *a, **kw: type("Q", (), {"ask": lambda self: []})())
+
+    # bt (no args) — wp should be skipped, dp should run
+    result = runner.invoke(main, [], input="\n")
+    assert result.exit_code == 0
+    assert "Daily Plan" in result.output
+    # wp Plan header should NOT appear (wp was already done)
+    output_lines = result.output.split("\n")
+    plan_lines = [l for l in output_lines if l.strip() == "Plan" or "Review your backlog" in l]
+    assert len(plan_lines) == 0, f"wp should not have triggered, but found: {plan_lines}"

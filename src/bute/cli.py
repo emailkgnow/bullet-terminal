@@ -472,10 +472,19 @@ def main(ctx, interactive, demo, toggle_journal):
             run_tour(ctx)
             return
 
-        from bute.state import is_dyts_done_today
-        if is_dyts_done_today(config):
+        from datetime import date
+        from bute.config import get_wp_day
+        from bute.state import is_wp_done_this_week
+
+        # Weekly plan trigger — on or after trigger day, if not done this week
+        wp_day = get_wp_day(config)
+        if date.today().weekday() >= wp_day and not is_wp_done_this_week(config):
+            from bute.commands.rituals import wp_cmd as _wp_cmd
+            ctx.invoke(_wp_cmd, non_interactive=False)
+
+        from bute.state import is_dp_done_today
+        if is_dp_done_today(config):
             # Daily plan already done — show Focus Log
-            from datetime import date
             from bute.display import display_entry_list
             from bute.ritual_ops import get_daily_log
             from bute.state import save_state
