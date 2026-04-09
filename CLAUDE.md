@@ -71,7 +71,7 @@ User input → DwnGroup.resolve_command() → capture.py
 | `storage.py` | Markdown file I/O, query by date/filter, handles legacy `migrated` status |
 | `display.py` | Rich rendering: `display_entry_list`, `display_entry_list_grouped`, confirmations |
 | `ritual_ops.py` | Pure functions for rituals (Focus Log, yesterday unresolved, schedule, active tasks, dump) |
-| `state.py` | View-to-action bridge, DYTS completion tracking |
+| `state.py` | View-to-action bridge, daily plan completion tracking |
 | `ai/llm.py` | Provider-agnostic OpenAI client, macOS Keychain API key resolution |
 | `ai/vectors.py` | sqlite-vec wrapper (upsert, search, delete) |
 | `ai/embeddings.py` | fastembed wrapper, lazy model loading |
@@ -121,7 +121,7 @@ bute m              # monthly log (all entries for the month)
 bute m jan          # January's log (full or abbreviated name)
 bute m 2026-03      # March 2026
 bute m 2026         # all months of 2026
-bute                # Focus Log (or DYTS if not done today)
+bute                # Focus Log (or daily plan if not done today)
 bute @tagname       # cross-dimension tag filter
 bute @bt @ai        # entries with both tags (AND)
 bute @bt -@done     # entries with @bt but not @done
@@ -165,9 +165,9 @@ bute tags                           # list all tags with stage and count
 
 **Rituals**:
 ```
-bute                # entry point — DYTS if not done today, else Focus Log
+bute                # entry point — weekly plan (on trigger day) → daily plan → Focus Log
 bute dp             # morning ritual — pick today's tasks
-bute wp             # weekly plan — select tasks for the week
+bute wp             # weekly plan — select tasks for the week (auto-triggers on configured day)
 bute recap week     # AI analysis of a period (day, week, month, year)
 bute habit <name>   # track habits
 bute streak         # habit streaks and 30-day stats
@@ -182,10 +182,10 @@ bute init           # first-run setup (pick AI provider)
 
 ## Design Decisions
 
-- **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. DYTS Y phase handles yesterday's unfinished items.
+- **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. Daily plan handles yesterday's unfinished items.
 - **Tags have a dual role** — `@tag` as label (organizes entries) and `@tag` as thinking tool (`analyze` clusters the group via AI). The `+collection` syntax was removed — tags absorbed collections. Stage tracking (raw → analyzed) lives in the `tag_stages` SQLite table.
 - **Logs are derived** — no stored files. Focus Log (`bt`), daily log (`bt d`), weekly log (`bt w`), monthly log (`bt m`) all query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label).
-- **`bute` with no args** = Daily Plan entry point. If daily plan done today, shows Focus Log.
+- **`bute` with no args** = planning entry point. On the trigger day (default Sunday, configurable via `core.wp_day`), runs weekly plan then daily plan. Other days, runs daily plan only. If all done, shows Focus Log.
 - **Focus Log (`bt`)** — what matters today: `@today` tasks, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bute b`) or Tasks (`bute t`). Curated and active-only — distinct from Daily Log (`bt d`) which shows everything retrospectively.
 - **Task views**: `bt t` (Tasks) shows `@thisweek` focus tasks. `bt b` (Backlog) shows all active tasks. The flow is: backlog → weekly plan → tasks → Focus Log.
 - **`bute wp`** includes task dump phase — add tasks before selecting for the week.
