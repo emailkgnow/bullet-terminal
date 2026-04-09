@@ -136,8 +136,8 @@ _create_entry = {
             "properties": {
                 "signifier": {
                     "type": "string",
-                    "enum": ["t", "n", "j", "c"],
-                    "description": "Entry type: t=task, n=note, j=journal, c=calendar.",
+                    "enum": [".", "-", "=", "o"],
+                    "description": ". = task, - = note, = = journal, o = calendar event.",
                 },
                 "body": {
                     "type": "string",
