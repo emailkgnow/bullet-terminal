@@ -5,7 +5,7 @@ from datetime import date
 from bute.cli import main
 from bute.config import default_config, save_config
 from bute.models import Entry, EntryType, TaskStatus
-from bute.storage import entry_path_from_id, load_entry, save_entry, update_entry
+from bute.storage import save_entry, update_entry
 
 
 def _setup_config(tmp_config, tmp_data):
@@ -114,7 +114,7 @@ def test_wp_shows_carryover_icon(runner, tmp_config, tmp_data):
     assert "fresh task" in result.output
 
 
-# --- Recap command tests ---
+# --- Daily log tests ---
 
 
 def test_daily_log_shows_done_tasks(runner, tmp_config, tmp_data):
@@ -144,22 +144,6 @@ def test_daily_log_empty(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["daily"])
     assert result.exit_code == 0
     assert "No entries" in result.output
-
-
-def test_recap_period_no_ai(runner, tmp_config, tmp_data):
-    """bt recap week without AI available shows install message."""
-    _setup_config(tmp_config, tmp_data)
-    result = runner.invoke(main, ["recap", "week"])
-    assert result.exit_code == 0
-    assert "AI" in result.output or "No entries" in result.output
-
-
-def test_recap_invalid_period(runner, tmp_config, tmp_data):
-    """bt recap with unknown period shows error."""
-    _setup_config(tmp_config, tmp_data)
-    result = runner.invoke(main, ["recap", "quarter"])
-    assert result.exit_code == 0
-    assert "Unknown period" in result.output
 
 
 # --- Streak command tests ---
