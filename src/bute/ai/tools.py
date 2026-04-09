@@ -459,8 +459,421 @@ def _handle_search_similar(args: dict, config) -> str:
     return f"{len(entries)} entries:\n\n{format_entries(entries)}"
 
 
+# ---------------------------------------------------------------------------
+# Helper functions for write tools
+# ---------------------------------------------------------------------------
+
+_SIGNIFIER_TO_TYPE = {
+    ".": "task",
+    "-": "note",
+    "=": "journal",
+    "o": "calendar",
+}
+
+
+def _load_entries_by_ids(
+    entry_ids: list[str], config
+) -> list["tuple[str, Entry | None]"]:
+    """Load Entry objects from ULIDs.
+
+    Returns list of (entry_id, Entry | None) tuples. None when not found.
+    """
+    from bute.storage import entry_path_from_id, load_entry
+
+    results = []
+    for eid in entry_ids:
+        path = entry_path_from_id(eid, config)
+        if path is None:
+            results.append((eid, None))
+        else:
+            try:
+                results.append((eid, load_entry(path)))
+            except Exception:
+                results.append((eid, None))
+    return results
+
+
+def _entry_summary(entry) -> str:
+    """One-line summary of an entry for confirmation display."""
+    from bute.models import EntryType
+
+    icon_map = {
+        EntryType.TASK: ".",
+        EntryType.NOTE: "-",
+        EntryType.JOURNAL: "=",
+        EntryType.CALENDAR: "o",
+    }
+    icon = icon_map.get(entry.type, "?")
+    important = "!" if entry.important else ""
+    body = entry.body[:60] + ("..." if len(entry.body) > 60 else "")
+    tags = " ".join(f"@{t}" for t in entry.tags) if entry.tags else ""
+    parts = [f"{important}{icon} {body}"]
+    if tags:
+        parts.append(tags)
+    return " ".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Confirmation functions
+# ---------------------------------------------------------------------------
+
+
+def _confirm_action(description: str) -> bool:
+    """Single-entry confirmation prompt. Returns True if user confirms."""
+    import click
+
+    return click.confirm(f"  {description}", default=True)
+
+
+def _confirm_batch(
+    description: str, entry_summaries: list[str]
+) -> list[int] | None:
+    """Batch confirmation with y/n/p.
+
+    For single entries: simple y/n (no pick option).
+    For multiple entries: y/n/p (pick) where p lets user select indices.
+    Returns list of 0-based indices to apply, or None if cancelled.
+    """
+    import click
+    from rich.console import Console
+
+    console = Console()
+    console.print(f"\n  [bold]{description}[/bold]")
+    for i, summary in enumerate(entry_summaries):
+        console.print(f"    {i + 1}. {summary}")
+
+    if len(entry_summaries) == 1:
+        # Simple y/n for single entry
+        if click.confirm("  Apply?", default=True):
+            return [0]
+        return None
+
+    # Multi-entry: y/n/p
+    choice = click.prompt(
+        "  Apply to all? [y]es / [n]o / [p]ick",
+        type=click.Choice(["y", "n", "p"], case_sensitive=False),
+        default="y",
+    )
+    if choice == "y":
+        return list(range(len(entry_summaries)))
+    elif choice == "n":
+        return None
+    else:
+        # Pick mode
+        raw = click.prompt("  Enter numbers (e.g. 1 3)")
+        try:
+            indices = [int(x) - 1 for x in raw.split()]
+            return [i for i in indices if 0 <= i < len(entry_summaries)]
+        except ValueError:
+            return None
+
+
+# ---------------------------------------------------------------------------
+# Write tool handlers
+# ---------------------------------------------------------------------------
+
+
+def _handle_create_entry(args: dict, config) -> str:
+    """Create a new entry with confirmation."""
+    from datetime import date
+
+    import click
+
+    from bute.ai import embed_entry
+    from bute.display import confirm_capture
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    signifier = args["signifier"]
+    body = args["body"]
+    type_str = _SIGNIFIER_TO_TYPE.get(signifier)
+    if type_str is None:
+        return f"Invalid signifier: {signifier}"
+
+    entry_type = EntryType(type_str)
+
+    # Build kwargs for Entry.create
+    create_kwargs: dict = {
+        "entry_type": entry_type,
+        "body": body,
+    }
+    if args.get("tags"):
+        create_kwargs["tags"] = list(args["tags"])
+    if args.get("important"):
+        create_kwargs["important"] = True
+    if args.get("due"):
+        create_kwargs["due"] = date.fromisoformat(args["due"])
+    if args.get("date"):
+        create_kwargs["scheduled_date"] = date.fromisoformat(args["date"])
+    if args.get("time"):
+        create_kwargs["scheduled_time"] = args["time"]
+
+    entry = Entry.create(**create_kwargs)
+
+    # Confirmation
+    summary = _entry_summary(entry)
+    if not _confirm_action(f"Create: {summary}"):
+        return "Cancelled — entry not created."
+
+    save_entry(entry, config)
+    embed_entry(entry.id, entry.body, config)
+    return f"Created {entry_type.value}: {body}"
+
+
+def _handle_add_tag(args: dict, config) -> str:
+    """Add a tag to one or more entries."""
+    from bute.commands.action import handle_add_tag
+
+    entry_ids = args["entry_ids"]
+    tag = args["tag"]
+    loaded = _load_entries_by_ids(entry_ids, config)
+
+    # Check for missing entries
+    missing = [eid for eid, entry in loaded if entry is None]
+    if len(missing) == len(loaded):
+        return f"Error: no entries found ({', '.join(e[:8] for e in missing)})"
+
+    found = [(eid, entry) for eid, entry in loaded if entry is not None]
+    summaries = [_entry_summary(entry) for _, entry in found]
+    indices = _confirm_batch(f"Add @{tag} to:", summaries)
+    if indices is None:
+        return "Cancelled — no changes made."
+
+    applied = 0
+    for idx in indices:
+        _, entry = found[idx]
+        handle_add_tag(entry, tag, config)
+        applied += 1
+
+    msg = f"Applied @{tag} to {applied} entry(ies)."
+    if missing:
+        msg += f" ({len(missing)} not found)"
+    return msg
+
+
+def _handle_remove_tag(args: dict, config) -> str:
+    """Remove a tag from one or more entries."""
+    from bute.commands.action import handle_remove_tag
+
+    entry_ids = args["entry_ids"]
+    tag = args["tag"]
+    loaded = _load_entries_by_ids(entry_ids, config)
+
+    missing = [eid for eid, entry in loaded if entry is None]
+    if len(missing) == len(loaded):
+        return f"Error: no entries found ({', '.join(e[:8] for e in missing)})"
+
+    found = [(eid, entry) for eid, entry in loaded if entry is not None]
+    summaries = [_entry_summary(entry) for _, entry in found]
+    indices = _confirm_batch(f"Remove @{tag} from:", summaries)
+    if indices is None:
+        return "Cancelled — no changes made."
+
+    applied = 0
+    for idx in indices:
+        _, entry = found[idx]
+        handle_remove_tag(entry, tag, config)
+        applied += 1
+
+    msg = f"Applied: removed @{tag} from {applied} entry(ies)."
+    if missing:
+        msg += f" ({len(missing)} not found)"
+    return msg
+
+
+def _handle_mark_done(args: dict, config) -> str:
+    """Mark one or more tasks as done."""
+    from bute.commands.action import ACTION_HANDLERS
+
+    entry_ids = args["entry_ids"]
+    loaded = _load_entries_by_ids(entry_ids, config)
+
+    missing = [eid for eid, entry in loaded if entry is None]
+    if len(missing) == len(loaded):
+        return f"Error: no entries found ({', '.join(e[:8] for e in missing)})"
+
+    found = [(eid, entry) for eid, entry in loaded if entry is not None]
+    summaries = [_entry_summary(entry) for _, entry in found]
+    indices = _confirm_batch("Mark done:", summaries)
+    if indices is None:
+        return "Cancelled — no changes made."
+
+    handler = ACTION_HANDLERS["done"]
+    applied = 0
+    errors = []
+    for idx in indices:
+        _, entry = found[idx]
+        try:
+            handler(entry, [], config)
+            applied += 1
+        except Exception as e:
+            errors.append(f"{entry.body[:30]}: {e}")
+
+    msg = f"Applied done to {applied} entry(ies)."
+    if missing:
+        msg += f" ({len(missing)} not found)"
+    if errors:
+        msg += f" Errors: {'; '.join(errors)}"
+    return msg
+
+
+def _handle_mark_dropped(args: dict, config) -> str:
+    """Mark one or more tasks as dropped."""
+    from bute.commands.action import ACTION_HANDLERS
+
+    entry_ids = args["entry_ids"]
+    loaded = _load_entries_by_ids(entry_ids, config)
+
+    missing = [eid for eid, entry in loaded if entry is None]
+    if len(missing) == len(loaded):
+        return f"Error: no entries found ({', '.join(e[:8] for e in missing)})"
+
+    found = [(eid, entry) for eid, entry in loaded if entry is not None]
+    summaries = [_entry_summary(entry) for _, entry in found]
+    indices = _confirm_batch("Mark dropped:", summaries)
+    if indices is None:
+        return "Cancelled — no changes made."
+
+    handler = ACTION_HANDLERS["drop"]
+    applied = 0
+    errors = []
+    for idx in indices:
+        _, entry = found[idx]
+        try:
+            handler(entry, [], config)
+            applied += 1
+        except Exception as e:
+            errors.append(f"{entry.body[:30]}: {e}")
+
+    msg = f"Applied dropped to {applied} entry(ies)."
+    if missing:
+        msg += f" ({len(missing)} not found)"
+    if errors:
+        msg += f" Errors: {'; '.join(errors)}"
+    return msg
+
+
+def _handle_toggle_important(args: dict, config) -> str:
+    """Toggle the important flag on one or more entries."""
+    from bute.commands.action import ACTION_HANDLERS
+
+    entry_ids = args["entry_ids"]
+    loaded = _load_entries_by_ids(entry_ids, config)
+
+    missing = [eid for eid, entry in loaded if entry is None]
+    if len(missing) == len(loaded):
+        return f"Error: no entries found ({', '.join(e[:8] for e in missing)})"
+
+    found = [(eid, entry) for eid, entry in loaded if entry is not None]
+    summaries = [_entry_summary(entry) for _, entry in found]
+    indices = _confirm_batch("Toggle important:", summaries)
+    if indices is None:
+        return "Cancelled — no changes made."
+
+    handler = ACTION_HANDLERS["!"]
+    applied = 0
+    for idx in indices:
+        _, entry = found[idx]
+        handler(entry, [], config)
+        applied += 1
+
+    msg = f"Applied toggle important to {applied} entry(ies)."
+    if missing:
+        msg += f" ({len(missing)} not found)"
+    return msg
+
+
+def _handle_update_due(args: dict, config) -> str:
+    """Set or update the due date on one or more tasks."""
+    from datetime import date
+
+    from bute.storage import update_entry
+
+    entry_ids = args["entry_ids"]
+    due_str = args["due_date"]
+    try:
+        due_date = date.fromisoformat(due_str)
+    except ValueError:
+        return f"Invalid date format: {due_str} (expected YYYY-MM-DD)"
+
+    loaded = _load_entries_by_ids(entry_ids, config)
+
+    missing = [eid for eid, entry in loaded if entry is None]
+    if len(missing) == len(loaded):
+        return f"Error: no entries found ({', '.join(e[:8] for e in missing)})"
+
+    found = [(eid, entry) for eid, entry in loaded if entry is not None]
+    summaries = [_entry_summary(entry) for _, entry in found]
+    indices = _confirm_batch(f"Set due date to {due_date}:", summaries)
+    if indices is None:
+        return "Cancelled — no changes made."
+
+    applied = 0
+    for idx in indices:
+        _, entry = found[idx]
+        entry.due = due_date
+        update_entry(entry, config)
+        applied += 1
+
+    msg = f"Applied due:{due_date} to {applied} entry(ies)."
+    if missing:
+        msg += f" ({len(missing)} not found)"
+    return msg
+
+
+def _handle_display_map(args: dict, config) -> str:
+    """Display a mind map for a tag's analysis."""
+    from bute.db import get_tag_stage
+    from bute.display import display_analyze_map
+
+    tag = args["tag"]
+
+    # Check for cached analysis
+    stage = get_tag_stage(tag, config)
+    if stage and stage.get("analysis"):
+        display_analyze_map(tag, stage["analysis"])
+        return f"Displayed mind map for @{tag}."
+
+    # No cached analysis — need to run one
+    try:
+        from bute.ai import is_llm_available, llm_send
+        from bute.ai.prompts import analyze_prompt
+        from bute.storage import query_and_load
+
+        if not is_llm_available(config):
+            return f"No analysis cached for @{tag} and AI is not configured."
+
+        entries = query_and_load(config, tag=tag)
+        if not entries:
+            return f"No entries found with @{tag}."
+
+        from bute.ai.prompts import format_entries
+
+        prompt = analyze_prompt()
+        context = format_entries(entries)
+        response = llm_send(prompt, context, config)
+
+        # Cache the result
+        from bute.db import set_tag_stage
+
+        set_tag_stage(tag, "analyzed", analysis=response, config=config)
+
+        display_analyze_map(tag, response)
+        return f"Displayed mind map for @{tag}."
+    except Exception as e:
+        return f"Could not display map for @{tag}: {e}"
+
+
 _TOOL_HANDLERS = {
     "query_entries": _handle_query_entries,
     "search_text": _handle_search_text,
     "search_similar": _handle_search_similar,
+    "create_entry": _handle_create_entry,
+    "add_tag": _handle_add_tag,
+    "remove_tag": _handle_remove_tag,
+    "mark_done": _handle_mark_done,
+    "mark_dropped": _handle_mark_dropped,
+    "toggle_important": _handle_toggle_important,
+    "update_due": _handle_update_due,
+    "display_map": _handle_display_map,
 }
