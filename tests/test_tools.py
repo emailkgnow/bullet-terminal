@@ -349,3 +349,18 @@ def test_stream_chat_with_tools_is_callable():
     """Test that stream_chat_with_tools exists and is callable."""
     from bute.ai.llm import stream_chat_with_tools
     assert callable(stream_chat_with_tools)
+
+
+# ---------------------------------------------------------------------------
+# chat_system_prompt (Task 5)
+# ---------------------------------------------------------------------------
+
+
+def test_chat_system_prompt_contains_key_elements():
+    from bute.ai.prompts import chat_system_prompt
+
+    prompt = chat_system_prompt()
+    assert "thinking partner" in prompt.lower() or "life management" in prompt.lower()
+    assert "task" in prompt and "note" in prompt and "journal" in prompt
+    assert "confirmation" in prompt.lower() or "approval" in prompt.lower()
+    assert "2026" in prompt  # should include today's date context

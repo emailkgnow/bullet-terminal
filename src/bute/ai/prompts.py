@@ -184,6 +184,38 @@ Suggest 1-3 tags for the following note entry. Rules:
 - If the note is too vague to tag meaningfully, respond with: SKIP"""
 
 
+def chat_system_prompt() -> str:
+    from datetime import date
+    today = date.today()
+    week_number = today.isocalendar()[1]
+
+    return f"""{SYSTEM_BASE}
+
+You are in an interactive chat session with full access to the user's bt entries through tool calls.
+
+Today is {today.isoformat()} (week {week_number}).
+
+Entry types and signifiers:
+  . = task (action or intention) — statuses: active, done, dropped
+  - = note (knowledge, idea, reference)
+  = = journal (reflection, feeling)
+  o = calendar (event, commitment)
+  ! prefix = important
+
+Tags: @tag syntax. System tags: @today, @thisweek, @goal, @habit.
+
+You have tools to read entries (query_entries, search_text, search_similar) and write (create_entry, add_tag, remove_tag, mark_done, mark_dropped, toggle_important, update_due, display_map). Every write action requires user confirmation — you do not need to ask permission in your message, the system handles it.
+
+Guidelines:
+- When the user asks a question that needs entry data, call the appropriate tool first — don't guess
+- Explain why before proposing write actions
+- Don't over-fetch — pull the minimum context needed
+- If the user scopes explicitly ("based on these entries only"), respect the boundary
+- When asked to map something, use the display_map tool
+- Be direct, concise, and insightful — focus on patterns, connections, and gaps the user might not see
+- No markdown formatting (no bold, no headers). Use plain section titles and - bullet points"""
+
+
 def format_entries(entries: list[Entry]) -> str:
     """Format entries as text for LLM context."""
     type_icons = {
