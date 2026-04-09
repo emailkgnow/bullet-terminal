@@ -76,6 +76,7 @@ User input → DwnGroup.resolve_command() → capture.py
 | `ai/vectors.py` | sqlite-vec wrapper (upsert, search, delete) |
 | `ai/embeddings.py` | fastembed wrapper, lazy model loading |
 | `ai/prompts.py` | Prompt templates for AI features |
+| `ai/tools.py` | Tool schemas + execution for chat (query, create, tag, action, map) |
 | `commands/tags.py` | Tag processing: analyze (AI clusters entries) |
 
 ### AI Architecture
@@ -85,7 +86,7 @@ Three independent capability tiers — each degrades gracefully:
 2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bute rebuild`
 3. **LLM** (remote) — OpenAI-compatible API, provider-agnostic. API key via config or macOS Keychain
 
-AI is used for: `topic`, `recap [period]`, `nudges`, tag processing (`bt analyze @tag`), `chat` (interactive sessions with entry suggestions). Core capture/view/action loop works without AI.
+AI is used for: `chat` (agentic sessions with tool calling — can query, create, tag, and act on entries with user confirmation). Core capture/view/action loop works without AI.
 
 ## CLI Grammar (Current)
 
@@ -142,12 +143,12 @@ bute 6 @tag         # add tag
 bute 6 untag @tag   # remove tag
 bute 7 edit         # open in $EDITOR
 bute 3 later        # defer — remove from today's log
-bute 3 chat         # AI chat session anchored to entry
+bute chat           # AI chat session with tool access
 bute undo           # undo last action
 bute 3 undo         # undo last action on entry 3
 ```
 
-**Chat sessions** — `bt <n> chat` starts an AI conversation anchored to an entry. During the chat, use `/bt t`, `/bt @tag`, etc. to pull entries into context. At exit (`/done`), the AI reviews the conversation and suggests entries to create (tasks, notes, journals, calendar events). You confirm with `y`/`n`/`p` (pick). Chat-created tasks auto-tag `@thisweek`, notes/journals auto-tag `@today`.
+**Chat sessions** — `bt chat` starts an AI conversation. The AI has tool access to query, create, tag, and act on entries — every write action requires confirmation (`y`/`n`/`p`). Use `/bt <args>` to explicitly pull entries, `/done` to exit.
 
 **Goals** — orient tasks toward outcomes:
 ```
@@ -155,11 +156,8 @@ bute goals                          # show goals with task progress
 ```
 Goals are notes tagged `@goal`. Other tags on the note connect tasks to the goal. `bute goals` shows each goal with active/done task counts. System tags (`@goal`, `@today`, `@thisweek`) are filtered out when computing connected tags.
 
-**Tag Processing** — ideas to clarity:
+**Tags**:
 ```
-bute analyze @home-reno             # AI clusters and organizes tagged entries
-bute analyze @bt @ai -@done         # analyze filtered intersection
-bute map @backend                   # mind map of tag analysis
 bute tags                           # list all tags with stage and count
 ```
 
@@ -168,7 +166,6 @@ bute tags                           # list all tags with stage and count
 bute                # entry point — weekly plan (on trigger day) → daily plan → Focus Log
 bute dp             # morning ritual — pick today's tasks
 bute wp             # weekly plan — select tasks for the week (auto-triggers on configured day)
-bute recap week     # AI analysis of a period (day, week, month, year)
 bute habit <name>   # track habits
 bute streak         # habit streaks and 30-day stats
 ```
@@ -195,6 +192,7 @@ bute init           # first-run setup (pick AI provider)
 - **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Preferred input: `t:9`, `t:14.30`. Legacy formats (`t:1430`, `3pm`) still accepted.
 - **Date format**: preferred input: `d:4.7`, `d:mar15`, `d:tomorrow`, `d:friday`. Legacy `d:0407` still accepted.
 - **API key**: resolved from config value, `keychain:<service>`, or auto-lookup in macOS Keychain.
+- **AI is chat-only** — all AI features consolidated into `bt chat`. No standalone AI commands. Chat has tool calling: AI can query entries, create, tag, and modify with user confirmation. Standalone commands (`recap`, `nudges`, `topic`, `analyze`, `autotag`, `map`) removed — their capabilities are subsumed by natural conversation.
 
 ## Backlog
 
@@ -217,12 +215,9 @@ bute init           # first-run setup (pick AI provider)
 - ~~`bt find <keyword>`~~ ✓ Done — FTS5 body search + tag search, deduped. Flags: `-t` (tasks), `-n` (notes), `-j` (journals), `-c` (calendar). No flag = search all types.
 - ~~`bt export`~~ ✓ Done — exports entries, collections, habits as `bullet-terminal-markdown-YYYY-MM-DD.zip` with README. `-o <path>` for custom output. Counter suffix for same-day duplicates.
 
-### Tag Processing
-- **Mindmap output for `bt @tag analyze`** — after AI clusters and organizes tagged entries, render or export a mindmap visualization of the themes and their items. Could be ASCII art in the terminal, or generate a Mermaid/Markmap diagram that opens in a browser. Gives the user a spatial view of how their ideas relate.
-
 ### Onboarding
 - ~~**Guided tour — first-run onboarding**~~ ✓ Done — interactive REPL teaches core concepts on first `bt` run. 11 phases: capture → see → organize → act → plan.
-- **AI tour** — triggered after `bt init` configures an AI provider. Teaches search, chat, recap, nudges, analyze, tag-notes using real entries.
+- **AI tour** — triggered after `bt init` configures an AI provider. Teaches chat capabilities using real entries.
 - ~~**Redesign Daily Plan (`dp`)**~~ ✓ Done — simplified to single-phase task picker. Yesterday's unresolved highlighted at top, @thisweek/backlog pool below.
 
 ### Infrastructure
