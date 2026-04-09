@@ -169,3 +169,22 @@ def test_streak_no_habits(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["streak"])
     assert result.exit_code == 0
     assert "No habits" in result.output or "no habits" in result.output.lower()
+
+
+# --- Config key: core.wp_day tests ---
+
+
+def test_get_wp_day_default():
+    """get_wp_day returns 6 (Sunday) when no config."""
+    from bute.config import get_wp_day
+    assert get_wp_day() == 6
+
+
+def test_get_wp_day_from_config(tmp_config, tmp_data):
+    """get_wp_day reads from config."""
+    from bute.config import get_wp_day
+    _setup_config(tmp_config, tmp_data)
+    from bute.config import load_config
+    config = load_config()
+    config["core"]["wp_day"] = "monday"
+    assert get_wp_day(config) == 0

@@ -82,6 +82,8 @@ def default_config(
     core = tomlkit.table()
     core.add(tomlkit.comment("Where entry files are stored"))
     core.add("data_dir", "~/bullet-terminal")
+    core.add(tomlkit.comment("Day to trigger weekly plan: monday-sunday"))
+    core.add("wp_day", "sunday")
     doc.add("core", core)
     doc.add(tomlkit.nl())
 
@@ -101,6 +103,20 @@ def default_config(
     doc.add("habits", habits)
 
     return doc
+
+
+DAY_NAMES = {
+    "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+    "friday": 4, "saturday": 5, "sunday": 6,
+}
+
+
+def get_wp_day(config=None) -> int:
+    """Return the weekday number (0=Mon, 6=Sun) for weekly plan trigger."""
+    if config and "core" in config and "wp_day" in config["core"]:
+        day_name = config["core"]["wp_day"].lower()
+        return DAY_NAMES.get(day_name, 6)
+    return 6  # default: Sunday
 
 
 def _make_demo_config(config: tomlkit.TOMLDocument) -> tomlkit.TOMLDocument:
