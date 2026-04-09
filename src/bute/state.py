@@ -37,18 +37,34 @@ def load_state(config=None) -> dict:
     return json.loads(path.read_text())
 
 
-def mark_dyts_done(config=None) -> None:
-    """Record that DYTS was completed today."""
-    path = get_data_dir(config) / ".dyts_date"
+def mark_dp_done(config=None) -> None:
+    """Record that daily plan was completed today."""
+    path = get_data_dir(config) / ".dp_date"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(date.today().isoformat())
 
 
-def is_dyts_done_today(config=None) -> bool:
-    """Check if DYTS was already completed today."""
-    path = get_data_dir(config) / ".dyts_date"
+def is_dp_done_today(config=None) -> bool:
+    """Check if daily plan was already completed today."""
+    path = get_data_dir(config) / ".dp_date"
     if not path.exists():
         return False
     return path.read_text().strip() == date.today().isoformat()
+
+
+def mark_wp_done(config=None) -> None:
+    """Record that weekly plan was completed this week."""
+    path = get_data_dir(config) / ".wp_date"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(date.today().strftime("%G-W%V"))
+
+
+def is_wp_done_this_week(config=None) -> bool:
+    """Check if weekly plan was already completed this week."""
+    path = get_data_dir(config) / ".wp_date"
+    if not path.exists():
+        return False
+    return path.read_text().strip() == date.today().strftime("%G-W%V")
 
 
 def mark_recap_done(config=None) -> None:

@@ -89,8 +89,8 @@ def dp_cmd(ctx, non_interactive):
                 console.print("  [dim]questionary not available — skipping selection[/dim]")
                 display_entry_list(all_tasks, "")
 
-    from bute.state import mark_dyts_done
-    mark_dyts_done(config)
+    from bute.state import mark_dp_done
+    mark_dp_done(config)
 
     console.print(f"\n  [bold green]Ready. Go.[/bold green]")
 
@@ -324,6 +324,8 @@ def wp_cmd(ctx, non_interactive):
 
     if not active:
         console.print("  [dim]No tasks to plan. Capture some first.[/dim]")
+        from bute.state import mark_wp_done
+        mark_wp_done(config)
         return
 
     if non_interactive:
@@ -332,6 +334,8 @@ def wp_cmd(ctx, non_interactive):
             display_entry_list(thisweek, "This week's tasks")
         else:
             display_entry_list(active, "Task Backlog (none selected for week)")
+        from bute.state import mark_wp_done
+        mark_wp_done(config)
         return
 
     # Selection phase
@@ -359,6 +363,9 @@ def wp_cmd(ctx, non_interactive):
 
     except ImportError:
         console.print("  [dim]questionary not available — skipping selection[/dim]")
+
+    from bute.state import mark_wp_done
+    mark_wp_done(config)
 
 
 # --- Recap ---

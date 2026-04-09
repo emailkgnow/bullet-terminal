@@ -50,12 +50,32 @@ def test_dp_non_interactive_no_tasks(runner, tmp_config, tmp_data):
 
 def test_dp_non_interactive_marks_done(runner, tmp_config, tmp_data):
     """dp -y marks daily plan as done so bt shows Focus Log."""
-    from bute.state import is_dyts_done_today
+    from bute.state import is_dp_done_today
 
     _setup_config(tmp_config, tmp_data)
     result = runner.invoke(main, ["dp", "--non-interactive"])
     assert result.exit_code == 0
-    assert is_dyts_done_today()
+    assert is_dp_done_today()
+
+
+def test_wp_marks_done(runner, tmp_config, tmp_data):
+    """wp -y marks weekly plan as done for the current week."""
+    from bute.state import is_wp_done_this_week
+
+    _setup_config(tmp_config, tmp_data)
+    result = runner.invoke(main, ["wp", "--non-interactive"])
+    assert result.exit_code == 0
+    assert is_wp_done_this_week()
+
+
+def test_wp_not_done_by_default(tmp_config, tmp_data):
+    """wp is not done when no .wp_date file exists."""
+    from bute.state import is_wp_done_this_week
+
+    _setup_config(tmp_config, tmp_data)
+    from bute.config import load_config
+    config = load_config()
+    assert not is_wp_done_this_week(config)
 
 
 # --- Weekly Plan (wp) command tests ---
