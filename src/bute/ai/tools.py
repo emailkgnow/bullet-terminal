@@ -356,3 +356,111 @@ def get_tool_schemas(*, embeddings_available: bool = True) -> list[dict]:
     if embeddings_available:
         return list(TOOL_SCHEMAS)
     return [s for s in TOOL_SCHEMAS if s["function"]["name"] != "search_similar"]
+
+
+# ---------------------------------------------------------------------------
+# Tool execution
+# ---------------------------------------------------------------------------
+
+
+def execute_tool(name: str, arguments: dict, config=None) -> str:
+    """Execute a tool call and return the result as a string for the LLM."""
+    handler = _TOOL_HANDLERS.get(name)
+    if handler is None:
+        return f"Unknown tool: {name}"
+    return handler(arguments, config)
+
+
+def _handle_query_entries(args: dict, config) -> str:
+    from bute.ai.prompts import format_entries
+    from bute.storage import query_and_load
+
+    kwargs: dict = {}
+    if "type" in args:
+        kwargs["type"] = args["type"]
+    if "status" in args:
+        kwargs["status"] = args["status"]
+    if "important" in args and args["important"]:
+        kwargs["important"] = True
+    if "has_due" in args and args["has_due"]:
+        kwargs["has_due"] = True
+    if "date_from" in args:
+        kwargs["created_since"] = args["date_from"]
+    if "date_to" in args:
+        kwargs["created_until"] = args["date_to"]
+
+    tags = args.get("tags", [])
+    exclude_tags = args.get("exclude_tags", [])
+    if tags:
+        kwargs["tag"] = tags[0]
+
+    limit = args.get("limit", 50)
+    entries = query_and_load(config, **kwargs)
+
+    # Apply remaining tag filters in Python
+    if len(tags) > 1:
+        for t in tags[1:]:
+            entries = [e for e in entries if t in e.tags]
+    if exclude_tags:
+        for t in exclude_tags:
+            entries = [e for e in entries if t not in e.tags]
+
+    entries = entries[:limit]
+
+    if not entries:
+        return "No entries found."
+    return f"{len(entries)} entries:\n\n{format_entries(entries)}"
+
+
+def _handle_search_text(args: dict, config) -> str:
+    from bute.ai.prompts import format_entries
+    from bute.db import search_text
+    from bute.storage import entry_path_from_id, load_entry
+
+    query = args["query"]
+    entry_type = args.get("type")
+    limit = args.get("limit", 20)
+
+    results = search_text(query, type=entry_type, limit=limit, config=config)
+    entries = []
+    for entry_id, _ in results:
+        path = entry_path_from_id(entry_id, config)
+        if path:
+            try:
+                entries.append(load_entry(path))
+            except Exception:
+                continue
+
+    if not entries:
+        return "No entries found."
+    return f"{len(entries)} entries:\n\n{format_entries(entries)}"
+
+
+def _handle_search_similar(args: dict, config) -> str:
+    from bute.ai import search_similar
+    from bute.ai.prompts import format_entries
+    from bute.storage import entry_path_from_id, load_entry
+
+    query = args["query"]
+    limit = args.get("limit", 10)
+
+    results = search_similar(query, limit=limit, config=config)
+    entries = []
+    for entry_id, _distance in results:
+        path = entry_path_from_id(entry_id, config)
+        if path:
+            try:
+                entries.append(load_entry(path))
+            except Exception:
+                continue
+
+    if not entries:
+        return "No similar entries found."
+    return f"{len(entries)} entries:\n\n{format_entries(entries)}"
+
+
+_TOOL_HANDLERS = {
+    "query_entries": _handle_query_entries,
+    "search_text": _handle_search_text,
+    "search_similar": _handle_search_similar,
+}

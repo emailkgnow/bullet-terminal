@@ -48,3 +48,71 @@ def test_get_tool_schemas_includes_search_similar_when_available():
     schemas = get_tool_schemas(embeddings_available=True)
     names = {s["function"]["name"] for s in schemas}
     assert "search_similar" in names
+
+
+# ---------------------------------------------------------------------------
+# Tool execution tests (Task 2)
+# ---------------------------------------------------------------------------
+
+
+from unittest.mock import patch
+from bute.models import Entry, EntryType
+from bute.storage import save_entry
+
+
+def test_execute_query_entries(tmp_data):
+    from bute.ai.tools import execute_tool
+
+    e1 = Entry.create(EntryType.TASK, "fix bug", tags=["backend"])
+    e2 = Entry.create(EntryType.NOTE, "meeting notes")
+    save_entry(e1)
+    save_entry(e2)
+
+    result = execute_tool("query_entries", {"type": "task"}, config=None)
+    assert "fix bug" in result
+    assert "meeting notes" not in result
+
+
+def test_execute_query_entries_with_tags(tmp_data):
+    from bute.ai.tools import execute_tool
+
+    e1 = Entry.create(EntryType.TASK, "tagged task", tags=["work"])
+    e2 = Entry.create(EntryType.TASK, "untagged task")
+    save_entry(e1)
+    save_entry(e2)
+
+    result = execute_tool("query_entries", {"tags": ["work"]}, config=None)
+    assert "tagged task" in result
+    assert "untagged task" not in result
+
+
+def test_execute_query_entries_with_date_range(tmp_data):
+    from bute.ai.tools import execute_tool
+
+    e1 = Entry.create(EntryType.TASK, "today task")
+    save_entry(e1)
+
+    # Use UTC date to match SQLite's date() which normalises to UTC
+    from datetime import datetime, timezone
+    utc_today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    result = execute_tool("query_entries", {"date_from": utc_today, "date_to": utc_today}, config=None)
+    assert "today task" in result
+
+
+def test_execute_search_text(tmp_data):
+    from bute.ai.tools import execute_tool
+
+    e1 = Entry.create(EntryType.TASK, "fix authentication bug")
+    e2 = Entry.create(EntryType.NOTE, "grocery list")
+    save_entry(e1)
+    save_entry(e2)
+
+    result = execute_tool("search_text", {"query": "authentication"}, config=None)
+    assert "authentication" in result
+
+
+def test_execute_unknown_tool():
+    from bute.ai.tools import execute_tool
+
+    result = execute_tool("nonexistent_tool", {}, config=None)
+    assert "Unknown tool" in result
