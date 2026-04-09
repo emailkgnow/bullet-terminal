@@ -577,10 +577,7 @@ def _handle_create_entry(args: dict, config) -> str:
     """Create a new entry with confirmation."""
     from datetime import date
 
-    import click
-
     from bute.ai import embed_entry
-    from bute.display import confirm_capture
     from bute.models import Entry, EntryType
     from bute.storage import save_entry
 
