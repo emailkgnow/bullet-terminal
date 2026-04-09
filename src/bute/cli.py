@@ -282,7 +282,7 @@ def _print_help():
     t.add_column("Command", style="bold", no_wrap=True)
     t.add_column("Shows")
     t.add_column("Notes", style="dim")
-    t.add_row("bt", "Today's log", "Daily plan if not done today")
+    t.add_row("bt", "Focus Log", "wp → dp → Focus Log flow")
     t.add_row("bt t", "Tasks — this week's focus", "-a for done/dropped")
     t.add_row("bt b", "Task Backlog — all active tasks", "")
     t.add_row("bt n", "Notes", "Grouped by date")
@@ -337,7 +337,6 @@ def _print_help():
     t.add_row("bt dp", "Daily plan — pick today's tasks", "-y for non-interactive")
     t.add_row("bt wp", "Weekly plan — select tasks for the week", "-y for non-interactive")
     t.add_row("bt dump", "Rapid-fire tasks into Backlog", "")
-    t.add_row("bt recap <period>", "AI analysis of a period", "bt recap week/month/year")
     t.add_row("bt export", "Export all data as zip", "-o path")
     t.add_row("bt init", "First-run setup (pick AI provider)", "")
     t.add_row("bt start", "Quick start guide", "")
@@ -349,27 +348,22 @@ def _print_help():
     console.print(t)
 
     # --- AI ---
-    t = Table(title="AI — requires bt init", title_style="bold cyan",
+    t = Table(title="AI — LLM features (bt init to configure)", title_style="bold cyan",
               box=None, pad_edge=False, padding=(0, 2), show_header=True, header_style="bold dim", expand=True)
     t.add_column("Command", style="bold", no_wrap=True)
     t.add_column("What it does")
     t.add_column("Example", style="dim")
     t.add_section()
-    t.add_row("[dim]actions[/dim]", "", "")
-    t.add_row("bt <n> chat", "Think through entries with AI", "bt 1 2 chat")
-    t.add_row("bt <n> title", "AI-generate a topic sentence", "bt 3 title")
-    t.add_row("bt <n> map", "Mind map an @ai-analysis note", "bt 1 map")
+    t.add_row("bt chat", "AI session — read & act on your entries", "bt chat")
+    t.add_row("bt <n> title", "AI-generate a title for an entry", "bt 3 title")
     t.add_section()
-    t.add_row("[dim]commands[/dim]", "", "")
-    t.add_row("bt analyze @tag [-@ex]", "AI clusters tagged entries", "bt analyze @bt @ai")
-    t.add_row("bt map @tag [-@ex]", "Mind map of tag analysis", "bt map @backend")
-    t.add_row("bt topic <name>", "Cross-dimension synthesis", "bt topic productivity")
-    t.add_row("bt nudges", "Actionable suggestions", "")
-    t.add_row("bt tag-notes", "AI suggests tags for untagged notes", "")
-    t.add_row("bt recap <period>", "AI analysis of a period", "bt recap week")
-    t.add_row("bt like <input>", "Semantic similarity", "bt like 3, bt like productivity")
+    t.add_row("[dim]search (local, no API key)[/dim]", "", "")
+    t.add_row("bt like <input>", "Find similar entries", "bt like 3, bt like productivity")
     console.print()
     console.print(t)
+    console.print()
+    console.print("    [dim]Chat commands:[/dim] /bt <view>  /done")
+    console.print("    [dim]Chat can read, create, tag, and act on entries with your approval[/dim]")
     console.print()
 
 
@@ -534,16 +528,13 @@ from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
     dump_cmd,
     monthly_cmd,
-    recap_cmd,
     wp_cmd,
 )
 from bute.commands.habits import habits_cmd, migrate_habits_cmd, streak_cmd  # noqa: E402
 from bute.commands.export import export_cmd  # noqa: E402
 from bute.commands.search import find_cmd, like_cmd, rebuild_cmd, readme_cmd  # noqa: E402
-from bute.commands.topic import topic_cmd  # noqa: E402
-from bute.commands.nudges import nudges_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
-from bute.commands.tags import analyze_tag_cmd, autotag_cmd, map_tag_cmd  # noqa: E402
+from bute.commands.chat import chat_cmd  # noqa: E402
 from bute.commands.demo import demo_cmd  # noqa: E402
 
 main.add_command(init_cmd)
@@ -570,16 +561,11 @@ main.add_command(habits_cmd)
 main.add_command(streak_cmd)
 main.add_command(monthly_cmd)
 main.add_command(wp_cmd)
-main.add_command(recap_cmd)
 main.add_command(like_cmd)
 main.add_command(find_cmd)
 main.add_command(rebuild_cmd)
 main.add_command(readme_cmd)
 main.add_command(export_cmd)
-main.add_command(topic_cmd)
-main.add_command(nudges_cmd)
-main.add_command(analyze_tag_cmd)
-main.add_command(autotag_cmd)
-main.add_command(map_tag_cmd)
+main.add_command(chat_cmd)
 main.add_command(demo_cmd)
 main.add_command(migrate_habits_cmd)

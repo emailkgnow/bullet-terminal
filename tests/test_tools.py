@@ -364,3 +364,29 @@ def test_chat_system_prompt_contains_key_elements():
     assert "task" in prompt and "note" in prompt and "journal" in prompt
     assert "confirmation" in prompt.lower() or "approval" in prompt.lower()
     assert "2026" in prompt  # should include today's date context
+
+
+# ---------------------------------------------------------------------------
+# CLI verification tests (Task 7)
+# ---------------------------------------------------------------------------
+
+
+def test_removed_commands_not_registered():
+    """Verify removed commands are no longer in the CLI."""
+    from click.testing import CliRunner
+    from bute.cli import main
+
+    runner = CliRunner()
+    for cmd in ["recap", "nudges", "topic", "analyze", "tag-notes", "map"]:
+        result = runner.invoke(main, [cmd, "--help"])
+        assert result.exit_code != 0 or "No such command" in result.output or "Error" in result.output, f"{cmd} should be removed"
+
+
+def test_chat_command_still_registered():
+    """Verify chat is still available."""
+    from click.testing import CliRunner
+    from bute.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["chat", "--help"])
+    assert result.exit_code == 0

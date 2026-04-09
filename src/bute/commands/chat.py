@@ -148,6 +148,14 @@ def display_bt_results(entries: list, context_ids: set[str]) -> None:
     console.print(table)
 
 
+@click.command("chat")
+@click.pass_context
+def chat_cmd(ctx):
+    """Start an AI chat session — read & act on your entries."""
+    config = ctx.obj.get("config") if ctx.obj else None
+    start_chat_session(config)
+
+
 def start_chat_session(config) -> None:
     """Start an interactive AI chat session with tool access."""
     from bute.ai import _LLM_INSTALL_MSG, is_embedding_available, is_llm_available
