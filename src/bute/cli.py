@@ -303,6 +303,7 @@ def _print_help():
     t.add_row("bt overdue", "Past-due tasks only", "")
     t.add_row("bt goals", "Goals with task progress", "")
     t.add_row("bt streak", "Habit streaks and 30-day stats", "")
+    t.add_row("bt stats [dim][week|month]", "Momentum dashboard — streaks, trends", "bt stats week, bt stats month")
     t.add_row("bt tags", "All tags with counts and stage", "")
     t.add_row("bt !", "Important entries", "bt t! for tasks only")
     t.add_row("bt @tag [@tag2] [-@ex]", "Filter by tags (AND + exclude)", "bt @backend -@done")
