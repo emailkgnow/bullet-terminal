@@ -91,3 +91,43 @@ def build_closure_chart(
             bars.append(_BAR_CHARS[idx])
 
     return labels, counts_row, bars
+
+
+def get_period_ranges(
+    view: str, today: date
+) -> dict[str, tuple[date, date]]:
+    """Compute date ranges for period comparisons.
+
+    view: "default", "week", or "month".
+    """
+    # This week = Monday..today, last week = prev Mon..Sun
+    monday = today - timedelta(days=today.weekday())
+    last_monday = monday - timedelta(days=7)
+    last_sunday = monday - timedelta(days=1)
+
+    # This month = 1st..today, last month = full prev month
+    first_of_month = today.replace(day=1)
+    last_month_end = first_of_month - timedelta(days=1)
+    last_month_start = last_month_end.replace(day=1)
+
+    if view == "week":
+        return {
+            "this_week": (monday, today),
+            "last_week": (last_monday, last_sunday),
+        }
+    elif view == "month":
+        # Rolling 30-day windows
+        period_start = today - timedelta(days=29)
+        prev_end = period_start - timedelta(days=1)
+        prev_start = prev_end - timedelta(days=29)
+        return {
+            "this_period": (period_start, today),
+            "last_period": (prev_start, prev_end),
+        }
+    else:
+        return {
+            "this_week": (monday, today),
+            "last_week": (last_monday, last_sunday),
+            "this_month": (first_of_month, today),
+            "last_month": (last_month_start, last_month_end),
+        }

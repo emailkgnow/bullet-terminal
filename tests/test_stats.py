@@ -150,3 +150,31 @@ def test_build_closure_chart_all_zero():
     labels, counts_row, bars = build_closure_chart({}, days)
     assert counts_row == ["·", "·", "·"]
     assert bars == [" ", " ", " "]
+
+
+def test_get_period_ranges_default():
+    """Default view: this/last week and this/last month ranges."""
+    from bute.commands.stats import get_period_ranges
+
+    today = date(2026, 4, 10)  # Friday
+    ranges = get_period_ranges("default", today)
+
+    # This week starts Monday Apr 6
+    assert ranges["this_week"] == (date(2026, 4, 6), today)
+    # Last week Mon Mar 30 - Sun Apr 5
+    assert ranges["last_week"] == (date(2026, 3, 30), date(2026, 4, 5))
+    # This month starts Apr 1
+    assert ranges["this_month"] == (date(2026, 4, 1), today)
+    # Last month is full March
+    assert ranges["last_month"] == (date(2026, 3, 1), date(2026, 3, 31))
+
+
+def test_get_period_ranges_month():
+    """Month view: rolling 30-day windows."""
+    from bute.commands.stats import get_period_ranges
+
+    today = date(2026, 4, 10)
+    ranges = get_period_ranges("month", today)
+
+    assert ranges["this_period"] == (date(2026, 3, 12), today)
+    assert ranges["last_period"] == (date(2026, 2, 10), date(2026, 3, 11))
