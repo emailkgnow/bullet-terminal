@@ -178,3 +178,14 @@ def test_get_period_ranges_month():
 
     assert ranges["this_period"] == (date(2026, 3, 12), today)
     assert ranges["last_period"] == (date(2026, 2, 10), date(2026, 3, 11))
+
+
+def test_render_stats_default_empty(tmp_data, tmp_config, capsys):
+    """Stats with no data should still render without errors."""
+    from bute.commands.stats import render_stats
+
+    render_stats("default", None)
+    captured = capsys.readouterr()
+    assert "Momentum" in captured.out
+    assert "Task Streak" in captured.out
+    assert "Plan Streak" in captured.out

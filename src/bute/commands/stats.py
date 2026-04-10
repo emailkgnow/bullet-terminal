@@ -3,7 +3,12 @@
 from datetime import date, timedelta
 from pathlib import Path
 
+from rich.console import Console
+from rich.text import Text
+
 from bute.storage import entry_path, query_and_load
+
+console = Console()
 
 
 def get_done_per_day(
@@ -131,3 +136,99 @@ def get_period_ranges(
             "this_month": (first_of_month, today),
             "last_month": (last_month_start, last_month_end),
         }
+
+
+def _sum_range(per_day: dict[date, int], start: date, end: date) -> int:
+    """Sum counts in a date range [start, end]."""
+    return sum(v for k, v in per_day.items() if start <= k <= end)
+
+
+def render_stats(view: str, config) -> None:
+    """Render the full stats dashboard to the console."""
+    today = date.today()
+    ranges = get_period_ranges(view, today)
+
+    # Determine chart window
+    if view == "week":
+        monday = today - timedelta(days=today.weekday())
+        chart_days = [monday + timedelta(days=i) for i in range(7)]
+        chart_label = "This week"
+    elif view == "month":
+        chart_days = [today - timedelta(days=29 - i) for i in range(30)]
+        chart_label = "Last 30 days"
+    else:
+        chart_days = [today - timedelta(days=13 - i) for i in range(14)]
+        chart_label = "Last 14 days"
+
+    # Gather data — use widest date range needed
+    all_dates = []
+    for start, end in ranges.values():
+        all_dates.extend([start, end])
+    data_start = min(all_dates) if all_dates else today
+    data_end = max(all_dates) if all_dates else today
+    # Extend to cover chart days
+    if chart_days:
+        data_start = min(data_start, chart_days[0])
+
+    done_per_day = get_done_per_day(config, data_start, data_end)
+    dropped_per_day = get_dropped_per_day(config, data_start, data_end)
+
+    task_streak = calc_task_streak(done_per_day, today)
+    dp_streak = calc_dp_streak(config, today)
+    labels, counts_row, bars = build_closure_chart(done_per_day, chart_days)
+
+    # --- Render ---
+    console.print()
+    title = Text("── Momentum ──", style="bold")
+    console.print(title, justify="center")
+    console.print()
+
+    # Streaks
+    fire = "🔥" if task_streak > 0 else "  "
+    plan = "📋" if dp_streak > 0 else "  "
+    console.print(f"  {fire} Task Streak: [bold]{task_streak}[/bold] day{'s' if task_streak != 1 else ''}")
+    console.print(f"  {plan} Plan Streak: [bold]{dp_streak}[/bold] day{'s' if dp_streak != 1 else ''}")
+    console.print()
+
+    # Chart
+    console.print(f"  [dim]Daily closures ({chart_label}):[/dim]")
+    label_line = "  " + "  ".join(f"{l:>2}" for l in labels)
+    count_line = "  " + "  ".join(f"{c:>2}" for c in counts_row)
+    bar_line = "  " + "  ".join(f"{b:>2}" for b in bars)
+    console.print(f"[dim]{label_line}[/dim]")
+    console.print(f"{count_line}")
+    console.print(f"[cyan]{bar_line}[/cyan]")
+    console.print()
+
+    # Period comparisons
+    if view == "week" or view == "default":
+        tw = ranges["this_week"]
+        lw = ranges["last_week"]
+        tw_done = _sum_range(done_per_day, *tw)
+        tw_drop = _sum_range(dropped_per_day, *tw)
+        lw_done = _sum_range(done_per_day, *lw)
+        lw_drop = _sum_range(dropped_per_day, *lw)
+        console.print(f"  This week: [green]{tw_done}[/green] done · [dim]{tw_drop} dropped[/dim]")
+        console.print(f"  Last week: [green]{lw_done}[/green] done · [dim]{lw_drop} dropped[/dim]")
+
+    if view == "default":
+        tm = ranges["this_month"]
+        lm = ranges["last_month"]
+        tm_done = _sum_range(done_per_day, *tm)
+        tm_drop = _sum_range(dropped_per_day, *tm)
+        lm_done = _sum_range(done_per_day, *lm)
+        lm_drop = _sum_range(dropped_per_day, *lm)
+        console.print(f"  This month: [green]{tm_done}[/green] done · [dim]{tm_drop} dropped[/dim]")
+        console.print(f"  Last month: [green]{lm_done}[/green] done · [dim]{lm_drop} dropped[/dim]")
+
+    if view == "month":
+        tp = ranges["this_period"]
+        lp = ranges["last_period"]
+        tp_done = _sum_range(done_per_day, *tp)
+        tp_drop = _sum_range(dropped_per_day, *tp)
+        lp_done = _sum_range(done_per_day, *lp)
+        lp_drop = _sum_range(dropped_per_day, *lp)
+        console.print(f"  Last 30 days: [green]{tp_done}[/green] done · [dim]{tp_drop} dropped[/dim]")
+        console.print(f"  Prior 30 days: [green]{lp_done}[/green] done · [dim]{lp_drop} dropped[/dim]")
+
+    console.print()
