@@ -1,5 +1,6 @@
 """Stats command — bt stats momentum dashboard."""
 
+import click
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -232,3 +233,17 @@ def render_stats(view: str, config) -> None:
         console.print(f"  Prior 30 days: [green]{lp_done}[/green] done · [dim]{lp_drop} dropped[/dim]")
 
     console.print()
+
+
+@click.command("stats")
+@click.argument("period", required=False, default=None)
+@click.pass_context
+def stats_cmd(ctx, period):
+    """Momentum dashboard — streaks, closures, trends."""
+    config = ctx.obj.get("config")
+    view = "default"
+    if period in ("week", "w"):
+        view = "week"
+    elif period in ("month", "m"):
+        view = "month"
+    render_stats(view, config)

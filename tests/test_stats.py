@@ -189,3 +189,28 @@ def test_render_stats_default_empty(tmp_data, tmp_config, capsys):
     assert "Momentum" in captured.out
     assert "Task Streak" in captured.out
     assert "Plan Streak" in captured.out
+
+
+from click.testing import CliRunner
+from bute.cli import main
+
+
+def test_stats_cli_default(runner, tmp_config, tmp_data):
+    """bt stats should render without errors."""
+    result = runner.invoke(main, ["stats"])
+    assert result.exit_code == 0
+    assert "Momentum" in result.output
+
+
+def test_stats_cli_week(runner, tmp_config, tmp_data):
+    """bt stats week should render without errors."""
+    result = runner.invoke(main, ["stats", "week"])
+    assert result.exit_code == 0
+    assert "Momentum" in result.output
+
+
+def test_stats_cli_month(runner, tmp_config, tmp_data):
+    """bt stats month should render without errors."""
+    result = runner.invoke(main, ["stats", "month"])
+    assert result.exit_code == 0
+    assert "Momentum" in result.output

@@ -522,6 +522,7 @@ from bute.commands.rituals import (  # noqa: E402
     wp_cmd,
 )
 from bute.commands.habits import habits_cmd, migrate_habits_cmd, streak_cmd  # noqa: E402
+from bute.commands.stats import stats_cmd  # noqa: E402
 from bute.commands.export import export_cmd  # noqa: E402
 from bute.commands.search import find_cmd, like_cmd, rebuild_cmd, readme_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
@@ -561,3 +562,4 @@ main.add_command(export_cmd)
 main.add_command(chat_cmd)
 main.add_command(demo_cmd)
 main.add_command(migrate_habits_cmd)
+main.add_command(stats_cmd)
