@@ -119,3 +119,34 @@ def test_dp_streak_zero_today(tmp_data):
     history_path.write_text((today - timedelta(days=1)).isoformat() + "\n")
 
     assert calc_dp_streak(None, today) == 0
+
+
+def test_build_closure_chart_basic():
+    """Chart should produce day labels and bar characters."""
+    from bute.commands.stats import build_closure_chart
+
+    today = date(2026, 4, 10)  # Thursday
+    days = [today - timedelta(days=6 - i) for i in range(7)]
+    done_per_day = {
+        days[0]: 2,
+        days[2]: 4,
+        days[4]: 1,
+    }
+    labels, counts_row, bars = build_closure_chart(done_per_day, days)
+    assert len(labels) == 7
+    assert len(bars) == 7
+    # Day with 0 done should show dot
+    assert counts_row[1] == "·"
+    # Day with max (4) should show tallest bar
+    assert bars[2] == "█"
+
+
+def test_build_closure_chart_all_zero():
+    """All-zero days should produce all dots and no bars."""
+    from bute.commands.stats import build_closure_chart
+
+    today = date(2026, 4, 10)
+    days = [today - timedelta(days=2 - i) for i in range(3)]
+    labels, counts_row, bars = build_closure_chart({}, days)
+    assert counts_row == ["·", "·", "·"]
+    assert bars == [" ", " ", " "]

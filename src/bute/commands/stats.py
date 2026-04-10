@@ -63,3 +63,31 @@ def calc_dp_streak(config, today: date) -> int:
         streak += 1
         d -= timedelta(days=1)
     return streak
+
+
+_WEEKDAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"]
+_BAR_CHARS = " ▁▂▃▄▅▆▇█"
+
+
+def build_closure_chart(
+    done_per_day: dict[date, int], days: list[date]
+) -> tuple[list[str], list[str], list[str]]:
+    """Build closure chart data for a list of days.
+
+    Returns (day_labels, count_strings, bar_characters).
+    """
+    labels = [_WEEKDAY_LABELS[d.weekday()] for d in days]
+    raw_counts = [done_per_day.get(d, 0) for d in days]
+    max_count = max(raw_counts) if raw_counts else 0
+
+    counts_row = [str(c) if c > 0 else "·" for c in raw_counts]
+
+    bars = []
+    for c in raw_counts:
+        if max_count == 0 or c == 0:
+            bars.append(" ")
+        else:
+            idx = max(1, round(c / max_count * 8))
+            bars.append(_BAR_CHARS[idx])
+
+    return labels, counts_row, bars
