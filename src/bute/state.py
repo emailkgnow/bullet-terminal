@@ -42,6 +42,28 @@ def mark_dp_done(config=None) -> None:
     path = get_data_dir(config) / ".dp_date"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(date.today().isoformat())
+    # Append to history for streak tracking
+    history_path = get_data_dir(config) / ".dp_history"
+    today_iso = date.today().isoformat()
+    existing = set()
+    if history_path.exists():
+        existing = set(history_path.read_text().strip().splitlines())
+    if today_iso not in existing:
+        with open(history_path, "a") as f:
+            f.write(today_iso + "\n")
+
+
+def get_dp_history(config=None) -> set[date]:
+    """Read dp completion history as a set of dates."""
+    path = get_data_dir(config) / ".dp_history"
+    if not path.exists():
+        return set()
+    dates = set()
+    for line in path.read_text().strip().splitlines():
+        line = line.strip()
+        if line:
+            dates.add(date.fromisoformat(line))
+    return dates
 
 
 def is_dp_done_today(config=None) -> bool:
