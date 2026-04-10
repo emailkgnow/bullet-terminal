@@ -88,3 +88,34 @@ def test_task_streak_zero_today(tmp_data):
         today - timedelta(days=1): 1,
     }
     assert calc_task_streak(done_per_day, today) == 0
+
+
+def test_dp_streak_consecutive(tmp_data):
+    """DP streak counts consecutive days from history."""
+    from bute.commands.stats import calc_dp_streak
+    from bute.config import get_data_dir
+
+    today = date.today()
+    history_path = get_data_dir() / ".dp_history"
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        (today - timedelta(days=2)).isoformat(),
+        (today - timedelta(days=1)).isoformat(),
+        today.isoformat(),
+    ]
+    history_path.write_text("\n".join(lines) + "\n")
+
+    assert calc_dp_streak(None, today) == 3
+
+
+def test_dp_streak_zero_today(tmp_data):
+    """No dp done today means dp streak is 0."""
+    from bute.commands.stats import calc_dp_streak
+    from bute.config import get_data_dir
+
+    today = date.today()
+    history_path = get_data_dir() / ".dp_history"
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    history_path.write_text((today - timedelta(days=1)).isoformat() + "\n")
+
+    assert calc_dp_streak(None, today) == 0
