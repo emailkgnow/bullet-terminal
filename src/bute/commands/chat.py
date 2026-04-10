@@ -288,9 +288,32 @@ def _run_repl(session: ChatSession, embeddings_available: bool) -> None:
             _handle_number_action(session, tokens)
             continue
 
+        # Resolve number references in the message and inject entries into context
+        _resolve_number_refs(session, user_input)
+
         # Regular message → send to AI with tools
         session.add_user_message(user_input)
         _stream_with_tools(session, embeddings_available)
+
+
+def _resolve_number_refs(session: ChatSession, user_input: str) -> None:
+    """Detect number references in free text and inject those entries into context."""
+    import re
+
+    if not session.last_bt_results:
+        return
+
+    numbers = set()
+    for match in re.finditer(r'\b(\d+)\b', user_input):
+        n = int(match.group(1))
+        if 1 <= n <= len(session.last_bt_results):
+            numbers.add(n)
+
+    if not numbers:
+        return
+
+    entries = [session.last_bt_results[n - 1] for n in sorted(numbers)]
+    session.add_to_context(entries)
 
 
 def _stream_with_tools(session: ChatSession, embeddings_available: bool) -> None:
