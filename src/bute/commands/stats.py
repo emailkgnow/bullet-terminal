@@ -167,9 +167,10 @@ def render_stats(view: str, config) -> None:
         all_dates.extend([start, end])
     data_start = min(all_dates) if all_dates else today
     data_end = max(all_dates) if all_dates else today
-    # Extend to cover chart days
+    # Extend to cover chart days and allow streak to walk back
     if chart_days:
         data_start = min(data_start, chart_days[0])
+    data_start = min(data_start, today - timedelta(days=90))
 
     done_per_day = get_done_per_day(config, data_start, data_end)
     dropped_per_day = get_dropped_per_day(config, data_start, data_end)
@@ -191,11 +192,17 @@ def render_stats(view: str, config) -> None:
     console.print(f"  {plan} Plan Streak: [bold]{dp_streak}[/bold] day{'s' if dp_streak != 1 else ''}")
     console.print()
 
-    # Chart
+    # Chart — compact spacing for month view (30 columns)
     console.print(f"  [dim]Daily closures ({chart_label}):[/dim]")
-    label_line = "  " + "  ".join(f"{l:>2}" for l in labels)
-    count_line = "  " + "  ".join(f"{c:>2}" for c in counts_row)
-    bar_line = "  " + "  ".join(f"{b:>2}" for b in bars)
+    if view == "month":
+        sep = " "
+        fmt = "{}"
+    else:
+        sep = "  "
+        fmt = "{:>2}"
+    label_line = "  " + sep.join(fmt.format(l) for l in labels)
+    count_line = "  " + sep.join(fmt.format(c) for c in counts_row)
+    bar_line = "  " + sep.join(fmt.format(b) for b in bars)
     console.print(f"[dim]{label_line}[/dim]")
     console.print(f"{count_line}")
     console.print(f"[cyan]{bar_line}[/cyan]")
