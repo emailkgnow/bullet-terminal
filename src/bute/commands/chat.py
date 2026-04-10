@@ -256,6 +256,9 @@ def start_chat_session(config) -> None:
     session = ChatSession.start(config)
     embeddings_available = is_embedding_available()
 
+    # Carry over entries from the last CLI view (e.g. Focus Log)
+    _load_state_into_session(session)
+
     console.print()
     console.print("  [bold]bt chat[/bold] — AI session with tool access")
     console.print("  [dim]/bt <args> to pull entries, /done to exit[/dim]")
@@ -294,6 +297,30 @@ def _run_repl(session: ChatSession, embeddings_available: bool) -> None:
         # Regular message → send to AI with tools
         session.add_user_message(user_input)
         _stream_with_tools(session, embeddings_available)
+
+
+def _load_state_into_session(session: ChatSession) -> None:
+    """Load entries from the last CLI view into the chat session."""
+    from bute.state import load_state
+    from bute.storage import entry_path_from_id, load_entry
+
+    try:
+        state = load_state(session.config)
+    except Exception:
+        return
+
+    entry_ids = state.get("entries", [])
+    entries = []
+    for eid in entry_ids:
+        path = entry_path_from_id(eid, session.config)
+        if path:
+            try:
+                entries.append(load_entry(path))
+            except Exception:
+                continue
+
+    if entries:
+        session.last_bt_results = entries
 
 
 def _resolve_number_refs(session: ChatSession, user_input: str) -> None:
