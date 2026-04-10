@@ -7,7 +7,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from bute.display import _build_entry_row, display_entry_list, display_entry_list_grouped
+from bute.display import _build_entry_row, _ZEBRA_STYLE, display_entry_list, display_entry_list_grouped
 from bute.models import EntryType, TaskStatus
 from bute.ritual_ops import get_all_active_tasks, get_week_entries, get_weekly_active_tasks
 from bute.state import save_state
@@ -234,10 +234,11 @@ def tags_cmd(ctx):
     table.add_column("Stage")
     table.add_column("#", justify="right", width=5)
 
-    for tag, count in sorted(counts.items(), key=lambda x: x[1], reverse=True):
+    for i, (tag, count) in enumerate(sorted(counts.items(), key=lambda x: x[1], reverse=True), 1):
         stage = stages.get(tag, "raw")
         color = stage_colors.get(stage, "dim")
-        table.add_row(f"@{tag}", f"[{color}]{stage}[/{color}]", str(count))
+        row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
+        table.add_row(f"@{tag}", f"[{color}]{stage}[/{color}]", str(count), style=row_style)
 
     console.print()
     console.print(table)
@@ -412,7 +413,8 @@ def due_cmd(ctx, scope):
             num = len(all_entries)
             _, icon, body, meta = _build_entry_row(num, entry)
             group_label = f"[{style}]{label}[/{style}]" if style and idx == 0 else (label if idx == 0 else "")
-            table.add_row(group_label, str(num), icon, body, meta)
+            row_style = _ZEBRA_STYLE if num % 2 == 0 else ""
+            table.add_row(group_label, str(num), icon, body, meta, style=row_style)
         table.add_section()
 
     console.print()
@@ -477,7 +479,8 @@ def goals_cmd(ctx):
         _, icon, body, _ = _build_entry_row(i, goal)
         tags_str = " ".join(f"@{t}" for t in connected) if connected else "[dim]—[/dim]"
         progress = f"{active} active  {done} done"
-        table.add_row(str(i), icon, body, tags_str, progress)
+        row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
+        table.add_row(str(i), icon, body, tags_str, progress, style=row_style)
 
     console.print()
     console.print(table)

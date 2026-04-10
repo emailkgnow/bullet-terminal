@@ -86,6 +86,12 @@ class DwnGroup(click.Group):
             # Text follows (and not just @tag or view flags) → capture
             has_text = rest and not is_view_args
             if has_text:
+                # Signifier + "open" → open $EDITOR for long-form capture
+                if rest == ("open",) or rest == ["open"]:
+                    cmd = self.get_command(ctx, "open_capture")
+                    if cmd is not None:
+                        return "open_capture", cmd, [first]
+
                 cmd = self.get_command(ctx, "capture")
                 if cmd is not None:
                     return "capture", cmd, args
@@ -269,6 +275,7 @@ def _print_help():
     t.add_row("[yellow]bt n[/yellow] <text>", "Note / idea", "bt n OAuth2 tokens expire in 30 days")
     t.add_row("[magenta]bt j[/magenta] <text>", "Journal", "bt j rough morning, couldn't focus")
     t.add_row("[green]bt c[/green] <text>", "Calendar event", "bt c standup t:9")
+    t.add_row("bt t/n/j/c open", "Open $EDITOR for long-form capture", "bt j open")
     console.print()
     console.print(t)
     console.print()
@@ -343,27 +350,11 @@ def _print_help():
     t.add_row("bt rebuild", "Rebuild search index", "")
     t.add_row("bt -i", "Interactive REPL", "No quoting needed")
     t.add_row("bt -d", "Demo session", "Isolated data, auto-cleanup")
+    t.add_row("bt like <input>", "Find similar entries (semantic)", "bt like 3, bt like productivity")
+    t.add_row("bt chat", "AI session — read & act on your entries", "bt init to configure")
     t.add_row("bt -j", "Toggle random journal in Focus Log", "")
     console.print()
     console.print(t)
-
-    # --- AI ---
-    t = Table(title="AI — LLM features (bt init to configure)", title_style="bold cyan",
-              box=None, pad_edge=False, padding=(0, 2), show_header=True, header_style="bold dim", expand=True)
-    t.add_column("Command", style="bold", no_wrap=True)
-    t.add_column("What it does")
-    t.add_column("Example", style="dim")
-    t.add_section()
-    t.add_row("bt chat", "AI session — read & act on your entries", "bt chat")
-    t.add_row("bt <n> title", "AI-generate a title for an entry", "bt 3 title")
-    t.add_section()
-    t.add_row("[dim]search (local, no API key)[/dim]", "", "")
-    t.add_row("bt like <input>", "Find similar entries", "bt like 3, bt like productivity")
-    console.print()
-    console.print(t)
-    console.print()
-    console.print("    [dim]Chat commands:[/dim] /bt <view>  /done")
-    console.print("    [dim]Chat can read, create, tag, and act on entries with your approval[/dim]")
     console.print()
 
 
@@ -506,7 +497,7 @@ def main(ctx, interactive, demo, toggle_journal):
 
 # --- Register commands ---
 
-from bute.commands.capture import capture_cmd  # noqa: E402
+from bute.commands.capture import capture_cmd, open_capture_cmd  # noqa: E402
 from bute.commands.action import action_cmd, undo_cmd  # noqa: E402
 from bute.commands.init_cmd import init_cmd  # noqa: E402
 from bute.commands.views import (  # noqa: E402
@@ -540,6 +531,7 @@ from bute.commands.demo import demo_cmd  # noqa: E402
 main.add_command(init_cmd)
 main.add_command(start_cmd)
 main.add_command(capture_cmd)
+main.add_command(open_capture_cmd)
 main.add_command(daily_log_cmd)
 main.add_command(action_cmd)
 main.add_command(undo_cmd)

@@ -9,12 +9,7 @@ if TYPE_CHECKING:
 
 SYSTEM_BASE = """You are the AI engine of bute (BuTe), a personal life management CLI based on the Bullet Journal methodology.
 
-bute tracks three dimensions of life:
-- Heart/Soul (journal entries, marked =): feelings, reflections, the "why"
-- Mind (notes, marked -): knowledge, ideas, facts, the "what"
-- Body (tasks marked ., events marked o): actions, schedule, the "how"
-
-These three dimensions form a continuous loop: Heart points direction → Mind plans → Body acts → Reality feeds back.
+Entry types: tasks (.), notes (-), journals (=), calendar events (o).
 
 Be concise, insightful, and actionable. Speak directly — no filler. Focus on patterns, connections, and gaps the user might not see."""
 
@@ -60,15 +55,6 @@ Rules:
 - The final theme is always Tensions / Gaps — connections, contradictions, or missing pieces
 - No tree-drawing characters, no numbering, no extra formatting"""
 
-
-def title_prompt() -> str:
-    return f"""{SYSTEM_BASE}
-
-Generate a single topic sentence that summarizes the following entry. Rules:
-- One sentence only, ending with a period.
-- Capture the core idea or theme — what is this entry about?
-- Keep it under 15 words.
-- No quotes, no markdown, no preamble — just the sentence."""
 
 
 def autotag_prompt(existing_tags: list[str]) -> str:

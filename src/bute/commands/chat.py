@@ -11,7 +11,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from bute.display import TYPE_STYLE
+from bute.display import TYPE_STYLE, _ZEBRA_STYLE
 
 if TYPE_CHECKING:
     from bute.models import Entry
@@ -68,32 +68,120 @@ class ChatSession:
 
 def execute_bt_view(args: list[str], config) -> list:
     """Execute a bt view command within chat and return matching entries."""
+    from bute.ritual_ops import get_daily_log, get_week_entries, get_weekly_active_tasks
     from bute.storage import query_and_load
 
+    # Focus log (no args = bt)
     if not args:
-        return []
+        return get_daily_log(config)
 
     first = args[0]
+    rest = args[1:]
+
+    # Task log: t (weekly active tasks)
+    if first == "t":
+        entries = get_weekly_active_tasks(config)
+        for arg in rest:
+            if arg.startswith("@") and len(arg) > 1:
+                tag = arg[1:]
+                entries = [e for e in entries if tag in e.tags]
+        return entries
+
+    # Backlog: b
+    if first == "b":
+        kwargs = {"type": "task", "status": "active"}
+        for arg in rest:
+            if arg.startswith("@") and len(arg) > 1:
+                kwargs["tag"] = arg[1:]
+        return query_and_load(config, **kwargs)
+
+    # Daily log: d [yesterday|date]
+    if first == "d":
+        from datetime import timedelta
+        from bute.storage import load_entries_by_date
+        from bute.parser import resolve_date
+
+        today = __import__("datetime").date.today()
+        period = rest[0] if rest else None
+        if period == "yesterday":
+            target = today - timedelta(days=1)
+        elif period:
+            try:
+                target = resolve_date(period)
+            except (ValueError, KeyError):
+                return []
+        else:
+            target = today
+        return load_entries_by_date(target, config)
+
+    # Weekly log: w [last|number]
+    if first == "w":
+        from datetime import timedelta
+
+        today = __import__("datetime").date.today()
+        period = rest[0] if rest else None
+        if period == "last":
+            target = today - timedelta(weeks=1)
+        elif period and period.isdigit():
+            week_num = int(period)
+            if 1 <= week_num <= 53:
+                jan4 = __import__("datetime").date(today.year, 1, 4)
+                monday_w1 = jan4 - timedelta(days=jan4.weekday())
+                target = monday_w1 + timedelta(weeks=week_num - 1)
+            else:
+                return []
+        elif period:
+            return []
+        else:
+            target = today
+        return get_week_entries(target, config)
+
+    # Monthly log: m [month|YYYY-MM]
+    if first == "m":
+        import calendar as cal
+        from datetime import date as date_cls
+
+        today = date_cls.today()
+        period = rest[0] if rest else None
+        if not period:
+            year, month = today.year, today.month
+        elif "-" in period and len(period) >= 6:
+            try:
+                parts = period.split("-")
+                year, month = int(parts[0]), int(parts[1])
+            except (ValueError, IndexError):
+                return []
+        else:
+            month_names = {name.lower(): i for i, name in enumerate(cal.month_name) if i}
+            month_abbrs = {name.lower(): i for i, name in enumerate(cal.month_abbr) if i}
+            month_num = {**month_names, **month_abbrs}.get(period.lower())
+            if month_num:
+                year, month = today.year, month_num
+            else:
+                return []
+        first_day = f"{year}-{month:02d}-01"
+        last_day = f"{year}-{month:02d}-{cal.monthrange(year, month)[1]:02d}"
+        return query_and_load(config, created_since=first_day, created_until=last_day)
 
     sig_to_query = {
-        "t": {"type": "task", "status": "active"},
         "n": {"type": "note"},
         "j": {"type": "journal"},
         "c": {"type": "calendar"},
     }
 
-    # Signifier views: t, n, j, c (with optional @tag)
+    # Signifier views: n, j, c (with optional @tag)
     if first in sig_to_query:
         kwargs = dict(sig_to_query[first])
-        for arg in args[1:]:
+        for arg in rest:
             if arg.startswith("@") and len(arg) > 1:
                 kwargs["tag"] = arg[1:]
         return query_and_load(config, **kwargs)
 
     # Important + type: t!, n!, etc.
     stripped = first.rstrip("!")
-    if first.endswith("!") and stripped in sig_to_query:
-        kwargs = dict(sig_to_query[stripped])
+    all_sigs = {**sig_to_query, "t": {"type": "task", "status": "active"}}
+    if first.endswith("!") and stripped in all_sigs:
+        kwargs = dict(all_sigs[stripped])
         kwargs["important"] = True
         return query_and_load(config, **kwargs)
 
@@ -142,7 +230,8 @@ def display_bt_results(entries: list, context_ids: set[str]) -> None:
         if entry.tags:
             meta_parts.extend(f"@{t}" for t in entry.tags)
 
-        table.add_row(str(i), icon, body, " ".join(meta_parts))
+        row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
+        table.add_row(str(i), icon, body, " ".join(meta_parts), style=row_style)
 
     console.print()
     console.print(table)
@@ -286,9 +375,6 @@ def _handle_slash_command(session: ChatSession, command: str) -> str | None:
 
     if cmd == "/bt":
         bt_args = args_str.split() if args_str else []
-        if not bt_args:
-            console.print("  [dim]Usage: /bt t, /bt n, /bt @tag, /bt ![/dim]")
-            return None
         entries = execute_bt_view(bt_args, session.config)
         if entries:
             session.last_bt_results = entries

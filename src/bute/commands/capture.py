@@ -1,8 +1,12 @@
 """Capture command — handles t/n/j/c and task/note/journal/calendar signifier input."""
 
+import os
+import subprocess
+import tempfile
 from datetime import date
 
 import click
+import frontmatter
 
 from bute.display import confirm_capture
 from bute.models import SIGNIFIER_MAP, Entry, EntryType
@@ -14,7 +18,7 @@ from bute.parser import (
     resolve_date,
     resolve_time,
 )
-from bute.storage import save_entry
+from bute.storage import load_entry, save_entry
 
 
 @click.command("capture", hidden=True)
@@ -95,3 +99,82 @@ def capture_cmd(ctx, later, backlog, tokens):
     from bute.ai import embed_entry
     embed_entry(entry.id, entry.body, config)
     confirm_capture(entry)
+
+
+def _resolve_signifier_token(token: str) -> tuple[str, bool]:
+    """Resolve a raw CLI signifier token to ('/t'-style key, important flag)."""
+    from bute.parser import BULLET_TO_SIGNIFIER, WORD_TO_SIGNIFIER
+
+    match = SIGNIFIER_RE.match(token)
+    if match:
+        return f"/{match.group(1)}", match.group(2) == "!"
+
+    bullet_match = BULLET_RE.match(token)
+    if bullet_match:
+        letter = BULLET_TO_SIGNIFIER[bullet_match.group(1)]
+        return f"/{letter}", bullet_match.group(2) == "!"
+
+    word_match = WORD_SIGNIFIER_RE.match(token)
+    if word_match:
+        letter = WORD_TO_SIGNIFIER[word_match.group(1)]
+        return f"/{letter}", word_match.group(2) == "!"
+
+    raise click.UsageError(f"Unknown signifier: {token}")
+
+
+@click.command("open_capture", hidden=True)
+@click.argument("signifier")
+@click.pass_context
+def open_capture_cmd(ctx, signifier):
+    """Open $EDITOR for long-form entry capture."""
+    sig_key, important = _resolve_signifier_token(signifier)
+    entry_type = SIGNIFIER_MAP[sig_key]
+
+    # Create a skeleton entry
+    entry = Entry.create(entry_type=entry_type, body="", important=important)
+
+    # Build the markdown template
+    post = frontmatter.Post(content="\n", **entry.to_frontmatter_dict())
+    template = frontmatter.dumps(post)
+
+    # Write to a temp file and open in editor
+    editor = os.environ.get("EDITOR", "nano")
+    with tempfile.NamedTemporaryFile(
+        suffix=".md", prefix=f"bt-{entry_type.value}-", mode="w", delete=False
+    ) as f:
+        f.write(template)
+        tmp_path = f.name
+
+    try:
+        subprocess.call([editor, tmp_path])
+
+        # Read back the edited file
+        from pathlib import Path
+        edited = load_entry(Path(tmp_path))
+
+        if not edited.body.strip():
+            click.echo("Empty body — cancelled.")
+            return
+
+        # Preserve the original entry's ID, type, and created timestamp
+        # but pick up everything the user edited (body, tags, metadata)
+        edited.id = entry.id
+        edited.type = entry.type
+        edited.created = entry.created
+
+        # Auto-tag tasks (same logic as inline capture)
+        has_future_date = edited.scheduled_date and edited.scheduled_date > date.today()
+        has_future_due = edited.due and edited.due > date.today()
+        if edited.type == EntryType.TASK and not has_future_date and not has_future_due:
+            if "thisweek" not in edited.tags:
+                edited.tags.append("thisweek")
+            if "today" not in edited.tags:
+                edited.tags.append("today")
+
+        config = ctx.obj.get("config")
+        save_entry(edited, config)
+        from bute.ai import embed_entry
+        embed_entry(edited.id, edited.body, config)
+        confirm_capture(edited)
+    finally:
+        os.unlink(tmp_path)

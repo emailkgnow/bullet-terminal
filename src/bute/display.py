@@ -7,12 +7,13 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
-from bute.models import Entry, EntryType, TaskStatus
+from bute.models import Entry, EntryType, SYSTEM_TAGS, TaskStatus
 from bute.parser import format_time_display
 
 console = Console()
 
 _MAX_WIDTH = 100
+_ZEBRA_STYLE = "on #1a1a2e"  # subtle background for alternating rows
 
 # Type-to-style mapping
 TYPE_STYLE = {
@@ -123,6 +124,10 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
         meta_parts.append(f"due:{entry.due}")
     if entry.scheduled_time:
         meta_parts.append(format_time_display(entry.scheduled_time))
+    hidden = hide_tags or set()
+    visible_tags = [t for t in entry.tags if t not in SYSTEM_TAGS and t not in hidden]
+    if visible_tags:
+        meta_parts.append(" ".join(f"@{t}" for t in visible_tags))
     meta = " ".join(meta_parts)
 
     return str(i), icon, body, meta
@@ -161,7 +166,8 @@ def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | N
     table.add_column("Meta", style="dim")
 
     for i, entry in enumerate(entries, 1):
-        table.add_row(*_build_entry_row(i, entry, hide_tags=hide_tags))
+        row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
+        table.add_row(*_build_entry_row(i, entry, hide_tags=hide_tags), style=row_style)
 
     console.print()
     console.print(Align.center(table))
@@ -215,7 +221,8 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
         for row_idx, entry in enumerate(items):
             num, icon, body, meta = _build_entry_row(counter, entry)
             date_col = date_label if row_idx == 0 else ""
-            table.add_row(date_col, num, icon, body, meta)
+            row_style = _ZEBRA_STYLE if counter % 2 == 0 else ""
+            table.add_row(date_col, num, icon, body, meta, style=row_style)
             counter += 1
         table.add_section()
 
@@ -365,7 +372,8 @@ def display_search_results(
 
     for i, entry in enumerate(entries, 1):
         num, icon, body, meta = _build_entry_row(i, entry)
-        table.add_row(num, icon, body, meta)
+        row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
+        table.add_row(num, icon, body, meta, style=row_style)
 
     title = f'Like: "{query}"' if query else "Like"
     console.print(f"\n  [bold]{title}[/bold]")
