@@ -34,7 +34,20 @@ class DwnGroup(click.Group):
         first = args[0]
         rest = args[1:]
 
-        # 1. Named command — delegate to normal Click routing
+        # 1. Word signifier with text → capture (before named command check,
+        #    so "bt calendar meet mom" routes to capture, not the calendar view)
+        if rest and WORD_SIGNIFIER_PATTERN.match(first):
+            view_flags = {"-a", "--all"}
+            if not all(r.startswith("@") or r in view_flags for r in rest):
+                if rest == ("open",) or rest == ["open"]:
+                    cmd = self.get_command(ctx, "open_capture")
+                    if cmd is not None:
+                        return "open_capture", cmd, [first]
+                cmd = self.get_command(ctx, "capture")
+                if cmd is not None:
+                    return "capture", cmd, args
+
+        # 2. Named command — delegate to normal Click routing
         # Alias: bt overdue → bt due overdue
         if first == "overdue":
             cmd = self.get_command(ctx, "due")
@@ -448,15 +461,7 @@ def main(ctx, interactive, demo, toggle_journal):
         return
 
     if not ctx.invoked_subcommand:
-        from bute.commands.tour import should_run_tour
-
         config = ctx.obj["config"]
-
-        # First-run tour — no entries and tour not completed
-        if should_run_tour(config):
-            from bute.commands.tour import run_tour
-            run_tour(ctx)
-            return
 
         from datetime import date
         from bute.config import get_wp_day
@@ -468,9 +473,12 @@ def main(ctx, interactive, demo, toggle_journal):
             from bute.commands.rituals import wp_cmd as _wp_cmd
             ctx.invoke(_wp_cmd, non_interactive=False)
 
-        from bute.state import is_dp_done_today
-        if is_dp_done_today(config):
-            # Daily plan already done — show Focus Log
+        from bute.state import is_dp_done_today, get_dp_history
+        # First day — no dp history yet, show Focus Log so new users
+        # see their entries instead of being thrown into daily plan.
+        first_day = not get_dp_history(config)
+        if is_dp_done_today(config) or first_day:
+            # Daily plan already done (or first day) — show Focus Log
             from bute.display import display_entry_list
             from bute.ritual_ops import get_daily_log
             from bute.state import save_state

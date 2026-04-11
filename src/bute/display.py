@@ -49,8 +49,9 @@ def confirm_capture(entry: Entry) -> None:
         meta_parts.append(format_time_display(entry.scheduled_time))
     if entry.repeat:
         meta_parts.append(f"repeat:{entry.repeat}")
-    if entry.tags:
-        meta_parts.append(" ".join(f"@{t}" for t in entry.tags))
+    visible_tags = [t for t in entry.tags if t not in SYSTEM_TAGS]
+    if visible_tags:
+        meta_parts.append(" ".join(f"@{t}" for t in visible_tags))
 
     subtitle = Text(f" {' | '.join(meta_parts)} ", style="dim") if meta_parts else None
 

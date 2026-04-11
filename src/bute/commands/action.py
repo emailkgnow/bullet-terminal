@@ -149,6 +149,23 @@ def handle_later(entry: Entry, args: list[str], config) -> None:
         Console().print(f"  [dim]Not in today's log[/dim]")
 
 
+def handle_focus(entry: Entry, args: list[str], config) -> None:
+    """Add @today and @thisweek — pull task into Focus Log."""
+    _require_task(entry, "focus")
+    added = []
+    if "thisweek" not in entry.tags:
+        entry.tags.append("thisweek")
+        added.append("thisweek")
+    if "today" not in entry.tags:
+        entry.tags.append("today")
+        added.append("today")
+    if added:
+        record_undo(entry.id, "focus", {"tags": added}, config)
+        update_entry(entry, config)
+    else:
+        Console().print(f"  [dim]Already in Focus Log[/dim]")
+
+
 def handle_backlog(entry: Entry, args: list[str], config) -> None:
     """Remove @today and @thisweek — send task to Backlog."""
     _require_task(entry, "backlog")
@@ -312,6 +329,11 @@ def apply_undo(record: dict, config) -> None:
             if tag not in entry.tags:
                 entry.tags.append(tag)
         update_entry(entry, config)
+    elif action == "focus":
+        for tag in prev["tags"]:
+            if tag in entry.tags:
+                entry.tags.remove(tag)
+        update_entry(entry, config)
     elif action == "meta":
         from datetime import date as date_type
         if "due" in prev:
@@ -338,6 +360,7 @@ ACTION_HANDLERS = {
     "open": handle_edit,
     "edit": handle_edit,
     "later": handle_later,
+    "focus": handle_focus,
     "backlog": handle_backlog,
 }
 
@@ -361,16 +384,17 @@ def action_cmd(ctx, tokens):
             apply_undo(record, config)
         return
 
-    # Handle @tag action
+    # Handle @tag action — collect all @tags from action + args
     if action.startswith("@") and len(action) > 1:
-        tag = action[1:]
+        tags = [action[1:]] + [a[1:] for a in args if a.startswith("@") and len(a) > 1]
         for entry_id in entry_ids:
             path = entry_path_from_id(entry_id, config)
             if path is None:
                 console.print(f"  [red]Entry {entry_id[:8]} not found.[/red]")
                 continue
             entry = load_entry(path)
-            handle_add_tag(entry, tag, config)
+            for tag in tags:
+                handle_add_tag(entry, tag, config)
         return
 
     # Handle untag action: bt 1 untag @backend  or  bt 1 untag backend
