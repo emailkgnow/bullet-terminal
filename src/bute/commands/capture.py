@@ -1,6 +1,7 @@
 """Capture command — handles t/n/j/c and task/note/journal/calendar signifier input."""
 
 import os
+import re
 import subprocess
 import tempfile
 from datetime import date
@@ -61,12 +62,22 @@ def capture_cmd(ctx, later, backlog, tokens):
 
     # Extract and resolve known metadata keys
     meta = dict(parsed.metadata)
-    due = resolve_date(meta.pop("due")) if "due" in meta else None
+    # Support both t: and time:
+    raw_time = meta.pop("t", None) or meta.pop("time", None)
+    # due: can be a date (due:friday) or a time (due:3pm → today at 3pm)
+    raw_due = meta.pop("due", None)
+    if raw_due is not None:
+        if re.search(r'(?:am|pm)$', raw_due.lower().strip()):
+            due = date.today()
+            if not raw_time:
+                raw_time = raw_due
+        else:
+            due = resolve_date(raw_due)
+    else:
+        due = None
     # Support both d: and date:
     raw_date = meta.pop("d", None) or meta.pop("date", None)
     scheduled_date = resolve_date(raw_date) if raw_date else None
-    # Support both t: and time:
-    raw_time = meta.pop("t", None) or meta.pop("time", None)
     scheduled_time = resolve_time(raw_time) if raw_time else None
     repeat = meta.pop("r", None) or meta.pop("repeat", None)
 

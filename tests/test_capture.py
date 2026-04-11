@@ -67,6 +67,16 @@ def test_capture_multiple_tags(runner, tmp_config, tmp_data):
     assert "code-review" in content
 
 
+def test_capture_due_time_sets_today(runner, tmp_config, tmp_data):
+    """due:3pm should set due=today and time=15:00."""
+    result = runner.invoke(main, ["/t!", "take", "ozempic", "due:3pm"])
+    assert result.exit_code == 0
+    entries = list(tmp_data.rglob("*.md"))
+    content = entries[0].read_text()
+    assert "time: '15:00'" in content
+    assert "take ozempic" in content
+
+
 def test_capture_plus_token_creates_entry(runner, tmp_config, tmp_data):
     """bt t fix faucet +home-reno should create an entry (not redirect to collection)."""
     result = runner.invoke(main, ["t", "fix", "faucet", "+home-reno"])
