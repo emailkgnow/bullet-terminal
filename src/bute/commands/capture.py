@@ -12,7 +12,6 @@ import frontmatter
 from bute.display import confirm_capture
 from bute.models import SIGNIFIER_MAP, Entry, EntryType
 from bute.parser import (
-    BULLET_RE,
     SIGNIFIER_RE,
     WORD_SIGNIFIER_RE,
     parse_capture_tokens,
@@ -30,7 +29,7 @@ from bute.storage import load_entry, save_entry
 def capture_cmd(ctx, later, backlog, tokens):
     """Capture a new entry."""
     # Interactive fallback: if only the signifier is given, prompt for text
-    if len(tokens) == 1 and (SIGNIFIER_RE.match(tokens[0]) or BULLET_RE.match(tokens[0]) or WORD_SIGNIFIER_RE.match(tokens[0])):
+    if len(tokens) == 1 and (SIGNIFIER_RE.match(tokens[0]) or WORD_SIGNIFIER_RE.match(tokens[0])):
         import questionary
 
         type_labels = {
@@ -38,10 +37,6 @@ def capture_cmd(ctx, later, backlog, tokens):
             "n": "note", "n!": "note (important)",
             "j": "journal", "j!": "journal (important)",
             "c": "event", "c!": "event (important)",
-            ".": "task", ".!": "task (important)",
-            "=": "journal", "=!": "journal (important)",
-            "-": "note", "-!": "note (important)",
-            "o": "event", "o!": "event (important)",
             "task": "task", "task!": "task (important)",
             "note": "note", "note!": "note (important)",
             "journal": "journal", "journal!": "journal (important)",
@@ -119,16 +114,11 @@ def capture_cmd(ctx, later, backlog, tokens):
 
 def _resolve_signifier_token(token: str) -> tuple[str, bool]:
     """Resolve a raw CLI signifier token to ('/t'-style key, important flag)."""
-    from bute.parser import BULLET_TO_SIGNIFIER, WORD_TO_SIGNIFIER
+    from bute.parser import WORD_TO_SIGNIFIER
 
     match = SIGNIFIER_RE.match(token)
     if match:
         return f"/{match.group(1)}", match.group(2) == "!"
-
-    bullet_match = BULLET_RE.match(token)
-    if bullet_match:
-        letter = BULLET_TO_SIGNIFIER[bullet_match.group(1)]
-        return f"/{letter}", bullet_match.group(2) == "!"
 
     word_match = WORD_SIGNIFIER_RE.match(token)
     if word_match:

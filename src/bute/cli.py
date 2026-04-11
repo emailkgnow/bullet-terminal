@@ -9,14 +9,11 @@ from bute import __version__
 
 # Short signifier pattern: t, /t, t!, /t!, n, j, c, etc.
 SIGNIFIER_PATTERN = re.compile(r"^/?[tnjc]!?$")
-# Bullet signifier pattern: . = - o (with optional !)
-BULLET_PATTERN = re.compile(r"^[.=\-o]!?$")
 # Full word capture: task, note, journal, calendar (with optional !)
 WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|calendar)!?$")
 
 # Short letter to view command mapping (when no text follows)
 SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog", "d": "daily", "w": "week", "m": "monthly"}
-BULLET_TO_VIEW = {".": "tasks", "=": "journals", "-": "notes", "o": "calendar"}
 WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calendar": "calendar"}
 
 
@@ -26,6 +23,12 @@ class DwnGroup(click.Group):
     def format_help(self, ctx, formatter):
         """Override default help to show our custom Rich help."""
         _print_help()
+
+    def parse_args(self, ctx, args):
+        """Prevent Click from treating -@tag as an option flag."""
+        if args and args[0].startswith("-@"):
+            args = ["--"] + list(args)
+        return super().parse_args(ctx, args)
 
     def resolve_command(self, ctx, args):
         if not args:
@@ -84,12 +87,11 @@ class DwnGroup(click.Group):
             if cmd is not None:
                 return "habits", cmd, rest
 
-        # 3. Signifier (short: t, /t | bullet: . = - o | word: task, note, journal, cal)
+        # 3. Signifier (short: t, /t | word: task, note, journal, calendar)
         is_short = SIGNIFIER_PATTERN.match(first)
-        is_bullet = BULLET_PATTERN.match(first)
         is_word = WORD_SIGNIFIER_PATTERN.match(first)
 
-        if is_short or is_bullet or is_word:
+        if is_short or is_word:
             # Check if rest is only view flags/options (not capture text)
             view_flags = {"-a", "--all"}
             is_view_args = rest and all(
@@ -125,8 +127,6 @@ class DwnGroup(click.Group):
 
             if is_word:
                 view_name = WORD_TO_VIEW.get(stripped)
-            elif is_bullet:
-                view_name = BULLET_TO_VIEW.get(stripped)
             else:
                 view_name = SHORT_TO_VIEW.get(stripped)
 
@@ -292,7 +292,7 @@ def _print_help():
     console.print()
     console.print(t)
     console.print()
-    console.print("    [dim]Also:[/dim] bt task, bt note, bt journal, bt calendar [dim]or BuJo bullets:[/dim] bt . - = o")
+    console.print("    [dim]Also:[/dim] bt task, bt note, bt journal, bt calendar")
     console.print("    [dim]Modifiers:[/dim] [bold red]![/bold red] important  [bold]@tag[/bold]  [bold]d:[/bold]date  [bold]t:[/bold]time  [bold]due:[/bold]deadline  [bold]r:[/bold]recur")
     console.print("    [dim]Tip:[/dim] dates like [bold]d:4.7[/bold] auto-resolve to the future. For past dates, use ISO: [bold]d:2026-03-15[/bold]")
 

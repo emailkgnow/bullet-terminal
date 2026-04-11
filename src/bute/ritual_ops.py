@@ -201,7 +201,7 @@ def process_dump_line(line: str, config=None, auto_tags: list[str] | None = None
 
     auto_tags: tags to auto-add to task entries (e.g. ["thisweek"]).
     """
-    from bute.parser import BULLET_RE, SIGNIFIER_RE, WORD_SIGNIFIER_RE
+    from bute.parser import SIGNIFIER_RE, WORD_SIGNIFIER_RE
 
     line = line.strip()
     if not line:
@@ -210,7 +210,7 @@ def process_dump_line(line: str, config=None, auto_tags: list[str] | None = None
     # If line doesn't start with a recognized signifier, prepend j
     tokens = line.split()
     first = tokens[0]
-    if not (SIGNIFIER_RE.match(first) or BULLET_RE.match(first) or WORD_SIGNIFIER_RE.match(first)):
+    if not (SIGNIFIER_RE.match(first) or WORD_SIGNIFIER_RE.match(first)):
         tokens = ["j"] + tokens
 
     parsed = parse_capture_tokens(tuple(tokens))

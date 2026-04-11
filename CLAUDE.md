@@ -29,7 +29,7 @@ uv build
 
 ### CLI Dispatch (cli.py — ButeGroup)
 
-Custom Click group with 6-layer routing in `resolve_command()`:
+Custom Click group with 5-layer routing in `resolve_command()`:
 
 1. **Named commands** — standard Click (dp, tasks, backlog, notes, tags, etc.)
 2. **Letter shortcut** — `b` → backlog, `m` → monthly
@@ -39,7 +39,8 @@ Custom Click group with 6-layer routing in `resolve_command()`:
    - With only `@tag` → **filtered view** (`bute t @backend`)
 4. **Tag filter** — `@tagname` → cross-dimension filter (multi-tag: `@a @b -@c`)
 5. **Number-action** — `1 done`, `2 3 drop` → action dispatch
-6. **Fallback** — Click error
+
+Bullet symbols (`. - = o`) are used in display output but not accepted as CLI input — they conflict with shell metacharacters (`=` in zsh, `-` as option prefix). Use letter shortcuts instead.
 
 ### Data Model
 
@@ -77,7 +78,7 @@ User input → DwnGroup.resolve_command() → capture.py
 | `ai/embeddings.py` | fastembed wrapper, lazy model loading |
 | `ai/prompts.py` | Prompt templates for AI features |
 | `ai/tools.py` | Tool schemas + execution for chat (query, create, tag, action, map) |
-| `commands/tags.py` | Tag processing: analyze (AI clusters entries) |
+| `commands/tags.py` | Tag listing, filtering helpers, analysis formatting |
 
 ### AI Architecture
 
@@ -172,6 +173,7 @@ bute streak         # habit streaks and 30-day stats
 
 **System**:
 ```
+bute stats          # personal analytics (week/month views, streaks)
 bute export         # zip backup of all data to cwd (-o path)
 bute rebuild        # rebuild search index from .md files
 bute init           # first-run setup (pick AI provider)
@@ -211,9 +213,9 @@ bute init           # first-run setup (pick AI provider)
 - **Title lines for long-form notes** — when a note body is long (multi-line or beyond a threshold), auto-extract or prompt for a title line. Gives notes a scannable heading in list views instead of truncating the first line of a wall of text.
 - `bt overdue` — shortcut for past-due tasks only. Quick "what am I behind on" accountability view.
 - `bt move <n> due:friday` — update metadata fields without replacing body. Like `mod` but for due dates, tags, times.
-- `bt stats` — personal analytics: done/dropped ratio, busiest days, most-used tags, capture frequency. Data is all in the markdown files.
+- ~~`bt stats`~~ ✓ Done — personal analytics with week/month views, streaks, done/dropped ratio.
 - ~~`bt find <keyword>`~~ ✓ Done — FTS5 body search + tag search, deduped. Flags: `-t` (tasks), `-n` (notes), `-j` (journals), `-c` (calendar). No flag = search all types.
-- ~~`bt export`~~ ✓ Done — exports entries, collections, habits as `bullet-terminal-markdown-YYYY-MM-DD.zip` with README. `-o <path>` for custom output. Counter suffix for same-day duplicates.
+- ~~`bt export`~~ ✓ Done — exports entries as `bullet-terminal-markdown-YYYY-MM-DD.zip` with README. `-o <path>` for custom output. Counter suffix for same-day duplicates.
 
 ### Onboarding
 - ~~**Guided tour — first-run onboarding**~~ ✓ Done — interactive REPL teaches core concepts on first `bt` run. 11 phases: capture → see → organize → act → plan.

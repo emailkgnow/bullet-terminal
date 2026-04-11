@@ -92,15 +92,6 @@ def test_open_capture_word_signifier(runner, tmp_config, tmp_data):
     assert "type: task" in content
 
 
-def test_open_capture_bullet_signifier(runner, tmp_config, tmp_data):
-    with patch("subprocess.call", side_effect=_fake_editor("bullet form works")):
-        result = runner.invoke(main, [".", "open"])
-    assert result.exit_code == 0
-    entries = list(tmp_data.rglob("*.md"))
-    content = entries[0].read_text()
-    assert "type: task" in content
-
-
 def test_open_capture_important(runner, tmp_config, tmp_data):
     with patch("subprocess.call", side_effect=_fake_editor("urgent thing")):
         result = runner.invoke(main, ["t!", "open"])

@@ -211,8 +211,8 @@ def dump_cmd(ctx):
         # Force task signifier — prepend t if no signifier given
         tokens = line.strip().split()
         first = tokens[0]
-        from bute.parser import BULLET_RE, SIGNIFIER_RE, WORD_SIGNIFIER_RE
-        if not (SIGNIFIER_RE.match(first) or BULLET_RE.match(first) or WORD_SIGNIFIER_RE.match(first)):
+        from bute.parser import SIGNIFIER_RE, WORD_SIGNIFIER_RE
+        if not (SIGNIFIER_RE.match(first) or WORD_SIGNIFIER_RE.match(first)):
             line = "t " + line
         entry = process_dump_line(line, config, auto_tags=None)
         if entry:

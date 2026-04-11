@@ -8,10 +8,6 @@ from bute.errors import InvalidSignifierError
 
 SIGNIFIER_RE = re.compile(r"^/?([tnjc])(!?)$")
 
-# Bullet signifier mapping: . = task, = = journal, - = note, o = calendar
-BULLET_TO_SIGNIFIER = {".": "t", "=": "j", "-": "n", "o": "c"}
-BULLET_RE = re.compile(r"^([.=\-o])(!?)$")
-
 # Full word to signifier mapping
 WORD_TO_SIGNIFIER = {
     "task": "t", "note": "n", "journal": "j", "calendar": "c",
@@ -87,21 +83,14 @@ def parse_capture_tokens(tokens: tuple[str, ...] | list[str]) -> ParsedInput:
         signifier = f"/{match.group(1)}"
         important = match.group(2) == "!"
     else:
-        # Try bullet form: . = - o (with optional !)
-        bullet_match = BULLET_RE.match(first)
-        if bullet_match:
-            letter = BULLET_TO_SIGNIFIER[bullet_match.group(1)]
+        # Try full word: task, note, journal, calendar, task!, etc.
+        word_match = WORD_SIGNIFIER_RE.match(first)
+        if word_match:
+            letter = WORD_TO_SIGNIFIER[word_match.group(1)]
             signifier = f"/{letter}"
-            important = bullet_match.group(2) == "!"
+            important = word_match.group(2) == "!"
         else:
-            # Try full word: task, note, journal, cal, task!, etc.
-            word_match = WORD_SIGNIFIER_RE.match(first)
-            if word_match:
-                letter = WORD_TO_SIGNIFIER[word_match.group(1)]
-                signifier = f"/{letter}"
-                important = word_match.group(2) == "!"
-            else:
-                raise InvalidSignifierError(f"Unknown signifier: {first}")
+            raise InvalidSignifierError(f"Unknown signifier: {first}")
 
     body_words = []
     metadata = {}
