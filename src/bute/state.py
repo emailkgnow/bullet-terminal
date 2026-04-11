@@ -89,20 +89,6 @@ def is_wp_done_this_week(config=None) -> bool:
     return path.read_text().strip() == date.today().strftime("%G-W%V")
 
 
-def mark_recap_done(config=None) -> None:
-    """Record that recap was run today."""
-    path = get_data_dir(config) / ".recap_date"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(date.today().isoformat())
-
-
-def is_recap_done_today(config=None) -> bool:
-    """Check if recap was already run today."""
-    path = get_data_dir(config) / ".recap_date"
-    if not path.exists():
-        return False
-    return path.read_text().strip() == date.today().isoformat()
-
 
 def _undo_path(config=None) -> Path:
     """Return the path to the undo log."""

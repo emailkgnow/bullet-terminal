@@ -5,8 +5,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-from rich.tree import Tree
-
 from bute.models import Entry, EntryType, SYSTEM_TAGS, TaskStatus
 from bute.parser import format_time_display
 
@@ -180,8 +178,7 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
         return
 
     # Group entries by date (calendar events use scheduled_date if set)
-    from collections import OrderedDict
-    grouped: OrderedDict[str, list[Entry]] = OrderedDict()
+    grouped: dict[str, list[Entry]] = {}
     for entry in entries:
         if entry.scheduled_date:
             date_key = entry.scheduled_date.strftime("%a %b %d")
@@ -383,11 +380,6 @@ def display_search_results(
 # Rotating colors for analyze tree branches
 _BRANCH_COLORS = ["cyan", "green", "magenta", "blue", "red"]
 
-# Map BuJo signifiers to their type names
-_SIG_TYPES = {".": "task", "-": "note", "=": "journal", "o": "event"}
-
-PAD = "  "  # second-level guide padding
-
 
 def _parse_analyze_themes(response: str) -> list[tuple[str, str, list[str]]]:
     """Parse THEME: or ## heading blocks from an analysis response.
@@ -433,64 +425,6 @@ def _theme_color(index: int, theme_name: str) -> str:
     if "[complete]" in theme_name.lower() or "[done]" in theme_name.lower():
         return "dim"
     return _BRANCH_COLORS[index % len(_BRANCH_COLORS)]
-
-
-def display_analyze_tree(tag: str, response: str) -> None:
-    """Render an analysis response as a colored Rich Tree with BuJo signifiers."""
-    themes = _parse_analyze_themes(response)
-    if not themes:
-        console.print(f"\n{response}")
-        return
-
-    total = sum(len(items) for name, _summary, items in themes if "tension" not in name.lower() and "gap" not in name.lower())
-
-    console.print()
-    console.print(f"  [bold]@{tag}[/bold] — {total} entries across {len(themes)} themes")
-
-    for i, (theme_name, _summary, items) in enumerate(themes):
-        color = _theme_color(i, theme_name)
-        is_complete = "[complete]" in theme_name.lower() or "[done]" in theme_name.lower()
-
-        type_counts = {}
-        for item in items:
-            sig = item[0] if item and item[0] in _SIG_TYPES else None
-            if sig:
-                tname = _SIG_TYPES[sig]
-                type_counts[tname] = type_counts.get(tname, 0) + 1
-
-        summary = ", ".join(f"{c} {t}{'s' if c > 1 else ''}" for t, c in type_counts.items())
-        if is_complete:
-            label = f"[dim]{theme_name}  {summary}[/dim]"
-        elif color == "yellow":
-            label = f"[bold {color}]{theme_name}[/bold {color}]"
-        else:
-            label = f"[bold {color}]{theme_name}[/bold {color}]  [dim]{summary}[/dim]"
-
-        branch = Tree(label, guide_style=color)
-
-        for item in items:
-            if is_complete:
-                branch.add(f"[dim]{PAD}{item}[/dim]", guide_style="dim")
-            else:
-                branch.add(f"[{color}]{PAD}{item}[/{color}]", guide_style=color)
-
-        console.print()
-        console.print(branch)
-
-    console.print()
-
-
-def _summarize_entry(text: str, max_len: int = 35) -> str:
-    """Strip BuJo signifier and summarize an entry for mind map display."""
-    # Strip leading signifier (". ", "- ", "= ", "o ") and status markers
-    stripped = re.sub(r'^[.\-=o]!?\s+', '', text)
-    stripped = re.sub(r'\s*\[(done|dropped|active)\]', '', stripped)
-    result = _first_sentence(stripped)
-    if len(result) > max_len:
-        # Truncate at last word boundary
-        truncated = result[:max_len].rsplit(" ", 1)[0]
-        return truncated + "…"
-    return result
 
 
 def display_analyze_map(tag: str, response: str) -> None:

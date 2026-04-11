@@ -84,19 +84,14 @@ def start_cmd(ctx):
     console.print()
     console.print("    [bold]bt tags[/bold]           [dim]all tags with counts[/dim]")
     console.print("    [bold]bt @home[/bold]          [dim]view entries tagged @home[/dim]")
-    console.print("    [bold]bt analyze @home[/bold]  [dim]AI clusters and organizes the tag[/dim]")
-    console.print("    [bold]bt map @home[/bold]      [dim]mind map of the analysis[/dim]")
     console.print("    [dim]Goals are notes tagged @goal — bt goals shows progress.[/dim]")
 
     # AI
     console.print()
     console.print("  [bold]AI[/bold] — run [bold]bt init[/bold] to set up, then:")
     console.print()
-    console.print("    [bold]bt 1 chat[/bold]         [dim]think through entries with AI[/dim]")
-    console.print("    [bold]bt recap week[/bold]     [dim]AI analysis of a period[/dim]")
+    console.print("    [bold]bt chat[/bold]           [dim]AI chat session with tool access[/dim]")
     console.print("    [bold]bt search <q>[/bold]     [dim]semantic search[/dim]")
-    console.print("    [bold]bt nudges[/bold]         [dim]actionable suggestions[/dim]")
-    console.print("    [bold]bt tag-notes[/bold]      [dim]AI suggests tags for untagged notes[/dim]")
 
     # Habits
     console.print()

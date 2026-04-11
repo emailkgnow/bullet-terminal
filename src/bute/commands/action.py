@@ -20,7 +20,7 @@ def parse_action_tokens(
 ) -> tuple[list[int], str, list[str]]:
     """Parse action tokens into (numbers, action, args).
 
-    Example: ("1", "3", "migrate", "tomorrow") → ([1, 3], "migrate", ["tomorrow"])
+    Example: ("1", "3", "done") → ([1, 3], "done", [])
     """
     numbers = []
     rest = list(tokens)

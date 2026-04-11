@@ -57,19 +57,6 @@ Rules:
 
 
 
-def autotag_prompt(existing_tags: list[str]) -> str:
-    tags_list = ", ".join(f"@{t}" for t in existing_tags) if existing_tags else "(none yet)"
-    return f"""{SYSTEM_BASE}
-
-Suggest 1-3 tags for the following note entry. Rules:
-- Prefer reusing existing tags: {tags_list}
-- Only suggest a new tag if nothing existing fits
-- Tags are lowercase, hyphenated (e.g. home-reno, api-design)
-- Reply with ONLY the tags, space-separated, prefixed with @
-- Example response: @backend @api
-- If the note is too vague to tag meaningfully, respond with: SKIP"""
-
-
 def chat_system_prompt() -> str:
     from datetime import date
     today = date.today()

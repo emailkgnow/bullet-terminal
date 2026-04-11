@@ -3,7 +3,7 @@
 import pytest
 
 from bute.errors import InvalidEntryNumberError, StateNotFoundError
-from bute.state import is_recap_done_today, load_state, mark_recap_done, resolve_numbers, save_state, state_path
+from bute.state import load_state, resolve_numbers, save_state, state_path
 
 
 def test_state_path(tmp_data):
@@ -56,10 +56,3 @@ def test_resolve_numbers_zero(tmp_data):
         resolve_numbers([0])
 
 
-def test_mark_recap_done(tmp_data):
-    mark_recap_done()
-    assert is_recap_done_today()
-
-
-def test_recap_not_done_initially(tmp_data):
-    assert not is_recap_done_today()

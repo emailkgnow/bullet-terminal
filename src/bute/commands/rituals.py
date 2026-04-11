@@ -1,4 +1,4 @@
-"""Ritual commands for bute (dp/dailyplan, wp/weeklyplan, recap)."""
+"""Ritual commands for bute (dp/dailyplan, wp/weeklyplan)."""
 
 from datetime import date
 

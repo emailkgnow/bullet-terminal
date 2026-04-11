@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 
 from bute.errors import InvalidSignifierError
-from bute.parser import parse_capture_tokens, resolve_date
+from bute.parser import parse_capture_tokens, resolve_date, resolve_time
 
 
 class TestParseCapture:
@@ -153,3 +153,52 @@ class TestResolveDate:
         assert resolve_date("TOMORROW", ref) == date(2026, 3, 24)
         assert resolve_date("Friday", ref) == date(2026, 3, 27)
         assert resolve_date("Mar29", ref) == date(2026, 3, 29)
+
+
+class TestResolveTimeInvalid:
+    def test_resolve_time_invalid_ampm(self):
+        """am/pm with hour > 12 should raise."""
+        with pytest.raises(ValueError):
+            resolve_time("13pm")
+
+    def test_resolve_time_invalid_minutes(self):
+        """Minutes >= 60 should raise."""
+        with pytest.raises(ValueError):
+            resolve_time("1.60")
+
+    def test_resolve_time_invalid_hour(self):
+        """Hour >= 24 in HH:MM should raise."""
+        with pytest.raises(ValueError):
+            resolve_time("25:30")
+
+    def test_resolve_time_invalid_99pm(self):
+        """99pm should raise."""
+        with pytest.raises(ValueError):
+            resolve_time("99pm")
+
+    def test_resolve_time_unrecognized_format(self):
+        """Completely unrecognized input should raise."""
+        with pytest.raises(ValueError):
+            resolve_time("noon")
+
+
+class TestResolveDateInvalid:
+    def test_resolve_date_invalid_month(self):
+        """Month 13 should raise."""
+        with pytest.raises(ValueError):
+            resolve_date("13.45")
+
+    def test_resolve_date_invalid_day(self):
+        """Feb 30 should raise."""
+        with pytest.raises(ValueError):
+            resolve_date("2.30")
+
+    def test_resolve_date_invalid_month_day(self):
+        """mar32 should raise."""
+        with pytest.raises(ValueError):
+            resolve_date("mar32")
+
+    def test_resolve_date_invalid_iso(self):
+        """Garbage ISO string should raise with clear message."""
+        with pytest.raises(ValueError, match="Invalid date"):
+            resolve_date("not-a-date")

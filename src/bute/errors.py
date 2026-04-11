@@ -17,12 +17,6 @@ class ConfigNotFoundError(DwnError):
         super().__init__("bt is not initialized. Run 'bt init' first.")
 
 
-class EntryNotFoundError(DwnError):
-    """Raised when a referenced entry doesn't exist."""
-
-    pass
-
-
 class InvalidSignifierError(DwnError):
     """Raised when an unrecognized signifier is used."""
 

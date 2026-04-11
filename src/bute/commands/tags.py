@@ -1,12 +1,5 @@
 """Tag processing commands — analyze."""
 
-import click
-from rich.console import Console
-
-from bute.db import upsert_tag_stage
-
-console = Console()
-
 
 def _parse_tag_tokens(tokens: tuple[str, ...]) -> tuple[list[str], list[str]]:
     """Parse @tag and -@tag tokens into (include_tags, exclude_tags)."""
@@ -59,55 +52,3 @@ def _load_filtered_entries(include_tags: list[str], exclude_tags: list[str], con
     return entries
 
 
-def _run_analyze(tag: str, entries, config, *, label: str | None = None) -> str | None:
-    """Run the analyze stage. Returns analysis text or None if rejected.
-
-    Args:
-        tag: The tag name (used for tag_stages and note tagging).
-             Pass empty string when using label override.
-        entries: Pre-loaded entries to analyze.
-        config: App config.
-        label: Display label override. If set, used in display and note body
-               instead of tag. tag_stages is skipped when label is set.
-    """
-    from bute.ai import _LLM_INSTALL_MSG, is_llm_available, llm_send
-    from bute.ai.prompts import analyze_prompt, format_entries
-
-    if not is_llm_available(config):
-        console.print(_LLM_INSTALL_MSG)
-        return None
-
-    display_name = label or tag
-    console.print(f"  [dim]Analyzing {len(entries)} entries for @{display_name}...[/dim]")
-
-    formatted = format_entries(entries)
-    response = llm_send(analyze_prompt(), f"Tag: \"@{display_name}\"\n\nEntries:\n{formatted}", config)
-    from bute.display import display_analyze_map
-    display_analyze_map(display_name, response)
-
-    if click.confirm("\n  Save this analysis?", default=True):
-        if tag:
-            upsert_tag_stage(tag, "analyzed", analysis=response, config=config)
-
-        # Save analysis as a clean markdown note
-        from bute.ai import embed_entry
-        from bute.display import confirm_capture
-        from bute.models import Entry, EntryType
-        from bute.storage import save_entry
-
-        note_tags = [tag, "ai-analysis"] if tag else [display_name, "ai-analysis"]
-        entry = Entry.create(
-            entry_type=EntryType.NOTE,
-            body=_format_analysis_for_note(display_name, response),
-            tags=note_tags,
-        )
-        save_entry(entry, config)
-        embed_entry(entry.id, entry.body, config)
-        confirm_capture(entry)
-
-        console.print(f"  [green]@{display_name} → analyzed[/green]")
-
-        return response
-    else:
-        console.print(f"  [dim]Analysis discarded. Run analyze again when ready.[/dim]")
-        return None

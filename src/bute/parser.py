@@ -147,6 +147,8 @@ def resolve_time(value: str) -> str:
     dot_match = re.match(r"^(\d{1,2})\.(\d{2})$", value)
     if dot_match:
         h, m = int(dot_match.group(1)), int(dot_match.group(2))
+        if h > 23 or m > 59:
+            raise ValueError(f"Invalid time: {value}")
         return f"{h:02d}:{m:02d}"
 
     # Hour only: "9", "14"
@@ -156,12 +158,17 @@ def resolve_time(value: str) -> str:
     # Legacy: 4-digit HHMM
     if re.match(r"^\d{4}$", value):
         h, m = int(value[:2]), int(value[2:])
+        if h > 23 or m > 59:
+            raise ValueError(f"Invalid time: {value}")
         return f"{h:02d}:{m:02d}"
 
     # Legacy: HH:MM
     if re.match(r"^\d{1,2}:\d{2}$", value):
         h, m = value.split(":")
-        return f"{int(h):02d}:{int(m):02d}"
+        h, m = int(h), int(m)
+        if h > 23 or m > 59:
+            raise ValueError(f"Invalid time: {value}")
+        return f"{h:02d}:{m:02d}"
 
     # Legacy: "3pm", "3:30pm", "11am", "12:30am"
     legacy = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$", value)
@@ -169,14 +176,18 @@ def resolve_time(value: str) -> str:
         h = int(legacy.group(1))
         m = int(legacy.group(2) or 0)
         period = legacy.group(3)
+        if h < 1 or h > 12:
+            raise ValueError(f"Invalid time: {value}")
+        if m > 59:
+            raise ValueError(f"Invalid time: {value}")
         if period == "pm" and h != 12:
             h += 12
         elif period == "am" and h == 12:
             h = 0
         return f"{h:02d}:{m:02d}"
 
-    # Fallback — return as-is
-    return value
+    # No format matched — input is invalid
+    raise ValueError(f"Invalid time: {value}")
 
 
 def format_time_display(time_24: str) -> str:
@@ -219,9 +230,15 @@ def resolve_date(value: str, reference: date | None = None) -> date:
     dot_match = re.match(r"^(\d{1,2})\.(\d{1,2})$", low)
     if dot_match:
         month, day = int(dot_match.group(1)), int(dot_match.group(2))
-        candidate = date(ref.year, month, day)
+        try:
+            candidate = date(ref.year, month, day)
+        except ValueError:
+            raise ValueError(f"Invalid date: {value}")
         if candidate < ref:
-            candidate = date(ref.year + 1, month, day)
+            try:
+                candidate = date(ref.year + 1, month, day)
+            except ValueError:
+                raise ValueError(f"Invalid date: {value}")
         return candidate
 
     if low == "today":
@@ -244,17 +261,29 @@ def resolve_date(value: str, reference: date | None = None) -> date:
     if month_match:
         month = MONTH_ABBR[month_match.group(1).lower()]
         day = int(month_match.group(2))
-        candidate = date(ref.year, month, day)
+        try:
+            candidate = date(ref.year, month, day)
+        except ValueError:
+            raise ValueError(f"Invalid date: {value}")
         if candidate < ref:
-            candidate = date(ref.year + 1, month, day)
+            try:
+                candidate = date(ref.year + 1, month, day)
+            except ValueError:
+                raise ValueError(f"Invalid date: {value}")
         return candidate
 
     # Legacy: 4-digit MMDD
     if re.match(r"^\d{4}$", low):
         month, day = int(low[:2]), int(low[2:])
-        candidate = date(ref.year, month, day)
+        try:
+            candidate = date(ref.year, month, day)
+        except ValueError:
+            raise ValueError(f"Invalid date: {value}")
         if candidate < ref:
-            candidate = date(ref.year + 1, month, day)
+            try:
+                candidate = date(ref.year + 1, month, day)
+            except ValueError:
+                raise ValueError(f"Invalid date: {value}")
         return candidate
 
     # Legacy: slash format "3/29"
@@ -262,10 +291,19 @@ def resolve_date(value: str, reference: date | None = None) -> date:
     if slash_match:
         month = int(slash_match.group(1))
         day = int(slash_match.group(2))
-        candidate = date(ref.year, month, day)
+        try:
+            candidate = date(ref.year, month, day)
+        except ValueError:
+            raise ValueError(f"Invalid date: {value}")
         if candidate < ref:
-            candidate = date(ref.year + 1, month, day)
+            try:
+                candidate = date(ref.year + 1, month, day)
+            except ValueError:
+                raise ValueError(f"Invalid date: {value}")
         return candidate
 
     # ISO format fallback
-    return date.fromisoformat(value)
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise ValueError(f"Invalid date: {value}")
