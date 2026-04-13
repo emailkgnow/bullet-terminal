@@ -75,6 +75,7 @@ def tasks_cmd(ctx, tag, show_all):
         if tag:
             kwargs["tag"] = tag
         entries = query_and_load(config, **{k: v for k, v in kwargs.items() if v is not None})
+        entries = [e for e in entries if "habit" not in e.tags]
         title = f"All Tasks" + (f" @{tag}" if tag else "")
     else:
         entries = get_weekly_active_tasks(config)
@@ -100,6 +101,8 @@ def backlog_cmd(ctx, tag, show_all):
     if not show_all:
         kwargs["status"] = "active"
     entries = query_and_load(config, **kwargs)
+    # Exclude habits — they have their own view (bt streak)
+    entries = [e for e in entries if "habit" not in e.tags]
 
     title_parts = ["Task Backlog"]
     if tag:
