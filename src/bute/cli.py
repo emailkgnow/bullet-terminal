@@ -283,8 +283,8 @@ def _print_help():
     t.add_column("What")
     t.add_column("Example", style="dim")
     t.add_row("[cyan]bt t[/cyan] <text>", "Task", "bt t call dentist due:friday")
-    t.add_row("[cyan]bt t -l[/cyan] <text>", "Task log (this week, not today)", "bt t -l research flights")
-    t.add_row("[cyan]bt t -b[/cyan] <text>", "Backlog task (no focus tags)", "bt t -b someday idea")
+    t.add_row("[cyan]bt t -l|--later[/cyan] <text>", "Task log (this week, not today)", "bt t --later research flights")
+    t.add_row("[cyan]bt t -b|--backlog[/cyan] <text>", "Backlog task (no focus tags)", "bt t --backlog someday idea")
     t.add_row("[yellow]bt n[/yellow] <text>", "Note / idea", "bt n OAuth2 tokens expire in 30 days")
     t.add_row("[magenta]bt j[/magenta] <text>", "Journal", "bt j rough morning, couldn't focus")
     t.add_row("[green]bt c[/green] <text>", "Calendar event", "bt c standup t:9")
@@ -310,7 +310,7 @@ def _print_help():
     t.add_row("bt c", "Events", "Grouped by date")
     t.add_row("bt h", "Habits", "Today's status")
     t.add_row("bt d [dim][date]", "Daily Log — everything for a day", "bt d yesterday, bt d 4.3")
-    t.add_row("bt w [dim][last|N]", "Weekly Log — Mon to Sun", "bt w last, bt w 14")
+    t.add_row("bt w [dim][last|N]", "Weekly Log — configurable week start", "bt w last, bt w 14")
     t.add_row("bt m [dim][month|YYYY]", "Monthly Log", "bt m jan, bt m 2026-03, bt m 2026")
     t.add_row("bt due", "Tasks by deadline", "bt due all for everything")
     t.add_row("bt overdue", "Past-due tasks only", "")
@@ -323,6 +323,9 @@ def _print_help():
     t.add_row("bt find <text>", "Keyword search", "-t -n -j -c to filter")
     console.print()
     console.print(t)
+    console.print()
+    console.print("    [dim]Also:[/dim] [bold]bt task[/bold] / [bold]bt note[/bold] / [bold]bt journal[/bold] / [bold]bt calendar[/bold] — full words work everywhere [cyan]t[/cyan]/[yellow]n[/yellow]/[magenta]j[/magenta]/[green]c[/green] do")
+    console.print("    [dim]Also:[/dim] [bold]bt backlog[/bold], [bold]bt daily[/bold], [bold]bt week[/bold], [bold]bt monthly[/bold], [bold]bt habit[/bold] — long forms of [bold]b[/bold]/[bold]d[/bold]/[bold]w[/bold]/[bold]m[/bold]/[bold]h[/bold]")
 
     # --- Actions ---
     t = Table(title="Actions — act on numbered entries from last view", title_style="bold cyan",
@@ -355,18 +358,18 @@ def _print_help():
     t.add_column("Command", style="bold", no_wrap=True)
     t.add_column("What it does")
     t.add_column("Notes", style="dim")
-    t.add_row("bt dp", "Daily plan — pick today's tasks", "-y for non-interactive")
-    t.add_row("bt wp", "Weekly plan — select tasks for the week", "-y for non-interactive")
+    t.add_row("bt dp [dim]| daily-plan", "Daily plan — pick today's tasks", "-y for non-interactive")
+    t.add_row("bt wp [dim]| weekly-plan", "Weekly plan — select tasks for the week", "-y for non-interactive")
     t.add_row("bt dump", "Rapid-fire tasks into Backlog", "")
     t.add_row("bt export", "Export all data as zip", "-o path")
     t.add_row("bt init", "First-run setup (pick AI provider)", "")
     t.add_row("bt start", "Quick start guide", "")
     t.add_row("bt rebuild", "Rebuild search index", "")
-    t.add_row("bt -i", "Interactive REPL", "No quoting needed")
-    t.add_row("bt -d", "Demo session", "Isolated data, auto-cleanup")
+    t.add_row("bt -i [dim]| --interactive", "Interactive REPL", "No quoting needed")
+    t.add_row("bt -d [dim]| --demo", "Demo session", "Isolated data, auto-cleanup")
     t.add_row("bt like <input>", "Find similar entries (semantic)", "bt like 3, bt like productivity")
     t.add_row("bt chat", "AI session — read & act on your entries", "bt init to configure")
-    t.add_row("bt -j", "Toggle random journal in Focus Log", "")
+    t.add_row("bt -j [dim]| --journal-whisper", "Toggle random journal whisper in Focus Log", "")
     console.print()
     console.print(t)
     console.print()
@@ -407,9 +410,9 @@ def _run_interactive(ctx):
 
 @click.group(cls=DwnGroup, invoke_without_command=True, context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(version=__version__, prog_name="bt")
-@click.option("-i", "interactive", is_flag=True, help="Interactive REPL mode")
-@click.option("-d", "demo", is_flag=True, help="Toggle demo mode")
-@click.option("-j", "toggle_journal", is_flag=True, help="Toggle random journal in Focus Log")
+@click.option("-i", "--interactive", "interactive", is_flag=True, help="Interactive REPL mode")
+@click.option("-d", "--demo", "demo", is_flag=True, help="Toggle demo mode")
+@click.option("-j", "--journal-whisper", "toggle_journal", is_flag=True, help="Toggle random journal whisper in Focus Log")
 @click.pass_context
 def main(ctx, interactive, demo, toggle_journal):
     """bt (BuTe) — AI-powered life management CLI based on Bullet Journal."""
@@ -435,6 +438,10 @@ def main(ctx, interactive, demo, toggle_journal):
                           f"{result['journal']} journals, {result['calendar']} calendar)[/green]")
             console.print(f"  [dim]Backup saved to ~/bullet-terminal/entries-backup-*.zip[/dim]\n")
         ctx.obj["_migrated"] = True
+
+    # Daily auto-backup — silent, idempotent, skipped in demo mode
+    from bute.commands.backup import run_daily_backup_if_needed
+    run_daily_backup_if_needed(config)
 
     # Handle -d flag — start isolated demo session
     if demo:
@@ -484,10 +491,10 @@ def main(ctx, interactive, demo, toggle_journal):
             from bute.state import save_state
 
             entries = get_daily_log(config)
-            from bute.models import EntryType as _ET
-            has_tasks = any(e.type == _ET.TASK for e in entries)
+            from bute.models import EntryType as _ET, TaskStatus as _TS
+            has_active_tasks = any(e.type == _ET.TASK and e.status == _TS.ACTIVE for e in entries)
             title = f"Focus Log — {date.today().strftime('%a %b %d')}"
-            if not has_tasks:
+            if not has_active_tasks:
                 title = f"[strike]{title}[/strike]"
             display_entry_list(entries, title, hide_tags={"today", "thisweek"})
 
@@ -558,11 +565,13 @@ main.add_command(due_cmd)
 main.add_command(goals_cmd)
 main.add_command(goal_drill_cmd)
 main.add_command(dp_cmd)
+main.add_command(dp_cmd, name="daily-plan")
 main.add_command(dump_cmd)
 main.add_command(habits_cmd)
 main.add_command(streak_cmd)
 main.add_command(monthly_cmd)
 main.add_command(wp_cmd)
+main.add_command(wp_cmd, name="weekly-plan")
 main.add_command(like_cmd)
 main.add_command(find_cmd)
 main.add_command(rebuild_cmd)

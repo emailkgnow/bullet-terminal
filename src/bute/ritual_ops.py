@@ -105,6 +105,13 @@ def get_daily_log(config=None) -> list[Entry]:
             seen.add(e.id)
             result.append(e)
 
+    # Include tasks completed today (crossed out for momentum)
+    done_today = get_tasks_done_today(config)
+    for e in done_today:
+        if e.id not in seen:
+            seen.add(e.id)
+            result.append(e)
+
     # Filter out past timed calendar events — they're noise in the Focus Log
     from datetime import datetime
     now = datetime.now().strftime("%H:%M")
@@ -114,7 +121,7 @@ def get_daily_log(config=None) -> list[Entry]:
     ]
 
     def _daily_sort_key(e):
-        """Sort: tasks first, then calendar (timed→untimed), notes, journals.
+        """Sort: tasks first (done at bottom), then calendar (timed→untimed), notes, journals.
         Important entries first within each type group."""
         type_order = {
             EntryType.TASK: 0,
@@ -123,24 +130,27 @@ def get_daily_log(config=None) -> list[Entry]:
             EntryType.JOURNAL: 3,
         }
         group = type_order.get(e.type, 4)
+        # Done/dropped tasks sink to bottom of their type group
+        is_resolved = 1 if e.status in (TaskStatus.DONE, TaskStatus.DROPPED) else 0
         time_key = e.scheduled_time if e.type == EntryType.CALENDAR and e.scheduled_time else ""
-        return (group, not e.important, time_key, e.created)
+        return (group, is_resolved, not e.important, time_key, e.created)
 
     return sorted(result, key=_daily_sort_key)
 
 
 def get_week_entries(target_date: date | None = None, config=None) -> list[Entry]:
-    """All entries for the Mon-Sun week containing target_date.
+    """All entries for the week containing target_date.
 
+    Week start is configurable via core.week_start (default Monday).
     Includes all statuses (done, dropped, active) — the full picture.
     """
+    from bute.config import week_bounds
     d = target_date or date.today()
-    monday = d - timedelta(days=d.weekday())
-    sunday = monday + timedelta(days=6)
+    start, end = week_bounds(d, config)
     today = date.today()
 
     from bute.storage import query_and_load
-    entries = query_and_load(config, created_since=monday.isoformat(), created_until=min(sunday, today).isoformat())
+    entries = query_and_load(config, created_since=start.isoformat(), created_until=min(end, today).isoformat())
     return sorted(entries, key=lambda e: e.created)
 
 
@@ -187,13 +197,16 @@ def get_weekly_active_tasks(config=None) -> list[Entry]:
     """Active tasks selected for this week (@thisweek tag).
 
     Falls back to all active tasks if none are tagged @thisweek
-    (e.g. user hasn't run bt wp yet).
+    (e.g. user hasn't run bt wp yet). Excludes habits — they have
+    their own view (bt streak).
     """
     from bute.storage import query_and_load
     weekly = query_and_load(config, type="task", status="active", tag="thisweek")
+    weekly = [e for e in weekly if "habit" not in e.tags]
     if weekly:
         return weekly
-    return get_all_active_tasks(config)
+    fallback = get_all_active_tasks(config)
+    return [e for e in fallback if "habit" not in e.tags]
 
 
 def process_dump_line(line: str, config=None, auto_tags: list[str] | None = None) -> Entry | None:

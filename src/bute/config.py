@@ -13,11 +13,6 @@ TOUR_PROGRESS = CONFIG_DIR / ".tour_progress"
 
 # Known AI provider presets
 PROVIDER_PRESETS = {
-    "ollama": {
-        "base_url": "http://localhost:11434/v1",
-        "default_model": "gemma4:e4b",
-        "needs_api_key": False,
-    },
     "anthropic": {
         "base_url": "https://api.anthropic.com/v1/",
         "default_model": "claude-sonnet-4-20250514",
@@ -67,7 +62,7 @@ def save_config(doc: tomlkit.TOMLDocument) -> None:
 
 
 def default_config(
-    provider: str = "ollama",
+    provider: str = "anthropic",
     model: str | None = None,
     base_url: str | None = None,
     api_key: str | None = None,
@@ -84,11 +79,13 @@ def default_config(
     core.add("data_dir", "~/bullet-terminal")
     core.add(tomlkit.comment("Day to trigger weekly plan: monday-sunday"))
     core.add("wp_day", "sunday")
+    core.add(tomlkit.comment("First day of the week: monday-sunday"))
+    core.add("week_start", "monday")
     doc.add("core", core)
     doc.add(tomlkit.nl())
 
     ai = tomlkit.table()
-    ai.add(tomlkit.comment("AI provider: ollama, anthropic, openai, gemini, deepseek, or custom"))
+    ai.add(tomlkit.comment("AI provider: anthropic, openai, gemini, deepseek, or custom"))
     ai.add("provider", provider)
     ai.add("model", model or preset.get("default_model", ""))
     ai.add("base_url", base_url or preset.get("base_url", ""))
@@ -117,6 +114,24 @@ def get_wp_day(config=None) -> int:
         day_name = config["core"]["wp_day"].lower()
         return DAY_NAMES.get(day_name, 6)
     return 6  # default: Sunday
+
+
+def get_week_start(config=None) -> int:
+    """Return the weekday number (0=Mon, 6=Sun) for the first day of the week."""
+    if config and "core" in config and "week_start" in config["core"]:
+        day_name = config["core"]["week_start"].lower()
+        return DAY_NAMES.get(day_name, 0)
+    return 0  # default: Monday
+
+
+def week_bounds(target, config=None):
+    """Return (start, end) dates for the week containing target, per config."""
+    from datetime import timedelta
+    start_weekday = get_week_start(config)
+    days_since_start = (target.weekday() - start_weekday) % 7
+    start = target - timedelta(days=days_since_start)
+    end = start + timedelta(days=6)
+    return start, end
 
 
 def _make_demo_config(config: tomlkit.TOMLDocument) -> tomlkit.TOMLDocument:

@@ -251,8 +251,10 @@ def tags_cmd(ctx):
 @click.argument("period", required=False, default=None)
 @click.pass_context
 def week_cmd(ctx, period):
-    """Weekly log — all entries Mon-Sun. 'bt w last' or 'bt w 14' (week number)."""
+    """Weekly log — all entries for the week. 'bt w last' or 'bt w 14' (week number)."""
     from datetime import date, timedelta
+
+    from bute.config import week_bounds
 
     config = ctx.obj.get("config")
     today = date.today()
@@ -264,21 +266,18 @@ def week_cmd(ctx, period):
         if week_num < 1 or week_num > 53:
             console.print(f"  [red]Invalid week number: {period}. Use 1-53.[/red]")
             return
-        # ISO week: find Monday of that week in the current year
-        jan1 = date(today.year, 1, 1)
-        # ISO week 1 contains Jan 4
+        # Week N is the week (per configured start day) containing ISO-like anchor Jan 4
         jan4 = date(today.year, 1, 4)
-        monday_w1 = jan4 - timedelta(days=jan4.weekday())
-        target = monday_w1 + timedelta(weeks=week_num - 1)
+        start_w1, _ = week_bounds(jan4, config)
+        target = start_w1 + timedelta(weeks=week_num - 1)
     elif period:
         console.print(f"  [red]Invalid period: {period}. Use 'last' or a week number (1-53).[/red]")
         return
     else:
         target = today
 
-    monday = target - timedelta(days=target.weekday())
-    sunday = monday + timedelta(days=6)
-    title = f"Weekly Log — {monday.strftime('%b %d')} to {sunday.strftime('%b %d')}"
+    start, end = week_bounds(target, config)
+    title = f"Weekly Log — {start.strftime('%b %d')} to {end.strftime('%b %d')}"
 
     entries = get_week_entries(target, config)
     if not entries:

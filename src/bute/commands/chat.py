@@ -125,9 +125,10 @@ def execute_bt_view(args: list[str], config) -> list:
         elif period and period.isdigit():
             week_num = int(period)
             if 1 <= week_num <= 53:
+                from bute.config import week_bounds
                 jan4 = __import__("datetime").date(today.year, 1, 4)
-                monday_w1 = jan4 - timedelta(days=jan4.weekday())
-                target = monday_w1 + timedelta(weeks=week_num - 1)
+                start_w1, _ = week_bounds(jan4, config)
+                target = start_w1 + timedelta(weeks=week_num - 1)
             else:
                 return []
         elif period:
