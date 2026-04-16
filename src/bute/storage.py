@@ -66,7 +66,7 @@ def load_entry(path: Path) -> Entry:
     known_keys = {
         "id", "type", "created", "status", "important",
         "due", "date", "time", "repeat", "tags", "completions",
-        "focus_date", "week_date",
+        "focus_date", "week_date", "completed_date",
     }
     extra_meta = {
         k: v for k, v in post.metadata.items() if k not in known_keys
@@ -88,6 +88,7 @@ def load_entry(path: Path) -> Entry:
         repeat=post.metadata.get("repeat"),
         focus_date=_parse_date(post.metadata.get("focus_date")),
         week_date=_parse_date(post.metadata.get("week_date")),
+        completed_date=_parse_date(post.metadata.get("completed_date")),
         tags=_normalize_tags(post.metadata.get("tags", [])),
         extra_meta=extra_meta,
         completions=completions,

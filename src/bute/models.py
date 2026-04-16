@@ -50,6 +50,7 @@ class Entry:
     repeat: Optional[str] = None
     focus_date: Optional[date] = None
     week_date: Optional[date] = None
+    completed_date: Optional[date] = None
     tags: list[str] = field(default_factory=list)
     extra_meta: dict = field(default_factory=dict)
     completions: list[str] = field(default_factory=list)
@@ -67,6 +68,7 @@ class Entry:
         repeat: str | None = None,
         focus_date: date | None = None,
         week_date: date | None = None,
+        completed_date: date | None = None,
         extra_meta: dict | None = None,
     ) -> "Entry":
         """Factory that generates a ULID and sets the created timestamp."""
@@ -84,6 +86,7 @@ class Entry:
             repeat=repeat,
             focus_date=focus_date,
             week_date=week_date,
+            completed_date=completed_date,
             tags=tags or [],
             extra_meta=extra_meta or {},
         )
@@ -111,6 +114,8 @@ class Entry:
             d["focus_date"] = self.focus_date.isoformat()
         if self.week_date is not None:
             d["week_date"] = self.week_date.isoformat()
+        if self.completed_date is not None:
+            d["completed_date"] = self.completed_date.isoformat()
         if self.tags:
             d["tags"] = self.tags
         if self.extra_meta:

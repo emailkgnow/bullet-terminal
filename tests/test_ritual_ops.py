@@ -149,11 +149,10 @@ def test_get_week_entries_includes_dropped(tmp_data):
 
 
 def test_get_tasks_done_today(tmp_data):
-    """Tasks marked done with mtime today are returned."""
-    e = Entry.create(EntryType.TASK, "finished task")
-    save_entry(e)
+    """Tasks with completed_date == today are returned."""
+    e = Entry.create(EntryType.TASK, "finished task", completed_date=date.today())
     e.status = TaskStatus.DONE
-    update_entry(e)
+    save_entry(e)
 
     result = get_tasks_done_today()
     assert len(result) == 1
@@ -161,23 +160,18 @@ def test_get_tasks_done_today(tmp_data):
 
 
 def test_get_tasks_done_today_excludes_old(tmp_data):
-    """Tasks done yesterday (old mtime) are excluded."""
-    e = Entry.create(EntryType.TASK, "old done task")
-    save_entry(e)
+    """Tasks with completed_date in the past are excluded."""
+    yesterday = date.today() - timedelta(days=1)
+    e = Entry.create(EntryType.TASK, "old done task", completed_date=yesterday)
     e.status = TaskStatus.DONE
-    update_entry(e)
-
-    # Backdate the file mtime to yesterday
-    path = entry_path(e)
-    yesterday_ts = (datetime.now() - timedelta(days=1)).timestamp()
-    os.utime(path, (yesterday_ts, yesterday_ts))
+    save_entry(e)
 
     result = get_tasks_done_today()
     assert len(result) == 0
 
 
 def test_get_tasks_done_today_excludes_active(tmp_data):
-    """Active tasks are not returned even if modified today."""
+    """Active tasks are never returned."""
     e = Entry.create(EntryType.TASK, "still active")
     save_entry(e)
 
@@ -186,11 +180,10 @@ def test_get_tasks_done_today_excludes_active(tmp_data):
 
 
 def test_get_tasks_dropped_today(tmp_data):
-    """Tasks marked dropped with mtime today are returned."""
-    e = Entry.create(EntryType.TASK, "dropped task")
-    save_entry(e)
+    """Tasks with completed_date == today and status dropped are returned."""
+    e = Entry.create(EntryType.TASK, "dropped task", completed_date=date.today())
     e.status = TaskStatus.DROPPED
-    update_entry(e)
+    save_entry(e)
 
     result = get_tasks_dropped_today()
     assert len(result) == 1
@@ -198,15 +191,11 @@ def test_get_tasks_dropped_today(tmp_data):
 
 
 def test_get_tasks_dropped_today_excludes_old(tmp_data):
-    """Tasks dropped yesterday are excluded."""
-    e = Entry.create(EntryType.TASK, "old drop")
-    save_entry(e)
+    """Tasks dropped on a previous day are excluded."""
+    yesterday = date.today() - timedelta(days=1)
+    e = Entry.create(EntryType.TASK, "old drop", completed_date=yesterday)
     e.status = TaskStatus.DROPPED
-    update_entry(e)
-
-    path = entry_path(e)
-    yesterday_ts = (datetime.now() - timedelta(days=1)).timestamp()
-    os.utime(path, (yesterday_ts, yesterday_ts))
+    save_entry(e)
 
     result = get_tasks_dropped_today()
     assert len(result) == 0

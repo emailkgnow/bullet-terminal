@@ -88,6 +88,7 @@ def ensure_schema(db: sqlite3.Connection) -> None:
             repeat         TEXT,
             focus_date     TEXT,
             week_date      TEXT,
+            completed_date TEXT,
             tags           TEXT,
             created        TEXT NOT NULL,
             extra_meta     TEXT
@@ -99,6 +100,7 @@ def ensure_schema(db: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_scheduled_date ON entries(scheduled_date);
         CREATE INDEX IF NOT EXISTS idx_focus_date  ON entries(focus_date);
         CREATE INDEX IF NOT EXISTS idx_week_date   ON entries(week_date);
+        CREATE INDEX IF NOT EXISTS idx_completed_date ON entries(completed_date);
 
         CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
             entry_id UNINDEXED,
@@ -260,6 +262,7 @@ def upsert_entry(entry: Entry, config=None) -> None:
     sched_date_str = entry.scheduled_date.isoformat() if entry.scheduled_date else None
     focus_date_str = entry.focus_date.isoformat() if entry.focus_date else None
     week_date_str = entry.week_date.isoformat() if entry.week_date else None
+    completed_date_str = entry.completed_date.isoformat() if entry.completed_date else None
     created_str = entry.created.isoformat()
 
     # FTS content-table sync: delete old FTS row before replacing in base table
@@ -270,8 +273,9 @@ def upsert_entry(entry: Entry, config=None) -> None:
         INSERT OR REPLACE INTO entries
             (entry_id, type, status, body, important, due,
              scheduled_date, scheduled_time, repeat,
-             focus_date, week_date, tags, created, extra_meta)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             focus_date, week_date, completed_date,
+             tags, created, extra_meta)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             entry.id,
@@ -285,6 +289,7 @@ def upsert_entry(entry: Entry, config=None) -> None:
             entry.repeat,
             focus_date_str,
             week_date_str,
+            completed_date_str,
             tags_json,
             created_str,
             extra_json,
@@ -331,8 +336,10 @@ def query_entries(
     created_until: str | None = None,
     focus_date: str | None = None,
     week_date: str | None = None,
+    completed_date: str | None = None,
     has_focus_date: bool = False,
     has_week_date: bool = False,
+    has_completed_date: bool = False,
 ) -> list[tuple[str, str]]:
     """Query the index, returning (entry_id, created) tuples ordered by created DESC.
 
@@ -405,6 +412,13 @@ def query_entries(
 
     if has_week_date:
         conditions.append("week_date IS NOT NULL")
+
+    if completed_date is not None:
+        conditions.append("completed_date = ?")
+        params.append(completed_date)
+
+    if has_completed_date:
+        conditions.append("completed_date IS NOT NULL")
 
     # Single tag filter
     if tag is not None:

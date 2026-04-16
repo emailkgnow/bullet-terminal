@@ -52,7 +52,6 @@ def handle_done(entry: Entry, args: list[str], config) -> None:
     """Mark a task as done. For recurring tasks, record completion for today."""
     _require_task(entry, "done")
     if entry.is_recurring():
-        from datetime import date
         today_iso = date.today().isoformat()
         if today_iso in entry.completions:
             return  # already done today
@@ -60,16 +59,32 @@ def handle_done(entry: Entry, args: list[str], config) -> None:
         entry.completions.append(today_iso)
         update_entry(entry, config)
     else:
-        record_undo(entry.id, "done", {"status": entry.status.value}, config)
+        record_undo(
+            entry.id, "done",
+            {
+                "status": entry.status.value,
+                "completed_date": entry.completed_date.isoformat() if entry.completed_date else None,
+            },
+            config,
+        )
         entry.status = TaskStatus.DONE
+        entry.completed_date = date.today()
         update_entry(entry, config)
 
 
 def handle_drop(entry: Entry, args: list[str], config) -> None:
     """Mark a task as dropped."""
     _require_task(entry, "drop")
-    record_undo(entry.id, "drop", {"status": entry.status.value}, config)
+    record_undo(
+        entry.id, "drop",
+        {
+            "status": entry.status.value,
+            "completed_date": entry.completed_date.isoformat() if entry.completed_date else None,
+        },
+        config,
+    )
     entry.status = TaskStatus.DROPPED
+    entry.completed_date = date.today()
     update_entry(entry, config)
 
 
@@ -365,7 +380,10 @@ def apply_undo(record: dict, config) -> None:
                 entry.completions.remove(date_to_remove)
             update_entry(entry, config)
         else:
+            from datetime import date as date_type
             entry.status = TaskStatus(prev["status"])
+            prev_completed = prev.get("completed_date")
+            entry.completed_date = date_type.fromisoformat(prev_completed) if prev_completed else None
             update_entry(entry, config)
     elif action == "!":
         entry.important = prev["important"]

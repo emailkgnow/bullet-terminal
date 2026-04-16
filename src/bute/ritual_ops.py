@@ -161,29 +161,21 @@ def get_week_entries(target_date: date | None = None, config=None) -> list[Entry
 
 
 def get_tasks_done_today(config=None) -> list[Entry]:
-    """Tasks marked done with file mtime today (proxy for status-change date)."""
+    """Tasks marked done today (completed_date == today)."""
     today = date.today()
-    from bute.storage import entry_path as _entry_path
-
     from bute.storage import query_and_load
-    done = query_and_load(config, type="task", status="done")
-    return [
-        e for e in done
-        if date.fromtimestamp(_entry_path(e, config).stat().st_mtime) == today
-    ]
+    return query_and_load(
+        config, type="task", status="done", completed_date=today.isoformat()
+    )
 
 
 def get_tasks_dropped_today(config=None) -> list[Entry]:
-    """Tasks marked dropped with file mtime today."""
+    """Tasks marked dropped today (completed_date == today)."""
     today = date.today()
-    from bute.storage import entry_path as _entry_path
-
     from bute.storage import query_and_load
-    dropped = query_and_load(config, type="task", status="dropped")
-    return [
-        e for e in dropped
-        if date.fromtimestamp(_entry_path(e, config).stat().st_mtime) == today
-    ]
+    return query_and_load(
+        config, type="task", status="dropped", completed_date=today.isoformat()
+    )
 
 
 def get_today_captured(config=None) -> list[Entry]:
