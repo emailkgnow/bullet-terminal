@@ -31,7 +31,7 @@ SIGNIFIER_MAP = {
 
 # Tags that bt interprets as instructions, not labels.
 # Used by goals view to filter connected tags.
-SYSTEM_TAGS = {"goal", "today", "thisweek", "habit"}
+SYSTEM_TAGS = {"goal", "habit"}
 
 
 @dataclass
@@ -48,6 +48,8 @@ class Entry:
     scheduled_date: Optional[date] = None
     scheduled_time: Optional[str] = None
     repeat: Optional[str] = None
+    focus_date: Optional[date] = None
+    week_date: Optional[date] = None
     tags: list[str] = field(default_factory=list)
     extra_meta: dict = field(default_factory=dict)
     completions: list[str] = field(default_factory=list)
@@ -63,6 +65,8 @@ class Entry:
         scheduled_date: date | None = None,
         scheduled_time: str | None = None,
         repeat: str | None = None,
+        focus_date: date | None = None,
+        week_date: date | None = None,
         extra_meta: dict | None = None,
     ) -> "Entry":
         """Factory that generates a ULID and sets the created timestamp."""
@@ -78,6 +82,8 @@ class Entry:
             scheduled_date=scheduled_date,
             scheduled_time=scheduled_time,
             repeat=repeat,
+            focus_date=focus_date,
+            week_date=week_date,
             tags=tags or [],
             extra_meta=extra_meta or {},
         )
@@ -101,6 +107,10 @@ class Entry:
             d["time"] = self.scheduled_time
         if self.repeat is not None:
             d["repeat"] = self.repeat
+        if self.focus_date is not None:
+            d["focus_date"] = self.focus_date.isoformat()
+        if self.week_date is not None:
+            d["week_date"] = self.week_date.isoformat()
         if self.tags:
             d["tags"] = self.tags
         if self.extra_meta:

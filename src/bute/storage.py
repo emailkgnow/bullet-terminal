@@ -41,6 +41,23 @@ def save_entry(entry: Entry, config=None) -> Path:
     return path
 
 
+def _normalize_tags(raw: list) -> list[str]:
+    """Coerce each tag to a plain string.
+
+    Handles malformed frontmatter where a tag entry is a dict
+    (e.g. ``- vacation: true``) instead of a bare scalar.
+    """
+    result: list[str] = []
+    for item in raw:
+        if isinstance(item, str):
+            result.append(item)
+        elif isinstance(item, dict):
+            result.extend(str(k) for k in item)
+        else:
+            result.append(str(item))
+    return result
+
+
 def load_entry(path: Path) -> Entry:
     """Read a Markdown file and reconstruct an Entry."""
     post = frontmatter.load(str(path))
@@ -49,6 +66,7 @@ def load_entry(path: Path) -> Entry:
     known_keys = {
         "id", "type", "created", "status", "important",
         "due", "date", "time", "repeat", "tags", "completions",
+        "focus_date", "week_date",
     }
     extra_meta = {
         k: v for k, v in post.metadata.items() if k not in known_keys
@@ -68,7 +86,9 @@ def load_entry(path: Path) -> Entry:
         scheduled_date=_parse_date(post.metadata.get("date")),
         scheduled_time=_normalize_time(post.metadata.get("time")),
         repeat=post.metadata.get("repeat"),
-        tags=post.metadata.get("tags", []),
+        focus_date=_parse_date(post.metadata.get("focus_date")),
+        week_date=_parse_date(post.metadata.get("week_date")),
+        tags=_normalize_tags(post.metadata.get("tags", [])),
         extra_meta=extra_meta,
         completions=completions,
     )
@@ -93,7 +113,7 @@ def load_entries_by_date(target_date: date, config=None) -> list[Entry]:
             continue
         for path in month_dir.glob("*.md"):
             entry = load_entry(path)
-            if entry.created.date() == target_date and entry.status != TaskStatus.DROPPED:
+            if entry.created.date() == target_date:
                 entries.append(entry)
     return sorted(entries, key=lambda e: e.created)
 
