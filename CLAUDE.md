@@ -204,6 +204,7 @@ bute init           # first-run setup (pick AI provider)
 ## Backlog
 
 ### Commands — High Value
+- **Stale `@today`/`@thisweek` tag cleanup** — these system tags are never cleared when the day/week passes, causing them to accumulate indefinitely. `@today` is added during capture, `bt dp`, and `bt focus`, but only removed by `bt later` or `bt backlog`. `@thisweek` is cleared during `bt wp` (via `clear_weekly_selection`) but `@today` has no equivalent lifecycle. `clear_daily_focus()` exists in `ritual_ops.py` but is never called. Both tags need a clear-then-reselect strategy in their respective rituals (`bt dp` for `@today`, `bt wp` for `@thisweek`). This also affects `bt d` (daily log) — it should show a retrospective including carried-over tasks, but can't reliably distinguish "tagged today" from "tagged last week" without fixing the tag lifecycle first. Address both tags together.
 - ~~`bt due`~~ ✓ Done — overdue + due today + next 7 days (rolling). `bt due all` for all tasks with due dates.
 - ~~`bt <n> untag @tag`~~ ✓ Done — replaced by `bt 1 clear @tag` (unified `clear` for all fields)
 - ~~`bt edit <n>`~~ ✓ Done — `bt <n> edit` opens entry in `$EDITOR` (falls back to `nano`)
