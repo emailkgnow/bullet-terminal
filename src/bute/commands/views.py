@@ -313,11 +313,42 @@ def daily_log_cmd(ctx, period):
 
     title = f"Daily Log — {target.strftime('%a %b %d')}"
 
-    # Load all entries for that day (all types, all statuses)
-    from bute.ritual_ops import get_tasks_done_today, get_tasks_dropped_today
-    from bute.storage import load_entries_by_date
+    # Load all entries created on that date, then supplement with entries
+    # that belong to the day but were created earlier.
+    from bute.storage import load_entries_by_date, query_and_load
 
     entries = load_entries_by_date(target, config)
+    seen = {e.id for e in entries}
+
+    # Entries scheduled for target date but created on a different day
+    scheduled = query_and_load(config, scheduled_date=target.isoformat())
+    for e in scheduled:
+        if e.id not in seen:
+            seen.add(e.id)
+            entries.append(e)
+
+    # For today's log only: pull in live state (carried-over tasks, due, done/dropped)
+    if target == today:
+        # Tasks tagged @today created on other days (carried over / migrated)
+        today_tasks = query_and_load(config, type="task", tag="today")
+        for e in today_tasks:
+            if e.id not in seen:
+                seen.add(e.id)
+                entries.append(e)
+
+        # Active tasks due today or overdue
+        due_tasks = query_and_load(config, type="task", status="active", has_due=True)
+        for e in due_tasks:
+            if e.id not in seen and e.due and e.due <= target:
+                seen.add(e.id)
+                entries.append(e)
+
+        # Tasks done or dropped today (mtime-based)
+        from bute.ritual_ops import get_tasks_done_today, get_tasks_dropped_today
+        for e in get_tasks_done_today(config) + get_tasks_dropped_today(config):
+            if e.id not in seen:
+                seen.add(e.id)
+                entries.append(e)
 
     if not entries:
         console.print(f"  [dim]No entries for {title}.[/dim]")
