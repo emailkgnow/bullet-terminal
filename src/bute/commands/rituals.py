@@ -54,15 +54,16 @@ def dp_cmd(ctx, non_interactive):
             try:
                 import questionary
 
+                today = date.today()
                 choices = []
                 for e in yesterday:
                     label = f"\u21a9 {e.body}"
                     choices.append(questionary.Choice(
-                        label, value=e.id, checked="today" in e.tags,
+                        label, value=e.id, checked=e.focus_date == today,
                     ))
                 for e in pool:
                     choices.append(questionary.Choice(
-                        e.body, value=e.id, checked="today" in e.tags,
+                        e.body, value=e.id, checked=e.focus_date == today,
                     ))
 
                 selected = questionary.checkbox(
@@ -72,17 +73,18 @@ def dp_cmd(ctx, non_interactive):
                 if selected is not None:
                     from bute.storage import entry_path_from_id, load_entry
 
+                    today = date.today()
                     selected_set = set(selected)
                     for e in all_tasks:
                         path = entry_path_from_id(e.id, config)
                         if not path:
                             continue
                         entry = load_entry(path)
-                        if e.id in selected_set and "today" not in entry.tags:
-                            entry.tags.append("today")
+                        if e.id in selected_set and entry.focus_date != today:
+                            entry.focus_date = today
                             update_entry(entry, config)
-                        elif e.id not in selected_set and "today" in entry.tags:
-                            entry.tags.remove("today")
+                        elif e.id not in selected_set and entry.focus_date is not None:
+                            entry.focus_date = None
                             update_entry(entry, config)
                     console.print(f"  [green]{len(selected)} tasks tagged for today[/green]")
             except ImportError:
@@ -294,9 +296,9 @@ def wp_cmd(ctx, non_interactive):
 
     display_ritual_header("Plan", "Review your backlog and select for this week")
 
-    # Separate carryover (@thisweek from last week) from fresh backlog
+    # Separate carryover (tasks with week_date set) from fresh backlog
     active = get_all_active_tasks(config)
-    carryover = [e for e in active if "thisweek" in e.tags]
+    carryover = [e for e in active if e.week_date is not None]
     carryover_ids = {e.id for e in carryover}
     backlog = [e for e in active if e.id not in carryover_ids]
 
@@ -316,7 +318,7 @@ def wp_cmd(ctx, non_interactive):
                 break
             if not line.strip():
                 break
-            entry = process_dump_line(f"t {line}", config, auto_tags=["thisweek"])
+            entry = process_dump_line(f"t {line}", config)
             if entry:
                 confirm_capture(entry)
                 added += 1
@@ -324,7 +326,7 @@ def wp_cmd(ctx, non_interactive):
             console.print(f"  [green]{added} tasks added.[/green]")
             # Reload with new tasks
             active = get_all_active_tasks(config)
-            carryover = [e for e in active if "thisweek" in e.tags]
+            carryover = [e for e in active if e.week_date is not None]
             carryover_ids = {e.id for e in carryover}
             backlog = [e for e in active if e.id not in carryover_ids]
             all_tasks = carryover + backlog

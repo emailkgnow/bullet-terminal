@@ -93,17 +93,17 @@ def capture_cmd(ctx, later, backlog, tokens):
         extra_meta=meta,
     )
 
-    # Auto-tag tasks based on flags:
-    #   default  → @thisweek + @today (Focus Log)
-    #   -l       → @thisweek only (Task log, not today)
-    #   -b       → no focus tags (Backlog)
+    # Set focus dates on tasks based on flags:
+    #   default  → focus_date=today + week_date=monday (Focus Log)
+    #   -l       → week_date only (Task log, not today)
+    #   -b       → no focus dates (Backlog)
     has_future_date = entry.scheduled_date and entry.scheduled_date > date.today()
     has_future_due = entry.due and entry.due > date.today()
     if entry.type == EntryType.TASK and not backlog and not has_future_date and not has_future_due:
-        if "thisweek" not in entry.tags:
-            entry.tags.append("thisweek")
-        if not later and "today" not in entry.tags:
-            entry.tags.append("today")
+        from bute.ritual_ops import this_monday
+        entry.week_date = this_monday()
+        if not later:
+            entry.focus_date = date.today()
 
     config = ctx.obj.get("config")
     save_entry(entry, config)
@@ -168,14 +168,13 @@ def open_capture_cmd(ctx, signifier):
         edited.type = entry.type
         edited.created = entry.created
 
-        # Auto-tag tasks (same logic as inline capture)
+        # Set focus dates on tasks (same logic as inline capture)
         has_future_date = edited.scheduled_date and edited.scheduled_date > date.today()
         has_future_due = edited.due and edited.due > date.today()
         if edited.type == EntryType.TASK and not has_future_date and not has_future_due:
-            if "thisweek" not in edited.tags:
-                edited.tags.append("thisweek")
-            if "today" not in edited.tags:
-                edited.tags.append("today")
+            from bute.ritual_ops import this_monday
+            edited.week_date = this_monday()
+            edited.focus_date = date.today()
 
         config = ctx.obj.get("config")
         save_entry(edited, config)

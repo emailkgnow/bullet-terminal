@@ -11,6 +11,12 @@ from bute.storage import (
 )
 
 
+def this_monday(today: date | None = None) -> date:
+    """Return Monday of the ISO week containing the given date (defaults to today)."""
+    d = today or date.today()
+    return d - timedelta(days=d.weekday())
+
+
 def get_yesterday_unresolved(config=None) -> list[Entry]:
     """Active tasks from yesterday."""
     yesterday = date.today() - timedelta(days=1)
@@ -47,7 +53,7 @@ def get_daily_log(config=None) -> list[Entry]:
     """The Focus Log — what matters today.
 
     Shows:
-    - Tasks tagged @today only
+    - Tasks with focus_date == today
     - Calendar events for today (created today or scheduled today)
     - All journals created today
     - All notes created today
@@ -58,8 +64,8 @@ def get_daily_log(config=None) -> list[Entry]:
     result = []
     for e in today_entries:
         if e.type == EntryType.TASK:
-            # Only active tasks tagged @today (exclude habits — shown separately)
-            if "today" in e.tags and e.status == TaskStatus.ACTIVE and "habit" not in e.tags:
+            # Only active tasks with focus_date == today (exclude habits — shown separately)
+            if e.focus_date == today and e.status == TaskStatus.ACTIVE and "habit" not in e.tags:
                 result.append(e)
         elif e.type == EntryType.CALENDAR:
             # Calendar events created today with no scheduled_date, or scheduled for today
@@ -69,9 +75,9 @@ def get_daily_log(config=None) -> list[Entry]:
             # Notes and journals — all of today's
             result.append(e)
 
-    # Also include active tasks tagged @today but created on a different day
+    # Also include active tasks with focus_date == today but created on a different day
     from bute.storage import query_and_load
-    today_tasks = query_and_load(config, type="task", status="active", tag="today")
+    today_tasks = query_and_load(config, type="task", status="active", focus_date=today.isoformat())
     today_tasks = [e for e in today_tasks if e.created.date() != today and "habit" not in e.tags]
     seen = {e.id for e in result}
     for e in today_tasks:
@@ -194,14 +200,16 @@ def get_all_active_tasks(config=None) -> list[Entry]:
 
 
 def get_weekly_active_tasks(config=None) -> list[Entry]:
-    """Active tasks selected for this week (@thisweek tag).
+    """Active tasks selected for this week (week_date == this Monday).
 
-    Falls back to all active tasks if none are tagged @thisweek
+    Falls back to all active tasks if none have week_date set
     (e.g. user hasn't run bt wp yet). Excludes habits — they have
     their own view (bt streak).
     """
     from bute.storage import query_and_load
-    weekly = query_and_load(config, type="task", status="active", tag="thisweek")
+    weekly = query_and_load(
+        config, type="task", status="active", week_date=this_monday().isoformat()
+    )
     weekly = [e for e in weekly if "habit" not in e.tags]
     if weekly:
         return weekly
@@ -209,10 +217,10 @@ def get_weekly_active_tasks(config=None) -> list[Entry]:
     return [e for e in fallback if "habit" not in e.tags]
 
 
-def process_dump_line(line: str, config=None, auto_tags: list[str] | None = None) -> Entry | None:
+def process_dump_line(line: str, config=None) -> Entry | None:
     """Parse a dump line and save it. Defaults to j if no signifier.
 
-    auto_tags: tags to auto-add to task entries (e.g. ["thisweek"]).
+    Tasks captured during rituals automatically get week_date set to this Monday.
     """
     from bute.parser import SIGNIFIER_RE, WORD_SIGNIFIER_RE
 
@@ -248,11 +256,9 @@ def process_dump_line(line: str, config=None, auto_tags: list[str] | None = None
         extra_meta=meta,
     )
 
-    # Auto-tag tasks (e.g. @thisweek during rituals)
-    if auto_tags and entry.type == EntryType.TASK:
-        for tag in auto_tags:
-            if tag not in entry.tags:
-                entry.tags.append(tag)
+    # Set week_date on tasks captured during rituals
+    if entry.type == EntryType.TASK:
+        entry.week_date = this_monday()
 
     save_entry(entry, config)
     from bute.ai import embed_entry
@@ -261,37 +267,37 @@ def process_dump_line(line: str, config=None, auto_tags: list[str] | None = None
 
 
 def set_weekly_selection(entry_ids: list[str], config=None) -> int:
-    """Tag entries with +thisweek. Returns count tagged."""
+    """Set week_date=this_monday on entries. Returns count updated."""
     from bute.storage import entry_path_from_id, load_entry
 
+    monday = this_monday()
     count = 0
     for eid in entry_ids:
         path = entry_path_from_id(eid, config)
         if path is None:
             continue
         entry = load_entry(path)
-        if "thisweek" not in entry.tags:
-            entry.tags.append("thisweek")
+        entry.week_date = monday
         update_entry(entry, config)
         count += 1
     return count
 
 
 def clear_weekly_selection(config=None) -> int:
-    """Remove +thisweek tag from all entries. Returns count cleared."""
+    """Clear week_date from all entries. Returns count cleared."""
     from bute.storage import query_and_load
-    entries = query_and_load(config, tag="thisweek")
+    entries = query_and_load(config, has_week_date=True)
     for entry in entries:
-        entry.tags.remove("thisweek")
+        entry.week_date = None
         update_entry(entry, config)
     return len(entries)
 
 
 def clear_daily_focus(config=None) -> int:
-    """Remove +today tag from all entries. Returns count cleared."""
+    """Clear focus_date from all entries. Returns count cleared."""
     from bute.storage import query_and_load
-    entries = query_and_load(config, tag="today")
+    entries = query_and_load(config, has_focus_date=True)
     for entry in entries:
-        entry.tags.remove("today")
+        entry.focus_date = None
         update_entry(entry, config)
     return len(entries)

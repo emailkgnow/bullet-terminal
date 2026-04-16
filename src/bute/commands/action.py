@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+from datetime import date
 
 import click
 from rich.console import Console
@@ -139,48 +140,53 @@ def handle_add_tag(entry: Entry, tag: str, config) -> None:
 
 
 def handle_later(entry: Entry, args: list[str], config) -> None:
-    """Remove @today tag — defer task to Task log."""
+    """Clear focus_date — defer task to Task log."""
     _require_task(entry, "later")
-    if "today" in entry.tags:
-        record_undo(entry.id, "later", {"tag": "today"}, config)
-        entry.tags.remove("today")
+    if entry.focus_date is not None:
+        record_undo(
+            entry.id, "later",
+            {"focus_date": entry.focus_date.isoformat()},
+            config,
+        )
+        entry.focus_date = None
         update_entry(entry, config)
     else:
         Console().print(f"  [dim]Not in today's log[/dim]")
 
 
 def handle_focus(entry: Entry, args: list[str], config) -> None:
-    """Add @today and @thisweek — pull task into Focus Log."""
+    """Set focus_date and week_date — pull task into Focus Log."""
+    from bute.ritual_ops import this_monday
     _require_task(entry, "focus")
-    added = []
-    if "thisweek" not in entry.tags:
-        entry.tags.append("thisweek")
-        added.append("thisweek")
-    if "today" not in entry.tags:
-        entry.tags.append("today")
-        added.append("today")
-    if added:
-        record_undo(entry.id, "focus", {"tags": added}, config)
-        update_entry(entry, config)
-    else:
+    today = date.today()
+    monday = this_monday(today)
+    if entry.focus_date == today and entry.week_date == monday:
         Console().print(f"  [dim]Already in Focus Log[/dim]")
+        return
+    prev = {
+        "focus_date": entry.focus_date.isoformat() if entry.focus_date else None,
+        "week_date": entry.week_date.isoformat() if entry.week_date else None,
+    }
+    record_undo(entry.id, "focus", prev, config)
+    entry.focus_date = today
+    entry.week_date = monday
+    update_entry(entry, config)
 
 
 def handle_backlog(entry: Entry, args: list[str], config) -> None:
-    """Remove @today and @thisweek — send task to Backlog."""
+    """Clear focus_date and week_date — send task to Backlog."""
     _require_task(entry, "backlog")
-    removed = []
-    if "today" in entry.tags:
-        entry.tags.remove("today")
-        removed.append("today")
-    if "thisweek" in entry.tags:
-        entry.tags.remove("thisweek")
-        removed.append("thisweek")
-    if removed:
-        record_undo(entry.id, "backlog", {"tags": removed}, config)
-        update_entry(entry, config)
-    else:
+    if entry.focus_date is None and entry.week_date is None:
         Console().print(f"  [dim]Already in backlog[/dim]")
+        return
+    prev = {
+        "focus_date": entry.focus_date.isoformat() if entry.focus_date else None,
+        "week_date": entry.week_date.isoformat() if entry.week_date else None,
+    }
+    record_undo(entry.id, "backlog", prev, config)
+    entry.focus_date = None
+    entry.week_date = None
+    update_entry(entry, config)
 
 
 # Metadata keys that map to entry fields
@@ -388,19 +394,18 @@ def apply_undo(record: dict, config) -> None:
             entry.repeat = prev["repeat"]
         update_entry(entry, config)
     elif action == "later":
-        tag = prev["tag"]
-        if tag not in entry.tags:
-            entry.tags.append(tag)
+        from datetime import date as date_type
+        entry.focus_date = date_type.fromisoformat(prev["focus_date"]) if prev.get("focus_date") else None
         update_entry(entry, config)
     elif action == "backlog":
-        for tag in prev["tags"]:
-            if tag not in entry.tags:
-                entry.tags.append(tag)
+        from datetime import date as date_type
+        entry.focus_date = date_type.fromisoformat(prev["focus_date"]) if prev.get("focus_date") else None
+        entry.week_date = date_type.fromisoformat(prev["week_date"]) if prev.get("week_date") else None
         update_entry(entry, config)
     elif action == "focus":
-        for tag in prev["tags"]:
-            if tag in entry.tags:
-                entry.tags.remove(tag)
+        from datetime import date as date_type
+        entry.focus_date = date_type.fromisoformat(prev["focus_date"]) if prev.get("focus_date") else None
+        entry.week_date = date_type.fromisoformat(prev["week_date"]) if prev.get("week_date") else None
         update_entry(entry, config)
     elif action == "meta":
         from datetime import date as date_type
