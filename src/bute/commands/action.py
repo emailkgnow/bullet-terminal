@@ -251,11 +251,61 @@ def handle_set_meta(entry: Entry, meta: dict[str, str], config) -> None:
 def handle_remove_tag(entry: Entry, tag: str, config) -> None:
     """Remove a tag from an entry."""
     if tag in entry.tags:
-        record_undo(entry.id, "untag", {"tag": tag}, config)
+        record_undo(entry.id, "clear", {"tag": tag}, config)
         entry.tags.remove(tag)
         update_entry(entry, config)
     else:
         Console().print(f"  [dim]@{tag} not on this entry[/dim]")
+
+
+# Clearable fields and their entry attribute names
+CLEAR_FIELDS = {"due", "d", "t", "time", "date", "repeat", "!"}
+
+
+def handle_clear(entry: Entry, field: str, config) -> str:
+    """Clear a metadata field. Returns label for confirmation."""
+    if field == "!" or field == "important":
+        if not entry.important:
+            Console().print("  [dim]Not marked important[/dim]")
+            return ""
+        record_undo(entry.id, "clear", {"important": True}, config)
+        entry.important = False
+        update_entry(entry, config)
+        return "clear !"
+    elif field == "due":
+        if entry.due is None:
+            Console().print("  [dim]No due date set[/dim]")
+            return ""
+        record_undo(entry.id, "clear", {"due": entry.due.isoformat()}, config)
+        entry.due = None
+        update_entry(entry, config)
+        return "clear due"
+    elif field in ("d", "date"):
+        if entry.scheduled_date is None:
+            Console().print("  [dim]No scheduled date set[/dim]")
+            return ""
+        record_undo(entry.id, "clear", {"scheduled_date": entry.scheduled_date.isoformat()}, config)
+        entry.scheduled_date = None
+        update_entry(entry, config)
+        return "clear d"
+    elif field in ("t", "time"):
+        if entry.scheduled_time is None:
+            Console().print("  [dim]No time set[/dim]")
+            return ""
+        record_undo(entry.id, "clear", {"scheduled_time": entry.scheduled_time}, config)
+        entry.scheduled_time = None
+        update_entry(entry, config)
+        return "clear t"
+    elif field == "repeat":
+        if entry.repeat is None:
+            Console().print("  [dim]No repeat set[/dim]")
+            return ""
+        record_undo(entry.id, "clear", {"repeat": entry.repeat}, config)
+        entry.repeat = None
+        update_entry(entry, config)
+        return "clear repeat"
+    else:
+        raise InvalidActionError(f"Cannot clear '{field}'. Clearable: @tag, !, due, d, t, repeat")
 
 
 def apply_undo(record: dict, config) -> None:
@@ -319,7 +369,25 @@ def apply_undo(record: dict, config) -> None:
         if tag in entry.tags:
             entry.tags.remove(tag)
         update_entry(entry, config)
-    elif action in ("untag", "later"):
+    elif action == "clear":
+        # Restore whichever field was cleared
+        from datetime import date as date_type
+        if "tag" in prev:
+            tag = prev["tag"]
+            if tag not in entry.tags:
+                entry.tags.append(tag)
+        if "important" in prev:
+            entry.important = prev["important"]
+        if "due" in prev:
+            entry.due = date_type.fromisoformat(prev["due"]) if prev["due"] else None
+        if "scheduled_date" in prev:
+            entry.scheduled_date = date_type.fromisoformat(prev["scheduled_date"]) if prev["scheduled_date"] else None
+        if "scheduled_time" in prev:
+            entry.scheduled_time = prev["scheduled_time"]
+        if "repeat" in prev:
+            entry.repeat = prev["repeat"]
+        update_entry(entry, config)
+    elif action == "later":
         tag = prev["tag"]
         if tag not in entry.tags:
             entry.tags.append(tag)
@@ -387,6 +455,7 @@ def action_cmd(ctx, tokens):
     # Handle @tag action — collect all @tags from action + args
     if action.startswith("@") and len(action) > 1:
         tags = [action[1:]] + [a[1:] for a in args if a.startswith("@") and len(a) > 1]
+        label = "+" + " +".join(f"@{t}" for t in tags)
         for entry_id in entry_ids:
             path = entry_path_from_id(entry_id, config)
             if path is None:
@@ -395,20 +464,38 @@ def action_cmd(ctx, tokens):
             entry = load_entry(path)
             for tag in tags:
                 handle_add_tag(entry, tag, config)
+            display_action_confirmation(entry, label)
         return
 
-    # Handle untag action: bt 1 untag @backend  or  bt 1 untag backend
-    if action == "untag":
+    # Handle clear action: bt 1 clear @backend, bt 1 clear !, bt 1 clear due, etc.
+    if action == "clear":
         if not args:
-            raise InvalidActionError("untag requires a tag. Usage: bt 1 untag @backend")
-        tag = args[0].lstrip("@")
+            raise InvalidActionError(
+                "clear requires a field. Usage: bt 1 clear @tag | ! | due | d | t | repeat"
+            )
+        field = args[0]
+        # Tag removal: bt 1 clear @backend  or  bt 1 clear backend
+        if field.startswith("@") or field not in CLEAR_FIELDS:
+            tag = field.lstrip("@")
+            for entry_id in entry_ids:
+                path = entry_path_from_id(entry_id, config)
+                if path is None:
+                    console.print(f"  [red]Entry {entry_id[:8]} not found.[/red]")
+                    continue
+                entry = load_entry(path)
+                handle_remove_tag(entry, tag, config)
+                display_action_confirmation(entry, f"clear @{tag}")
+            return
+        # Metadata removal: bt 1 clear due, bt 1 clear !, etc.
         for entry_id in entry_ids:
             path = entry_path_from_id(entry_id, config)
             if path is None:
                 console.print(f"  [red]Entry {entry_id[:8]} not found.[/red]")
                 continue
             entry = load_entry(path)
-            handle_remove_tag(entry, tag, config)
+            label = handle_clear(entry, field, config)
+            if label:
+                display_action_confirmation(entry, label)
         return
 
     # Handle map: bt <n> map (single @ai-analysis note)

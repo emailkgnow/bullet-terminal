@@ -179,15 +179,19 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
         return
 
     # Group entries by date (calendar events use scheduled_date if set)
-    grouped: dict[str, list[Entry]] = {}
+    from datetime import date as _date_type
+    grouped: dict[_date_type, list[Entry]] = {}
     for entry in entries:
         if entry.scheduled_date:
-            date_key = entry.scheduled_date.strftime("%a %b %d")
+            date_key = entry.scheduled_date
         else:
-            date_key = entry.created.strftime("%a %b %d")
+            date_key = entry.created.date()
         if date_key not in grouped:
             grouped[date_key] = []
         grouped[date_key].append(entry)
+
+    # Sort groups by date descending (newest first)
+    sorted_dates = sorted(grouped.keys(), reverse=True)
 
     # Important first, done/dropped last within each date group (stable sort)
     for items in grouped.values():
@@ -195,8 +199,8 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
 
     # Rebuild entries list in display order so caller's state matches
     entries.clear()
-    for items in grouped.values():
-        entries.extend(items)
+    for d in sorted_dates:
+        entries.extend(grouped[d])
 
     table = Table(
         title=title or None,
@@ -215,7 +219,9 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
     table.add_column("Meta", style="dim")
 
     counter = 1
-    for date_label, items in grouped.items():
+    for d in sorted_dates:
+        date_label = d.strftime("%a %b %d")
+        items = grouped[d]
         for row_idx, entry in enumerate(items):
             num, icon, body, meta = _build_entry_row(counter, entry)
             date_col = date_label if row_idx == 0 else ""
@@ -228,15 +234,31 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
     console.print(Align.center(table))
 
 
+def _truncate_body(body: str, max_len: int = 60) -> str:
+    """Return first sentence or line of body, truncated to max_len."""
+    # Take first line
+    first_line = body.split("\n", 1)[0].strip()
+    # Split on sentence-ending punctuation
+    for sep in (". ", "! ", "? "):
+        idx = first_line.find(sep)
+        if idx != -1:
+            first_line = first_line[: idx + 1]
+            break
+    if len(first_line) > max_len:
+        return first_line[: max_len - 1] + "…"
+    return first_line
+
+
 def display_action_confirmation(entry: Entry, action: str) -> None:
     """Short one-line confirmation after an action."""
     style = TYPE_STYLE[entry.type]
     icon = style["icon"]
     color = style["color"]
     short_id = entry.id[:8]
+    body = _truncate_body(entry.body)
     console.print(
         f"  [{color}]{icon}[/{color}] [bold]\\[{action}][/bold] "
-        f"{entry.body} [dim]({short_id})[/dim]"
+        f"{body} [dim]({short_id})[/dim]"
     )
 
 

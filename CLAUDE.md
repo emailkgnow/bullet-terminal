@@ -141,7 +141,12 @@ bute 2 3 drop       # consciously delete
 bute 4 delete       # permanently remove from disk
 bute 5 !            # toggle important
 bute 6 @tag         # add tag
-bute 6 untag @tag   # remove tag
+bute 6 clear @tag   # remove tag
+bute 6 clear !      # remove important
+bute 6 clear due    # clear due date
+bute 6 clear d      # clear scheduled date
+bute 6 clear t      # clear time
+bute 6 clear repeat # clear repeat
 bute 7 edit         # open in $EDITOR
 bute 3 later        # defer — remove from today's log
 bute chat           # AI chat session with tool access
@@ -200,7 +205,7 @@ bute init           # first-run setup (pick AI provider)
 
 ### Commands — High Value
 - ~~`bt due`~~ ✓ Done — overdue + due today + next 7 days (rolling). `bt due all` for all tasks with due dates.
-- ~~`bt <n> untag @tag`~~ ✓ Done — `bt 1 untag @tag` or `bt 1 untag tag`
+- ~~`bt <n> untag @tag`~~ ✓ Done — replaced by `bt 1 clear @tag` (unified `clear` for all fields)
 - ~~`bt edit <n>`~~ ✓ Done — `bt <n> edit` opens entry in `$EDITOR` (falls back to `nano`)
 
 ### Commands — Medium Value

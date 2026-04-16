@@ -107,6 +107,20 @@ def test_add_tag(runner, tmp_config, tmp_data):
     assert "work" in loaded.tags
 
 
+def test_add_multiple_tags(runner, tmp_config, tmp_data):
+    entry = Entry.create(EntryType.NOTE, "test note")
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "@home", "@urgent", "@backend"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert "home" in loaded.tags
+    assert "urgent" in loaded.tags
+    assert "backend" in loaded.tags
+
+
 def test_add_tag_no_duplicate(runner, tmp_config, tmp_data):
     entry = Entry.create(EntryType.NOTE, "test", tags=["work"])
     save_entry(entry)
@@ -117,12 +131,12 @@ def test_add_tag_no_duplicate(runner, tmp_config, tmp_data):
     assert loaded.tags.count("work") == 1
 
 
-def test_untag(runner, tmp_config, tmp_data):
+def test_clear_tag(runner, tmp_config, tmp_data):
     entry = Entry.create(EntryType.NOTE, "test note", tags=["work", "urgent"])
     save_entry(entry)
     save_state("ls", [entry.id])
 
-    result = runner.invoke(main, ["1", "untag", "@work"])
+    result = runner.invoke(main, ["1", "clear", "@work"])
     assert result.exit_code == 0
 
     loaded = load_entry(entry_path_from_id(entry.id))
@@ -130,16 +144,78 @@ def test_untag(runner, tmp_config, tmp_data):
     assert "urgent" in loaded.tags
 
 
-def test_untag_without_at(runner, tmp_config, tmp_data):
+def test_clear_tag_without_at(runner, tmp_config, tmp_data):
     entry = Entry.create(EntryType.NOTE, "test", tags=["backend"])
     save_entry(entry)
     save_state("ls", [entry.id])
 
-    result = runner.invoke(main, ["1", "untag", "backend"])
+    result = runner.invoke(main, ["1", "clear", "backend"])
     assert result.exit_code == 0
 
     loaded = load_entry(entry_path_from_id(entry.id))
     assert "backend" not in loaded.tags
+
+
+def test_clear_important(runner, tmp_config, tmp_data):
+    entry = Entry.create(EntryType.NOTE, "important note", important=True)
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "clear", "!"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.important is False
+
+
+def test_clear_due(runner, tmp_config, tmp_data):
+    from datetime import date
+    entry = Entry.create(EntryType.TASK, "task with due", due=date(2026, 5, 1))
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "clear", "due"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.due is None
+
+
+def test_clear_scheduled_date(runner, tmp_config, tmp_data):
+    from datetime import date
+    entry = Entry.create(EntryType.NOTE, "scheduled note", scheduled_date=date(2026, 5, 1))
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "clear", "d"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.scheduled_date is None
+
+
+def test_clear_time(runner, tmp_config, tmp_data):
+    entry = Entry.create(EntryType.CALENDAR, "meeting", scheduled_time="14:30")
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "clear", "t"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.scheduled_time is None
+
+
+def test_clear_repeat(runner, tmp_config, tmp_data):
+    entry = Entry.create(EntryType.TASK, "daily task", repeat="daily")
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "clear", "repeat"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.repeat is None
 
 
 

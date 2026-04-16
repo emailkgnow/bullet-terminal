@@ -206,7 +206,7 @@ _remove_tag = {
                 "entry_ids": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "List of entry ULIDs to untag.",
+                    "description": "List of entry ULIDs to remove tag from.",
                 },
                 "tag": {
                     "type": "string",

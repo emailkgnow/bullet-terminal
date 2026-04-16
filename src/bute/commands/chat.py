@@ -474,8 +474,8 @@ def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
             return
         resolved.append(session.last_bt_results[n - 1])
 
-    # Standard bt actions (done, drop, !, @tag, untag, later, backlog)
-    from bute.commands.action import ACTION_HANDLERS, handle_add_tag, handle_remove_tag
+    # Standard bt actions (done, drop, !, @tag, clear, later, backlog)
+    from bute.commands.action import ACTION_HANDLERS, handle_add_tag, handle_remove_tag, handle_clear, CLEAR_FIELDS
     from bute.errors import DwnError
     from bute.display import display_action_confirmation
     from bute.storage import entry_path_from_id, load_entry
@@ -488,15 +488,22 @@ def _handle_number_action(session: ChatSession, tokens: list[str]) -> None:
             display_action_confirmation(entry, f"@{tag}")
         return
 
-    # Handle untag
-    if action == "untag":
+    # Handle clear
+    if action == "clear":
         if not action_args:
-            console.print("  [dim]Usage: 1 untag @backend[/dim]")
+            console.print("  [dim]Usage: 1 clear @tag | ! | due | d | t | repeat[/dim]")
             return
-        tag = action_args[0].lstrip("@")
-        for entry in resolved:
-            handle_remove_tag(entry, tag, session.config)
-            display_action_confirmation(entry, f"untag @{tag}")
+        field = action_args[0]
+        if field.startswith("@") or field not in CLEAR_FIELDS:
+            tag = field.lstrip("@")
+            for entry in resolved:
+                handle_remove_tag(entry, tag, session.config)
+                display_action_confirmation(entry, f"clear @{tag}")
+        else:
+            for entry in resolved:
+                label = handle_clear(entry, field, session.config)
+                if label:
+                    display_action_confirmation(entry, label)
         return
 
     handler = ACTION_HANDLERS.get(action)
