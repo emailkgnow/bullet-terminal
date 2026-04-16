@@ -11,7 +11,6 @@ from bute.display import (
     display_ritual_header,
 )
 from bute.ritual_ops import (
-    clear_daily_focus,
     clear_weekly_selection,
     get_all_active_tasks,
     get_weekly_active_tasks,
@@ -35,9 +34,6 @@ def dp_cmd(ctx, non_interactive):
     config = ctx.obj.get("config")
 
     display_ritual_header("Daily Plan", "Pick your focus for today")
-
-    # Clear stale @today tags from previous day
-    clear_daily_focus(config)
 
     # 1. Gather yesterday's unresolved tasks
     yesterday = get_yesterday_unresolved(config)
@@ -297,9 +293,6 @@ def wp_cmd(ctx, non_interactive):
     config = ctx.obj.get("config")
 
     display_ritual_header("Plan", "Review your backlog and select for this week")
-
-    # Clear stale @today tags — new week, fresh start
-    clear_daily_focus(config)
 
     # Separate carryover (@thisweek from last week) from fresh backlog
     active = get_all_active_tasks(config)
