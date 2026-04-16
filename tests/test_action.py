@@ -274,3 +274,118 @@ def test_handle_delete_removes_from_db(tmp_data):
     ).fetchone()
     assert row is None
     close()
+
+
+# --- focus_date / week_date behavior tests ---
+
+
+def test_later_clears_focus_date(runner, tmp_config, tmp_data):
+    """bt <n> later should clear focus_date but leave week_date."""
+    from datetime import date
+    from bute.ritual_ops import this_monday
+    entry = Entry.create(
+        EntryType.TASK, "focused task",
+        focus_date=date.today(),
+        week_date=this_monday(),
+    )
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "later"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.focus_date is None
+    assert loaded.week_date == this_monday()
+
+
+def test_focus_sets_both_dates(runner, tmp_config, tmp_data):
+    """bt <n> focus sets focus_date=today and week_date=monday."""
+    from datetime import date
+    from bute.ritual_ops import this_monday
+    entry = Entry.create(EntryType.TASK, "backlog task")
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "focus"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.focus_date == date.today()
+    assert loaded.week_date == this_monday()
+
+
+def test_backlog_clears_both_dates(runner, tmp_config, tmp_data):
+    """bt <n> backlog clears focus_date and week_date."""
+    from datetime import date
+    from bute.ritual_ops import this_monday
+    entry = Entry.create(
+        EntryType.TASK, "focused task",
+        focus_date=date.today(),
+        week_date=this_monday(),
+    )
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "backlog"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.focus_date is None
+    assert loaded.week_date is None
+
+
+def test_entry_roundtrip_with_focus_week_dates(tmp_data):
+    """Entry with focus_date and week_date should round-trip through YAML."""
+    from datetime import date
+    entry = Entry.create(
+        EntryType.TASK, "dated task",
+        focus_date=date(2026, 4, 16),
+        week_date=date(2026, 4, 13),
+    )
+    save_entry(entry)
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.focus_date == date(2026, 4, 16)
+    assert loaded.week_date == date(2026, 4, 13)
+
+
+def test_get_daily_log_filters_by_focus_date(tmp_data):
+    """get_daily_log should only return tasks with focus_date == today."""
+    from datetime import date, timedelta
+    from bute.ritual_ops import get_daily_log, this_monday
+
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+
+    focused = Entry.create(EntryType.TASK, "today task", focus_date=today, week_date=this_monday())
+    stale = Entry.create(EntryType.TASK, "yesterday task", focus_date=yesterday, week_date=this_monday())
+    unfocused = Entry.create(EntryType.TASK, "no focus")
+
+    for e in [focused, stale, unfocused]:
+        save_entry(e)
+
+    log = get_daily_log(None)
+    ids = {e.id for e in log}
+    assert focused.id in ids
+    assert stale.id not in ids
+    assert unfocused.id not in ids
+
+
+def test_get_weekly_active_tasks_filters_by_week_date(tmp_data):
+    """get_weekly_active_tasks should only return tasks with week_date == this Monday."""
+    from datetime import date, timedelta
+    from bute.ritual_ops import get_weekly_active_tasks, this_monday
+
+    monday = this_monday()
+    last_monday = monday - timedelta(days=7)
+
+    current = Entry.create(EntryType.TASK, "current", week_date=monday)
+    old = Entry.create(EntryType.TASK, "old", week_date=last_monday)
+
+    for e in [current, old]:
+        save_entry(e)
+
+    tasks = get_weekly_active_tasks(None)
+    ids = {e.id for e in tasks}
+    assert current.id in ids
+    assert old.id not in ids

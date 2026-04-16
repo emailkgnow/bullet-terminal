@@ -84,6 +84,7 @@ def test_process_dump_line_empty(tmp_data):
 
 
 def test_set_weekly_selection(tmp_data):
+    from bute.ritual_ops import this_monday
     e1 = Entry.create(EntryType.TASK, "task one")
     e2 = Entry.create(EntryType.TASK, "task two")
     save_entry(e1)
@@ -93,29 +94,31 @@ def test_set_weekly_selection(tmp_data):
     assert count == 2
 
     loaded = load_entry(entry_path_from_id(e1.id))
-    assert "thisweek" in loaded.tags
+    assert loaded.week_date == this_monday()
 
 
 def test_clear_weekly_selection(tmp_data):
-    e = Entry.create(EntryType.TASK, "task", tags=["thisweek"])
+    from bute.ritual_ops import this_monday
+    e = Entry.create(EntryType.TASK, "task", week_date=this_monday())
     save_entry(e)
 
     cleared = clear_weekly_selection()
     assert cleared == 1
 
     loaded = load_entry(entry_path_from_id(e.id))
-    assert "thisweek" not in loaded.tags
+    assert loaded.week_date is None
 
 
 def test_clear_daily_focus(tmp_data):
-    e = Entry.create(EntryType.TASK, "task", tags=["today"])
+    from datetime import date
+    e = Entry.create(EntryType.TASK, "task", focus_date=date.today())
     save_entry(e)
 
     cleared = clear_daily_focus()
     assert cleared == 1
 
     loaded = load_entry(entry_path_from_id(e.id))
-    assert "today" not in loaded.tags
+    assert loaded.focus_date is None
 
 
 def test_get_week_entries(tmp_data):

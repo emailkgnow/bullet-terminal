@@ -31,8 +31,8 @@ def test_open_capture_task(runner, tmp_config, tmp_data):
     content = entries[0].read_text()
     assert "type: task" in content
     assert "buy groceries" in content
-    assert "thisweek" in content
-    assert "today" in content
+    assert "focus_date:" in content
+    assert "week_date:" in content
 
 
 def test_open_capture_note(runner, tmp_config, tmp_data):

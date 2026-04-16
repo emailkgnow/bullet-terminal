@@ -5,12 +5,13 @@ from datetime import date
 from bute.cli import main
 from bute.config import default_config, save_config
 from bute.models import Entry, EntryType, TaskStatus
+from bute.ritual_ops import this_monday
 from bute.storage import save_entry, update_entry
 
 
 def _setup_config(tmp_config, tmp_data):
     """Create a config pointing to tmp_data."""
-    doc = default_config(provider="ollama")
+    doc = default_config(provider="anthropic")
     doc["core"]["data_dir"] = str(tmp_data)
     save_config(doc)
 
@@ -21,7 +22,7 @@ def _setup_config(tmp_config, tmp_data):
 def test_dp_non_interactive_shows_tasks(runner, tmp_config, tmp_data):
     """dp -y shows weekly tasks and marks daily plan done."""
     _setup_config(tmp_config, tmp_data)
-    e = Entry.create(EntryType.TASK, "deploy staging", tags=["thisweek"])
+    e = Entry.create(EntryType.TASK, "deploy staging", week_date=this_monday())
     save_entry(e)
 
     result = runner.invoke(main, ["dp", "--non-interactive"])
@@ -84,7 +85,7 @@ def test_wp_not_done_by_default(tmp_config, tmp_data):
 def test_wp_non_interactive(runner, tmp_config, tmp_data):
     _setup_config(tmp_config, tmp_data)
     e1 = Entry.create(EntryType.TASK, "task one")
-    e2 = Entry.create(EntryType.TASK, "task two", tags=["thisweek"])
+    e2 = Entry.create(EntryType.TASK, "task two", week_date=this_monday())
     save_entry(e1)
     save_entry(e2)
 
@@ -100,9 +101,9 @@ def test_wp_no_tasks(runner, tmp_config, tmp_data):
 
 
 def test_wp_shows_carryover_icon(runner, tmp_config, tmp_data):
-    """wp shows ↩ for tasks that had @thisweek from last week."""
+    """wp shows ↩ for tasks that had week_date set from last week."""
     _setup_config(tmp_config, tmp_data)
-    e1 = Entry.create(EntryType.TASK, "carried over", tags=["thisweek"])
+    e1 = Entry.create(EntryType.TASK, "carried over", week_date=this_monday())
     e2 = Entry.create(EntryType.TASK, "fresh task")
     save_entry(e1)
     save_entry(e2)
@@ -119,7 +120,7 @@ def test_wp_shows_carryover_icon(runner, tmp_config, tmp_data):
 
 def test_daily_log_shows_done_tasks(runner, tmp_config, tmp_data):
     _setup_config(tmp_config, tmp_data)
-    e = Entry.create(EntryType.TASK, "finished task", tags=["today"])
+    e = Entry.create(EntryType.TASK, "finished task", focus_date=date.today(), week_date=this_monday())
     save_entry(e)
     e.status = TaskStatus.DONE
     update_entry(e)
