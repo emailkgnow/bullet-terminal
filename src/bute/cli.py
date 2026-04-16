@@ -496,7 +496,7 @@ def main(ctx, interactive, demo, toggle_journal):
             title = f"Focus Log — {date.today().strftime('%a %b %d')}"
             if not has_active_tasks:
                 title = f"[strike]{title}[/strike]"
-            display_entry_list(entries, title, hide_tags={"today", "thisweek"})
+            display_entry_list(entries, title)
 
             # Show habits
             from bute.commands.views import _show_habits

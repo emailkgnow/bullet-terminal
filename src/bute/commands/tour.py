@@ -370,7 +370,7 @@ def _show_focus_log(config) -> None:
     from bute.ritual_ops import get_daily_log
     from bute.state import save_state
     entries = get_daily_log(config)
-    display_entry_list(entries, f"Focus Log — {date.today().strftime('%a %b %d')}", hide_tags={"today", "thisweek"})
+    display_entry_list(entries, f"Focus Log — {date.today().strftime('%a %b %d')}")
     save_state("ls", [e.id for e in entries], config)
 
 
