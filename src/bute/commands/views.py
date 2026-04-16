@@ -327,15 +327,8 @@ def daily_log_cmd(ctx, period):
             seen.add(e.id)
             entries.append(e)
 
-    # For today's log only: pull in live state (carried-over tasks, due, done/dropped)
+    # For today's log only: pull in tasks due/done/dropped today
     if target == today:
-        # Tasks tagged @today created on other days (carried over / migrated)
-        today_tasks = query_and_load(config, type="task", tag="today")
-        for e in today_tasks:
-            if e.id not in seen:
-                seen.add(e.id)
-                entries.append(e)
-
         # Active tasks due today or overdue
         due_tasks = query_and_load(config, type="task", status="active", has_due=True)
         for e in due_tasks:
