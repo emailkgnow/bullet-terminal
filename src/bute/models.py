@@ -74,7 +74,7 @@ class Entry:
     ) -> "Entry":
         """Factory that generates a ULID and sets the created timestamp."""
         now = datetime.now(timezone.utc).astimezone()
-        return cls(
+        entry = cls(
             id=str(ULID()),
             type=entry_type,
             body=body,
@@ -91,6 +91,20 @@ class Entry:
             tags=tags or [],
             extra_meta=extra_meta or {},
         )
+
+        # Initial lifecycle events — late import to avoid cycle
+        from bute import events as ev
+        today = now.date()
+        entry.add_event(ev.CAPTURED, on=today)
+        if focus_date is not None:
+            entry.add_event(ev.FOCUSED, on=today, focus_date=focus_date)
+        if scheduled_date is not None:
+            entry.add_event(ev.SCHEDULED, on=today, scheduled_date=scheduled_date)
+        if due is not None:
+            entry.add_event(ev.DUE_SET, on=today, due=due)
+        if week_date is not None:
+            entry.add_event(ev.WEEK_PLANNED, on=today, week_date=week_date)
+        return entry
 
     def to_frontmatter_dict(self) -> dict:
         """Convert to dict for YAML frontmatter. Omits None/empty values."""

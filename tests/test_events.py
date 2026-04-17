@@ -4,11 +4,11 @@ from datetime import date, datetime, timezone
 from bute.models import Entry, EntryType
 
 
-def test_entry_has_empty_events_by_default():
+def test_entry_has_captured_event_on_create():
+    from bute import events as ev
     e = Entry.create(EntryType.NOTE, "hello")
-    # captured event is emitted by Entry.create (Task 4); here we only
-    # verify the field exists and is a list
-    assert isinstance(e.events, list)
+    assert len(e.events) == 1
+    assert e.events[0]["action"] == ev.CAPTURED
 
 
 def test_add_event_appends_dict():
@@ -101,3 +101,29 @@ def test_event_constants_exist():
     assert ev.MODIFIED == "modified"
     assert ev.DUE_SET == "due_set"
     assert ev.DUE_CLEARED == "due_cleared"
+
+
+def test_entry_create_emits_captured_event():
+    from bute import events as ev
+
+    e = Entry.create(EntryType.TASK, "fix auth bug")
+    assert len(e.events) == 1
+    assert e.events[0]["action"] == ev.CAPTURED
+    assert e.events[0]["date"] == date.today().isoformat()
+
+
+def test_entry_create_emits_focus_event_when_focus_date_set():
+    from bute import events as ev
+
+    e = Entry.create(EntryType.TASK, "t", focus_date=date.today())
+    actions = [x["action"] for x in e.events]
+    assert ev.CAPTURED in actions
+    assert ev.FOCUSED in actions
+
+
+def test_entry_create_emits_scheduled_event_when_scheduled_date_set():
+    from bute import events as ev
+
+    e = Entry.create(EntryType.CALENDAR, "meeting", scheduled_date=date(2026, 5, 1))
+    actions = [x["action"] for x in e.events]
+    assert ev.SCHEDULED in actions
