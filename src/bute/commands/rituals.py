@@ -168,14 +168,15 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
             sigil = type_sigil[e.type]
             preview = _preview(e.body)
 
-            # Styling: if state at start of day was already done/dropped,
-            # dim/strike — the entry is being touched but wasn't fresh.
-            if state["status"] == "done":
+            # Styling: strike/dim if the entry was already done/dropped at
+            # start of day, OR if the event itself is the done/dropped moment.
+            action = ev_item["action"]
+            if state["status"] == "done" or action == DONE:
                 preview = f"[strike dim]{preview}[/strike dim]"
-            elif state["status"] == "dropped":
+            elif state["status"] == "dropped" or action == DROPPED:
                 preview = f"[dim]{preview}[/dim]"
 
-            action_verb = verb.get(ev_item["action"], ev_item["action"])
+            action_verb = verb.get(action, action)
             line = f"{sigil} {preview}  [dim]\u2192 {action_verb}[/dim]"
             lines_by_day.setdefault(ev_date.day, []).append(line)
 
