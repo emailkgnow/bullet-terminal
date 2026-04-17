@@ -54,6 +54,7 @@ class Entry:
     tags: list[str] = field(default_factory=list)
     extra_meta: dict = field(default_factory=dict)
     completions: list[str] = field(default_factory=list)
+    events: list[dict] = field(default_factory=list)
 
     @classmethod
     def create(
@@ -131,6 +132,23 @@ class Entry:
     def is_completed_for_date(self, target: date) -> bool:
         """Check if this recurring entry was completed for a given date."""
         return target.isoformat() in self.completions
+
+    def add_event(self, action: str, on: date | None = None, **context) -> None:
+        """Append an event to this entry's log.
+
+        Args:
+            action: one of the event action constants (see bute.events).
+            on: date of the event (defaults to today).
+            **context: extra fields serialized as ISO strings for date/datetime.
+        """
+        event_date = (on or date.today()).isoformat()
+        event: dict = {"date": event_date, "action": action}
+        for k, v in context.items():
+            if isinstance(v, date):
+                event[k] = v.isoformat()
+            else:
+                event[k] = v
+        self.events.append(event)
 
     def recurs_on(self, target: date) -> bool:
         """Check if this recurring entry should show on the given date."""
