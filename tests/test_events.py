@@ -85,3 +85,19 @@ def test_events_normalize_yaml_date_objects(tmp_path, monkeypatch):
     assert isinstance(e.events[0]["date"], str)
     assert e.events[1]["focus_date"] == "2026-04-10"
     assert isinstance(e.events[1]["focus_date"], str)
+
+
+def test_event_constants_exist():
+    from bute import events as ev
+    assert ev.CAPTURED == "captured"
+    assert ev.FOCUSED == "focused"
+    assert ev.UNFOCUSED == "unfocused"
+    assert ev.SCHEDULED == "scheduled"
+    assert ev.UNSCHEDULED == "unscheduled"
+    assert ev.DONE == "done"
+    assert ev.DROPPED == "dropped"
+    assert ev.UNDROPPED == "undropped"
+    assert ev.WEEK_PLANNED == "week_planned"
+    assert ev.MODIFIED == "modified"
+    assert ev.DUE_SET == "due_set"
+    assert ev.DUE_CLEARED == "due_cleared"
