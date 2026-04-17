@@ -104,62 +104,80 @@ def dp_cmd(ctx, non_interactive):
 
 
 def _build_month_data(target: date, config) -> dict[int, list[str]]:
-    """Build a month's log data — dict of day_num → list of entry strings."""
+    """Build a month's event-driven retrospective: dict of day_num -> list of rendered strings.
+
+    Each entry surfaces on every day any of its lifecycle events occurred
+    (captured, focused, scheduled, completed, dropped, undropped, etc.).
+    Pre-feature entries with no stored events use render-time synthesis
+    from existing date fields.
+    """
     import calendar
-
     from bute.display import _preview
-    from bute.parser import format_time_display
-
+    from bute.events import (
+        CAPTURED, FOCUSED, UNFOCUSED, SCHEDULED, UNSCHEDULED,
+        DONE, DROPPED, UNDROPPED, WEEK_PLANNED, MODIFIED,
+        DUE_SET, DUE_CLEARED,
+        synthesize_events, replay_state,
+    )
     from bute.models import EntryType
-    from bute.storage import load_entries_by_date, query_and_load
+    from bute.storage import query_and_load
 
-    _, last_day = calendar.monthrange(target.year, target.month)
+    first_day = date(target.year, target.month, 1)
+    _, last = calendar.monthrange(target.year, target.month)
+    last_day = date(target.year, target.month, last)
     today = date.today()
+    if last_day > today:
+        last_day = today
+
+    # Load every entry (no type/status filter) — we want everything with
+    # a lifecycle event in this month. Efficient enough for thousands of entries;
+    # add an indexed query later if needed.
+    entries = query_and_load(config)
 
     lines_by_day: dict[int, list[str]] = {}
 
-    # Journal, note, and calendar entries created on each day of the month
-    for day_num in range(1, last_day + 1):
-        d = date(target.year, target.month, day_num)
-        if d > today:
-            break
-        entries = load_entries_by_date(d, config)
-        for e in entries:
-            if e.type == EntryType.TASK:
-                from bute.models import TaskStatus
-                preview = _preview(e.body)
-                if e.status == TaskStatus.DONE:
-                    lines_by_day.setdefault(day_num, []).append(f"[strike dim][cyan].[/cyan] {preview}[/strike dim]")
-                elif e.status == TaskStatus.DROPPED:
-                    lines_by_day.setdefault(day_num, []).append(f"[dim][cyan].[/cyan] {preview}[/dim]")
-                else:
-                    lines_by_day.setdefault(day_num, []).append(f"[cyan].[/cyan] {preview}")
-            elif e.type == EntryType.JOURNAL:
-                lines_by_day.setdefault(day_num, []).append(f"[magenta]=[/magenta] {_preview(e.body)}")
-            elif e.type == EntryType.NOTE:
-                lines_by_day.setdefault(day_num, []).append(f"[yellow]-[/yellow] {_preview(e.body)}")
-            elif e.type == EntryType.CALENDAR:
-                # Calendar events appear on their scheduled date, or creation date if no date set
-                event_day = e.scheduled_date.day if e.scheduled_date else day_num
-                if e.scheduled_date and (e.scheduled_date.year != target.year or e.scheduled_date.month != target.month):
-                    continue  # scheduled for a different month
-                time_str = f" {format_time_display(e.scheduled_time)}" if e.scheduled_time else ""
-                lines_by_day.setdefault(event_day, []).append(f"[green]o[/green][dim]{time_str}[/dim] {_preview(e.body)}")
+    verb = {
+        CAPTURED: "captured",
+        FOCUSED: "focused",
+        UNFOCUSED: "unfocused",
+        SCHEDULED: "scheduled",
+        UNSCHEDULED: "unscheduled",
+        DONE: "done \u2713",
+        DROPPED: "dropped \u2717",
+        UNDROPPED: "undropped",
+        WEEK_PLANNED: "week planned",
+        MODIFIED: "modified",
+        DUE_SET: "due set",
+        DUE_CLEARED: "due cleared",
+    }
+    type_sigil = {
+        EntryType.TASK: "[cyan].[/cyan]",
+        EntryType.NOTE: "[yellow]-[/yellow]",
+        EntryType.JOURNAL: "[magenta]=[/magenta]",
+        EntryType.CALENDAR: "[green]o[/green]",
+    }
 
-    # Calendar events scheduled in this month but created in a different month
-    from bute.storage import query_and_load
-    scheduled_events = query_and_load(config, type="calendar")
-    scheduled_events = [
-        e for e in scheduled_events
-        if (e.scheduled_date is not None
-            and e.scheduled_date.year == target.year
-            and e.scheduled_date.month == target.month
-            and e.created.strftime("%Y-%m") != target.strftime("%Y-%m"))
-    ]
-    for e in scheduled_events:
-        day_num = e.scheduled_date.day
-        time_str = f" {format_time_display(e.scheduled_time)}" if e.scheduled_time else ""
-        lines_by_day.setdefault(day_num, []).append(f"[green]o[/green][dim]{time_str}[/dim] {_preview(e.body)}")
+    for e in entries:
+        events = synthesize_events(e)
+        for ev_item in events:
+            ev_date = date.fromisoformat(ev_item["date"])
+            if ev_date < first_day or ev_date > last_day:
+                continue
+
+            state = replay_state(events, ev_date)
+            sigil = type_sigil[e.type]
+            preview = _preview(e.body)
+
+            # Styling: if state at start of day was already done/dropped,
+            # dim/strike — the entry is being touched but wasn't fresh.
+            if state["status"] == "done":
+                preview = f"[strike dim]{preview}[/strike dim]"
+            elif state["status"] == "dropped":
+                preview = f"[dim]{preview}[/dim]"
+
+            action_verb = verb.get(ev_item["action"], ev_item["action"])
+            line = f"{sigil} {preview}  [dim]\u2192 {action_verb}[/dim]"
+            lines_by_day.setdefault(ev_date.day, []).append(line)
 
     return lines_by_day
 

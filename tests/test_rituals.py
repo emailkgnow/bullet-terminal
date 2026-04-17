@@ -274,6 +274,33 @@ def test_bt_noargs_skips_wp_when_done(runner, tmp_config, tmp_data, monkeypatch)
     assert len(plan_lines) == 0, f"wp should not have triggered, but found: {plan_lines}"
 
 
+def test_monthly_log_shows_entry_on_each_event_day(runner, tmp_config, tmp_data):
+    """A legacy task captured Apr 7 and completed Apr 21 should surface on
+    BOTH days, via synthesized events."""
+    from datetime import datetime, timezone, date
+    from bute.models import Entry, EntryType, TaskStatus
+    from bute.storage import save_entry
+    _setup_config(tmp_config, tmp_data)
+
+    e = Entry(
+        id="01KN47RM804BG4Z762J0MEKGSZ",
+        type=EntryType.TASK,
+        body="fix auth bug",
+        created=datetime(2026, 4, 1, 10, tzinfo=timezone.utc),
+        status=TaskStatus.DONE,
+        focus_date=date(2026, 4, 7),
+        completed_date=date(2026, 4, 14),
+        events=[],  # legacy — synthesized at render time
+    )
+    save_entry(e)
+
+    result = runner.invoke(main, ["m", "2026-04"])
+    assert result.exit_code == 0
+    # Body should appear on at least 3 days: captured, focused, done
+    assert result.output.count("fix auth bug") >= 3, \
+        f"expected entry on >=3 days, got output:\n{result.output}"
+
+
 def test_wp_no_spurious_focused_event_on_week_plan(runner, tmp_config, tmp_data, monkeypatch):
     """wp should NOT emit FOCUSED when it only sets week_date, even if task already has a focus_date."""
     _setup_config(tmp_config, tmp_data)
