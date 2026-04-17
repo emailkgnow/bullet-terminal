@@ -389,3 +389,49 @@ def test_get_weekly_active_tasks_filters_by_week_date(tmp_data):
     ids = {e.id for e in tasks}
     assert current.id in ids
     assert old.id not in ids
+
+
+# --- Event emission tests ---
+
+
+def test_action_done_emits_done_event(runner, tmp_config, tmp_data):
+    """bt <n> done should append a 'done' event to the entry."""
+    entry = Entry.create(EntryType.TASK, "ship it")
+    save_entry(entry)
+    save_state("tasks", [entry.id])
+
+    result = runner.invoke(main, ["1", "done"])
+    assert result.exit_code == 0
+
+    reloaded = load_entry(entry_path_from_id(entry.id))
+    actions = [ev["action"] for ev in reloaded.events]
+    assert "done" in actions
+
+
+def test_action_drop_emits_dropped_event(runner, tmp_config, tmp_data):
+    """bt <n> drop should append a 'dropped' event."""
+    entry = Entry.create(EntryType.TASK, "nope")
+    save_entry(entry)
+    save_state("tasks", [entry.id])
+
+    result = runner.invoke(main, ["1", "drop"])
+    assert result.exit_code == 0
+
+    reloaded = load_entry(entry_path_from_id(entry.id))
+    actions = [ev["action"] for ev in reloaded.events]
+    assert "dropped" in actions
+
+
+def test_action_later_emits_unfocused_event(runner, tmp_config, tmp_data):
+    """bt <n> later should append an 'unfocused' event when focus_date is cleared."""
+    from datetime import date
+    entry = Entry.create(EntryType.TASK, "meh", focus_date=date.today())
+    save_entry(entry)
+    save_state("tasks", [entry.id])
+
+    result = runner.invoke(main, ["1", "later"])
+    assert result.exit_code == 0
+
+    reloaded = load_entry(entry_path_from_id(entry.id))
+    actions = [ev["action"] for ev in reloaded.events]
+    assert "unfocused" in actions
