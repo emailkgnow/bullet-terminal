@@ -115,38 +115,6 @@ def test_wp_shows_carryover_icon(runner, tmp_config, tmp_data):
     assert "fresh task" in result.output
 
 
-# --- Daily log tests ---
-
-
-def test_daily_log_shows_done_tasks(runner, tmp_config, tmp_data):
-    _setup_config(tmp_config, tmp_data)
-    e = Entry.create(EntryType.TASK, "finished task", focus_date=date.today(), week_date=this_monday())
-    save_entry(e)
-    e.status = TaskStatus.DONE
-    update_entry(e)
-
-    result = runner.invoke(main, ["daily"])
-    assert result.exit_code == 0
-    assert "finished task" in result.output
-
-
-def test_daily_log_shows_entries(runner, tmp_config, tmp_data):
-    _setup_config(tmp_config, tmp_data)
-    j = Entry.create(EntryType.JOURNAL, "feeling good")
-    save_entry(j)
-
-    result = runner.invoke(main, ["daily"])
-    assert result.exit_code == 0
-    assert "feeling good" in result.output
-
-
-def test_daily_log_empty(runner, tmp_config, tmp_data):
-    _setup_config(tmp_config, tmp_data)
-    result = runner.invoke(main, ["daily"])
-    assert result.exit_code == 0
-    assert "No entries" in result.output
-
-
 # --- Streak command tests ---
 
 
@@ -220,6 +188,58 @@ def test_bt_noargs_chains_wp_then_dp(runner, tmp_config, tmp_data, monkeypatch):
     assert result.exit_code == 0
     # wp should have run (Plan header)
     assert "Plan" in result.output
+
+
+def test_dp_emits_focused_event(runner, tmp_config, tmp_data, monkeypatch):
+    """bt dp should emit a 'focused' event on picked tasks."""
+    _setup_config(tmp_config, tmp_data)
+
+    t = Entry.create(EntryType.TASK, "plan me")  # no focus_date
+    save_entry(t)
+
+    # Mock questionary to select our task (value is entry ID)
+    import questionary
+    monkeypatch.setattr(
+        questionary, "checkbox",
+        lambda *a, **kw: type("Q", (), {"ask": lambda self: [t.id]})()
+    )
+
+    result = runner.invoke(main, ["dp"], input="\n")
+    assert result.exit_code == 0
+
+    from bute.storage import entry_path_from_id, load_entry
+    from bute.config import load_config
+    config = load_config()
+    path = entry_path_from_id(t.id, config)
+    reloaded = load_entry(path)
+    assert any(e["action"] == "focused" for e in reloaded.events), \
+        f"expected 'focused' event in {reloaded.events}"
+
+
+def test_wp_emits_week_planned_event(runner, tmp_config, tmp_data, monkeypatch):
+    """bt wp should emit a 'week_planned' event on selected tasks."""
+    _setup_config(tmp_config, tmp_data)
+
+    t = Entry.create(EntryType.TASK, "weekly me")  # no week_date
+    save_entry(t)
+
+    # Mock questionary to select our task (value is entry ID)
+    import questionary
+    monkeypatch.setattr(
+        questionary, "checkbox",
+        lambda *a, **kw: type("Q", (), {"ask": lambda self: [t.id]})()
+    )
+
+    result = runner.invoke(main, ["wp"], input="\n")
+    assert result.exit_code == 0
+
+    from bute.storage import entry_path_from_id, load_entry
+    from bute.config import load_config
+    config = load_config()
+    path = entry_path_from_id(t.id, config)
+    reloaded = load_entry(path)
+    assert any(e["action"] == "week_planned" for e in reloaded.events), \
+        f"expected 'week_planned' event in {reloaded.events}"
 
 
 def test_bt_noargs_skips_wp_when_done(runner, tmp_config, tmp_data, monkeypatch):

@@ -2,6 +2,7 @@
 
 from datetime import date, timedelta
 
+from bute import events as ev
 from bute.models import Entry, EntryType, TaskStatus
 from bute.parser import parse_capture_tokens
 from bute.storage import (
@@ -49,7 +50,7 @@ def get_today_schedule(config=None) -> list[Entry]:
     return sorted(result, key=lambda e: (e.scheduled_time or "", not e.important, e.created))
 
 
-def get_daily_log(config=None) -> list[Entry]:
+def get_daily_log(config=None, include_all: bool = False) -> list[Entry]:
     """The Focus Log — what matters today.
 
     Shows:
@@ -57,6 +58,10 @@ def get_daily_log(config=None) -> list[Entry]:
     - Calendar events for today (created today or scheduled today)
     - All journals created today
     - All notes created today
+
+    When include_all=True, also surfaces items filtered out of the curated
+    Focus view: tasks captured today without focus_date, dropped-today tasks,
+    and past timed calendar events.
     """
     today = date.today()
     today_entries = load_entries_by_date(today, config)
@@ -64,8 +69,12 @@ def get_daily_log(config=None) -> list[Entry]:
     result = []
     for e in today_entries:
         if e.type == EntryType.TASK:
-            # Only active tasks with focus_date == today (exclude habits — shown separately)
-            if e.focus_date == today and e.status == TaskStatus.ACTIVE and "habit" not in e.tags:
+            if "habit" in e.tags:
+                continue
+            if include_all:
+                # Every task captured today, any status
+                result.append(e)
+            elif e.focus_date == today and e.status == TaskStatus.ACTIVE:
                 result.append(e)
         elif e.type == EntryType.CALENDAR:
             # Calendar events created today with no scheduled_date, or scheduled for today
@@ -98,8 +107,8 @@ def get_daily_log(config=None) -> list[Entry]:
     scheduled_today = [e for e in scheduled_today if e.created.date() != today]
     for e in scheduled_today:
         if e.id not in seen:
-            # Skip done/dropped tasks
-            if e.type == EntryType.TASK and e.status != TaskStatus.ACTIVE:
+            # Skip done/dropped tasks unless include_all
+            if e.type == EntryType.TASK and e.status != TaskStatus.ACTIVE and not include_all:
                 continue
             seen.add(e.id)
             result.append(e)
@@ -118,13 +127,23 @@ def get_daily_log(config=None) -> list[Entry]:
             seen.add(e.id)
             result.append(e)
 
+    # Include tasks dropped today when showing all
+    if include_all:
+        dropped_today = get_tasks_dropped_today(config)
+        for e in dropped_today:
+            if e.id not in seen:
+                seen.add(e.id)
+                result.append(e)
+
     # Filter out past timed calendar events — they're noise in the Focus Log
-    from datetime import datetime
-    now = datetime.now().strftime("%H:%M")
-    result = [
-        e for e in result
-        if not (e.type == EntryType.CALENDAR and e.scheduled_time and e.scheduled_time < now)
-    ]
+    # Unless include_all, which wants the full picture.
+    if not include_all:
+        from datetime import datetime
+        now = datetime.now().strftime("%H:%M")
+        result = [
+            e for e in result
+            if not (e.type == EntryType.CALENDAR and e.scheduled_time and e.scheduled_time < now)
+        ]
 
     def _daily_sort_key(e):
         """Sort: tasks first (done at bottom), then calendar (timed→untimed), notes, journals.
@@ -270,6 +289,9 @@ def set_weekly_selection(entry_ids: list[str], config=None) -> int:
             continue
         entry = load_entry(path)
         entry.week_date = monday
+        entry.add_event(ev.WEEK_PLANNED, week_date=monday)
+        if entry.focus_date is not None:
+            entry.add_event(ev.FOCUSED, focus_date=entry.focus_date)
         update_entry(entry, config)
         count += 1
     return count
@@ -281,6 +303,7 @@ def clear_weekly_selection(config=None) -> int:
     entries = query_and_load(config, has_week_date=True)
     for entry in entries:
         entry.week_date = None
+        entry.add_event(ev.UNFOCUSED)
         update_entry(entry, config)
     return len(entries)
 

@@ -18,6 +18,7 @@ from bute.ritual_ops import (
     process_dump_line,
     set_weekly_selection,
 )
+from bute import events as ev
 from bute.storage import update_entry
 
 console = Console()
@@ -82,9 +83,11 @@ def dp_cmd(ctx, non_interactive):
                         entry = load_entry(path)
                         if e.id in selected_set and entry.focus_date != today:
                             entry.focus_date = today
+                            entry.add_event(ev.FOCUSED, focus_date=today)
                             update_entry(entry, config)
                         elif e.id not in selected_set and entry.focus_date is not None:
                             entry.focus_date = None
+                            entry.add_event(ev.UNFOCUSED)
                             update_entry(entry, config)
                     console.print(f"  [green]{len(selected)} tasks tagged for today[/green]")
             except ImportError:
