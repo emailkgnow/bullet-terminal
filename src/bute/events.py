@@ -73,3 +73,49 @@ def synthesize_events(entry: Entry) -> list[dict]:
 
     synth.sort(key=lambda x: x["date"])
     return synth
+
+
+def replay_state(events: Iterable[dict], up_to: date) -> dict:
+    """Return the entry state as of the start of `up_to`.
+
+    Replays events strictly before `up_to` (events on that date are NOT
+    applied — they *happen on* that day).
+
+    Returns a dict with keys:
+      - status: "absent" | "active" | "done" | "dropped"
+      - focus_date: ISO string or None
+      - scheduled_date: ISO string or None
+
+    "absent" means the entry had not been captured yet at start-of-day.
+    Events are expected to be sorted by date ascending — the function
+    does not sort internally.
+    """
+    state: dict = {
+        "status": "absent",
+        "focus_date": None,
+        "scheduled_date": None,
+    }
+    for ev in events:
+        ev_date = date.fromisoformat(ev["date"])
+        if ev_date >= up_to:
+            break  # sorted: no later events can apply
+        action = ev["action"]
+        if action == CAPTURED:
+            state["status"] = "active"
+        elif action == FOCUSED:
+            state["focus_date"] = ev.get("focus_date")
+        elif action == UNFOCUSED:
+            state["focus_date"] = None
+        elif action == SCHEDULED:
+            state["scheduled_date"] = ev.get("scheduled_date")
+        elif action == UNSCHEDULED:
+            state["scheduled_date"] = None
+        elif action == DONE:
+            state["status"] = "done"
+        elif action == DROPPED:
+            state["status"] = "dropped"
+        elif action == UNDROPPED:
+            state["status"] = "active"
+        # MODIFIED, WEEK_PLANNED, DUE_SET, DUE_CLEARED — don't change
+        # the status/focus_date/scheduled_date fields tracked here.
+    return state

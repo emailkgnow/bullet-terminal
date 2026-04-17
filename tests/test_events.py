@@ -225,3 +225,55 @@ def test_synthesize_events_skips_scheduled_equal_to_created():
     # Should have 'captured' but NOT an extra 'scheduled' on the same day
     actions_on_4_7 = [x["action"] for x in synth if x["date"] == "2026-04-07"]
     assert actions_on_4_7 == ["captured"]
+
+
+def test_replay_state_returns_state_before_day():
+    from bute.events import replay_state
+
+    events = [
+        {"date": "2026-04-07", "action": "captured"},
+        {"date": "2026-04-10", "action": "focused", "focus_date": "2026-04-10"},
+        {"date": "2026-04-20", "action": "dropped"},
+        {"date": "2026-04-21", "action": "undropped"},
+        {"date": "2026-04-21", "action": "done"},
+    ]
+
+    # Before Apr 7 — not yet captured
+    s = replay_state(events, date(2026, 4, 7))
+    assert s["status"] == "absent"
+
+    # Start of Apr 10 — captured but not focused yet
+    s = replay_state(events, date(2026, 4, 10))
+    assert s["status"] == "active"
+    assert s.get("focus_date") is None
+
+    # Start of Apr 20 — focused, still active
+    s = replay_state(events, date(2026, 4, 20))
+    assert s["status"] == "active"
+    assert s.get("focus_date") == "2026-04-10"
+
+    # Start of Apr 21 — dropped
+    s = replay_state(events, date(2026, 4, 21))
+    assert s["status"] == "dropped"
+
+    # Start of Apr 22 — done (after undrop+done on 21)
+    s = replay_state(events, date(2026, 4, 22))
+    assert s["status"] == "done"
+
+
+def test_replay_state_handles_empty_events():
+    from bute.events import replay_state
+    s = replay_state([], date(2026, 4, 7))
+    assert s["status"] == "absent"
+
+
+def test_replay_state_tracks_scheduled_date():
+    from bute.events import replay_state
+
+    events = [
+        {"date": "2026-04-07", "action": "captured"},
+        {"date": "2026-04-08", "action": "scheduled", "scheduled_date": "2026-04-15"},
+        {"date": "2026-04-12", "action": "unscheduled"},
+    ]
+    assert replay_state(events, date(2026, 4, 10))["scheduled_date"] == "2026-04-15"
+    assert replay_state(events, date(2026, 4, 13))["scheduled_date"] is None
