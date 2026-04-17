@@ -121,6 +121,8 @@ class Entry:
             d["tags"] = self.tags
         if self.extra_meta:
             d.update(self.extra_meta)
+        if self.events:
+            d["events"] = self.events
         if self.completions:
             d["completions"] = self.completions
         return d
