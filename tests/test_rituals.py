@@ -272,3 +272,36 @@ def test_bt_noargs_skips_wp_when_done(runner, tmp_config, tmp_data, monkeypatch)
     output_lines = result.output.split("\n")
     plan_lines = [l for l in output_lines if l.strip() == "Plan" or "Review your backlog" in l]
     assert len(plan_lines) == 0, f"wp should not have triggered, but found: {plan_lines}"
+
+
+def test_wp_no_spurious_focused_event_on_week_plan(runner, tmp_config, tmp_data, monkeypatch):
+    """wp should NOT emit FOCUSED when it only sets week_date, even if task already has a focus_date."""
+    _setup_config(tmp_config, tmp_data)
+
+    t = Entry.create(EntryType.TASK, "already focused", focus_date=date.today())
+    save_entry(t)
+
+    # Count FOCUSED events in the already-persisted state (should be 1 from Entry.create)
+    from bute.storage import entry_path_from_id, load_entry
+    from bute.config import load_config
+    config = load_config()
+    path = entry_path_from_id(t.id, config)
+    before = load_entry(path)
+    focused_before = sum(1 for e in before.events if e["action"] == "focused")
+    assert focused_before == 1  # from Entry.create
+
+    # Mock questionary to select our task (same pattern as test_wp_emits_week_planned_event)
+    import questionary
+    monkeypatch.setattr(
+        questionary, "checkbox",
+        lambda *a, **kw: type("Q", (), {"ask": lambda self: [t.id]})()
+    )
+
+    result = runner.invoke(main, ["wp"], input="\n")
+    assert result.exit_code == 0
+
+    after = load_entry(path)
+    focused_after = sum(1 for e in after.events if e["action"] == "focused")
+    # wp must not add a spurious FOCUSED — the count should be the same
+    assert focused_after == focused_before, \
+        f"wp added a spurious FOCUSED event: before={focused_before} after={focused_after} events={after.events}"

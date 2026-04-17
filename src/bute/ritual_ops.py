@@ -288,10 +288,9 @@ def set_weekly_selection(entry_ids: list[str], config=None) -> int:
         if path is None:
             continue
         entry = load_entry(path)
-        entry.week_date = monday
-        entry.add_event(ev.WEEK_PLANNED, week_date=monday)
-        if entry.focus_date is not None:
-            entry.add_event(ev.FOCUSED, focus_date=entry.focus_date)
+        if entry.week_date != monday:
+            entry.week_date = monday
+            entry.add_event(ev.WEEK_PLANNED, week_date=monday)
         update_entry(entry, config)
         count += 1
     return count
@@ -303,7 +302,6 @@ def clear_weekly_selection(config=None) -> int:
     entries = query_and_load(config, has_week_date=True)
     for entry in entries:
         entry.week_date = None
-        entry.add_event(ev.UNFOCUSED)
         update_entry(entry, config)
     return len(entries)
 
@@ -314,5 +312,6 @@ def clear_daily_focus(config=None) -> int:
     entries = query_and_load(config, has_focus_date=True)
     for entry in entries:
         entry.focus_date = None
+        entry.add_event(ev.UNFOCUSED)
         update_entry(entry, config)
     return len(entries)
