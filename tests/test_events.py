@@ -127,3 +127,101 @@ def test_entry_create_emits_scheduled_event_when_scheduled_date_set():
     e = Entry.create(EntryType.CALENDAR, "meeting", scheduled_date=date(2026, 5, 1))
     actions = [x["action"] for x in e.events]
     assert ev.SCHEDULED in actions
+
+
+def test_synthesize_events_from_legacy_entry():
+    """Legacy entry with no events gets synthesized from date fields."""
+    from bute.events import synthesize_events
+    from bute.models import Entry, EntryType, TaskStatus
+    from datetime import datetime, timezone
+
+    e = Entry(
+        id="01K",
+        type=EntryType.TASK,
+        body="legacy task",
+        created=datetime(2026, 4, 7, 10, tzinfo=timezone.utc),
+        status=TaskStatus.DONE,
+        focus_date=date(2026, 4, 14),
+        completed_date=date(2026, 4, 21),
+    )
+    e.events = []  # simulate pre-feature entry
+
+    synth = synthesize_events(e)
+    actions = [(x["date"], x["action"]) for x in synth]
+    assert ("2026-04-07", "captured") in actions
+    assert ("2026-04-14", "focused") in actions
+    assert ("2026-04-21", "done") in actions
+
+
+def test_synthesize_events_from_legacy_dropped_entry():
+    """Dropped legacy entry synthesizes 'dropped' on completed_date."""
+    from bute.events import synthesize_events
+    from bute.models import Entry, EntryType, TaskStatus
+    from datetime import datetime, timezone
+
+    e = Entry(
+        id="01K",
+        type=EntryType.TASK,
+        body="gave up",
+        created=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        status=TaskStatus.DROPPED,
+        completed_date=date(2026, 4, 10),
+    )
+    e.events = []
+    actions = [x["action"] for x in synthesize_events(e)]
+    assert "captured" in actions
+    assert "dropped" in actions
+
+
+def test_synthesize_events_prefers_real_events():
+    """If entry has real events, synthesize returns them (not a synthesized set)."""
+    from bute.events import synthesize_events
+    from bute.models import Entry, EntryType
+
+    e = Entry.create(EntryType.TASK, "t")
+    # Entry.create emits CAPTURED — so entry.events has one real event
+    assert len(e.events) == 1
+    result = synthesize_events(e)
+    assert result == e.events
+
+
+def test_synthesize_events_sorted_by_date():
+    """Synthesized events are sorted in chronological order."""
+    from bute.events import synthesize_events
+    from bute.models import Entry, EntryType, TaskStatus
+    from datetime import datetime, timezone
+
+    e = Entry(
+        id="01K",
+        type=EntryType.TASK,
+        body="t",
+        created=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        status=TaskStatus.DONE,
+        scheduled_date=date(2026, 4, 5),
+        focus_date=date(2026, 4, 10),
+        completed_date=date(2026, 4, 20),
+    )
+    e.events = []
+    dates = [x["date"] for x in synthesize_events(e)]
+    assert dates == sorted(dates)
+
+
+def test_synthesize_events_skips_scheduled_equal_to_created():
+    """Don't emit a SCHEDULED event if scheduled_date equals created.date() —
+    the capture event already covers that day."""
+    from bute.events import synthesize_events
+    from bute.models import Entry, EntryType
+    from datetime import datetime, timezone
+
+    e = Entry(
+        id="01K",
+        type=EntryType.CALENDAR,
+        body="standup",
+        created=datetime(2026, 4, 7, 10, tzinfo=timezone.utc),
+        scheduled_date=date(2026, 4, 7),  # same as created.date()
+    )
+    e.events = []
+    synth = synthesize_events(e)
+    # Should have 'captured' but NOT an extra 'scheduled' on the same day
+    actions_on_4_7 = [x["action"] for x in synth if x["date"] == "2026-04-07"]
+    assert actions_on_4_7 == ["captured"]

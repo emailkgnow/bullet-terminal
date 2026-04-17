@@ -31,3 +31,45 @@ ALL_ACTIONS = {
     DONE, DROPPED, UNDROPPED, WEEK_PLANNED, MODIFIED,
     DUE_SET, DUE_CLEARED,
 }
+
+
+def synthesize_events(entry: Entry) -> list[dict]:
+    """Return an event list for an entry.
+
+    If the entry has stored events, return them unchanged. Otherwise,
+    synthesize events from existing date fields (created, scheduled_date,
+    focus_date, completed_date + status) — used for legacy entries from
+    before the event-log feature shipped.
+
+    Returned list is sorted by date (ascending).
+    """
+    if entry.events:
+        return entry.events
+
+    created_date = entry.created.date()
+    synth: list[dict] = [
+        {"date": created_date.isoformat(), "action": CAPTURED}
+    ]
+
+    if entry.scheduled_date is not None and entry.scheduled_date != created_date:
+        synth.append({
+            "date": entry.scheduled_date.isoformat(),
+            "action": SCHEDULED,
+            "scheduled_date": entry.scheduled_date.isoformat(),
+        })
+
+    if entry.focus_date is not None and entry.focus_date != created_date:
+        synth.append({
+            "date": entry.focus_date.isoformat(),
+            "action": FOCUSED,
+            "focus_date": entry.focus_date.isoformat(),
+        })
+
+    if entry.completed_date is not None:
+        if entry.status == TaskStatus.DONE:
+            synth.append({"date": entry.completed_date.isoformat(), "action": DONE})
+        elif entry.status == TaskStatus.DROPPED:
+            synth.append({"date": entry.completed_date.isoformat(), "action": DROPPED})
+
+    synth.sort(key=lambda x: x["date"])
+    return synth
