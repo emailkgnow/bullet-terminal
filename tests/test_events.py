@@ -56,3 +56,32 @@ def test_events_round_trip(tmp_path, monkeypatch):
         {"date": "2026-04-10", "action": "focused", "focus_date": "2026-04-10"},
         {"date": "2026-04-21", "action": "done"},
     ]
+
+
+def test_events_normalize_yaml_date_objects(tmp_path, monkeypatch):
+    """Hand-edited YAML can contain unquoted dates that parse as date objects.
+    Load should coerce them to ISO strings so downstream replay works."""
+    from bute.storage import load_entry
+
+    md = tmp_path / "01X.md"
+    # unquoted 2026-04-10 -> yaml parses as datetime.date
+    md.write_text(
+        "---\n"
+        "id: 01X\n"
+        "type: task\n"
+        "created: '2026-04-07T10:00:00+00:00'\n"
+        "status: active\n"
+        "events:\n"
+        "  - date: 2026-04-07\n"
+        "    action: captured\n"
+        "  - date: 2026-04-10\n"
+        "    action: focused\n"
+        "    focus_date: 2026-04-10\n"
+        "---\n"
+        "body"
+    )
+    e = load_entry(md)
+    assert e.events[0]["date"] == "2026-04-07"
+    assert isinstance(e.events[0]["date"], str)
+    assert e.events[1]["focus_date"] == "2026-04-10"
+    assert isinstance(e.events[1]["focus_date"], str)

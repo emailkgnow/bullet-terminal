@@ -58,6 +58,17 @@ def _normalize_tags(raw: list) -> list[str]:
     return result
 
 
+def _normalize_event(ev: dict) -> dict:
+    """Coerce date/datetime values inside an event dict to ISO strings.
+
+    Guards against PyYAML auto-parsing unquoted YYYY-MM-DD strings.
+    """
+    return {
+        k: v.isoformat() if isinstance(v, (date, datetime)) else v
+        for k, v in ev.items()
+    }
+
+
 def load_entry(path: Path) -> Entry:
     """Read a Markdown file and reconstruct an Entry."""
     post = frontmatter.load(str(path))
@@ -92,7 +103,7 @@ def load_entry(path: Path) -> Entry:
         tags=_normalize_tags(post.metadata.get("tags", [])),
         extra_meta=extra_meta,
         completions=completions,
-        events=list(post.metadata.get("events", []) or []),
+        events=[_normalize_event(ev) for ev in (post.metadata.get("events") or [])],
     )
 
 
