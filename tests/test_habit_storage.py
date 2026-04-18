@@ -37,15 +37,22 @@ def test_get_habit_entries_selects_by_repeat_not_tag(tmp_data):
     assert "misleading legacy tag" not in bodies
 
 
-def test_habit_add_sets_repeat_not_tag(tmp_data):
-    """bt h <name> creates a recurring task without forcing an @habit tag."""
-    from bute.commands.habits import _get_habit_entries, handle_habit_add
+def test_done_on_recurring_appends_completion(tmp_data):
+    """bt <n> done on a recurring task appends today to completions, not status=DONE."""
+    from datetime import date
+    from bute.commands.action import handle_done
+    from bute.models import Entry, EntryType, TaskStatus
+    from bute.storage import load_entry, entry_path_from_id, save_entry
 
-    handle_habit_add("morning walk", None)
+    entry = Entry.create(
+        entry_type=EntryType.TASK,
+        body="meditate",
+        repeat="daily",
+    )
+    save_entry(entry)
 
-    entries = _get_habit_entries(None)
-    assert len(entries) == 1
-    entry = entries[0]
-    assert entry.body == "morning walk"
-    assert entry.repeat == "daily"
-    assert "habit" not in entry.tags  # no forced tag
+    handle_done(entry, [], None)
+
+    reloaded = load_entry(entry_path_from_id(entry.id))
+    assert reloaded.status == TaskStatus.ACTIVE  # never transitions to DONE
+    assert date.today().isoformat() in reloaded.completions

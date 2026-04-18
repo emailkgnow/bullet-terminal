@@ -72,11 +72,6 @@ class DwnGroup(click.Group):
             if cmd is not None:
                 return "month-log", cmd, rest
 
-        if first in ("h", "habit"):
-            cmd = self.get_command(ctx, "habits")
-            if cmd is not None:
-                return "habits", cmd, rest
-
         # 3. Signifier (short: t, /t | word: task, note, journal, calendar)
         is_short = SIGNIFIER_PATTERN.match(first)
         is_word = WORD_SIGNIFIER_PATTERN.match(first)
@@ -182,35 +177,11 @@ class DwnGroup(click.Group):
                 from bute.state import load_state
                 state = load_state()
 
-                # Pure habits view — all numbers are habits
-                if state.get("view") == "habits":
-                    cmd = self.get_command(ctx, "habits")
-                    if cmd is not None:
-                        return "habits", cmd, args
-
                 # Goals view — number only (no action) drills into goal
                 if state.get("view") == "goals" and len(args) == 1 and first.isdigit():
                     cmd = self.get_command(ctx, "goal_drill")
                     if cmd is not None:
                         return "goal_drill", cmd, args
-
-                # Mixed view (ls) — check if number falls in habit range
-                habits = state.get("habits", [])
-                if habits:
-                    entry_count = len(state.get("entries", []))
-                    habit_end = entry_count + len(habits)
-                    num = int(first)
-                    if entry_count < num <= habit_end:
-                        # Remap to habit-relative numbers for the habits command
-                        remapped = []
-                        for tok in args:
-                            if tok.isdigit() and int(tok) > entry_count:
-                                remapped.append(str(int(tok) - entry_count))
-                            else:
-                                remapped.append(tok)
-                        cmd = self.get_command(ctx, "habits")
-                        if cmd is not None:
-                            return "habits", cmd, remapped
             except Exception:
                 pass
 
@@ -281,7 +252,6 @@ def _print_help():
     t.add_row("[magenta]bt j[/magenta] <text>", "Journal", "bt j rough morning, couldn't focus")
     t.add_row("[green]bt c[/green] <text>", "Calendar event", "bt c standup t:9")
     t.add_row("[cyan]bt t[/cyan] <text> [bold]r:[/bold]<freq>", "Recurring task (habit)", "bt t meditate r:daily")
-    t.add_row("[cyan]bt h[/cyan] <name>", "Habit shortcut (same as t <name> r:daily)", "bt h morning walk")
     t.add_row("bt t/n/j/c open", "Open $EDITOR for long-form capture", "bt j open")
     console.print()
     console.print(t)
@@ -303,7 +273,6 @@ def _print_help():
     t.add_row("bt n", "Notes", "Grouped by date")
     t.add_row("bt j", "Journals", "Grouped by date")
     t.add_row("bt c", "Events", "Grouped by date")
-    t.add_row("bt h", "Habits — all recurring tasks", "Any task with r: set")
     t.add_row("bt m [dim][month|YYYY]", "Monthly Log", "bt m jan, bt m 2026-03, bt m 2026")
     t.add_row("bt due", "Tasks by deadline", "bt due all for everything")
     t.add_row("bt overdue", "Past-due tasks only", "")
@@ -318,7 +287,7 @@ def _print_help():
     console.print(t)
     console.print()
     console.print("    [dim]Also:[/dim] [bold]bt task[/bold] / [bold]bt note[/bold] / [bold]bt journal[/bold] / [bold]bt calendar[/bold] — full words work everywhere [cyan]t[/cyan]/[yellow]n[/yellow]/[magenta]j[/magenta]/[green]c[/green] do")
-    console.print("    [dim]Also:[/dim] [bold]bt backlog[/bold], [bold]bt month-log[/bold], [bold]bt habit[/bold] — long forms of [bold]b[/bold]/[bold]m[/bold]/[bold]h[/bold]")
+    console.print("    [dim]Also:[/dim] [bold]bt backlog[/bold], [bold]bt month-log[/bold] — long forms of [bold]b[/bold]/[bold]m[/bold]")
 
     # --- Actions ---
     t = Table(title="Actions — act on numbered entries from last view", title_style="bold cyan",
@@ -494,14 +463,17 @@ def main(ctx, interactive, demo, toggle_journal, show_all):
                 title = f"[strike]{title}[/strike]"
             display_entry_list(entries, title)
 
-            # Show habits
+            # Show recurring tasks — their IDs flow into the main entries list
+            # for uniform numbering (bt <n> done works the same as for any entry)
             from bute.commands.views import _show_habits
-            habit_names = _show_habits(config, len(entries))
+            habit_ids = _show_habits(config, len(entries))
+
+            entry_ids = [e.id for e in entries] + habit_ids
 
             # Random old journal whisper (numbered after entries + habits)
-            journal_id = _show_random_journal(config, len(entries) + len(habit_names))
+            journal_id = _show_random_journal(config, len(entry_ids))
 
-            save_state("ls", [e.id for e in entries], config, habits=habit_names, extra_entries=[journal_id] if journal_id else None)
+            save_state("ls", entry_ids, config, extra_entries=[journal_id] if journal_id else None)
 
         else:
             ctx.invoke(dp_cmd)
@@ -531,7 +503,7 @@ from bute.commands.rituals import (  # noqa: E402
     monthly_cmd,
     wp_cmd,
 )
-from bute.commands.habits import habits_cmd, migrate_habits_cmd, streak_cmd  # noqa: E402
+from bute.commands.habits import streak_cmd  # noqa: E402
 from bute.commands.stats import stats_cmd  # noqa: E402
 from bute.commands.export import export_cmd  # noqa: E402
 from bute.commands.search import find_cmd, like_cmd, rebuild_cmd, readme_cmd  # noqa: E402
@@ -559,7 +531,6 @@ main.add_command(goal_drill_cmd)
 main.add_command(dp_cmd)
 main.add_command(dp_cmd, name="daily-plan")
 main.add_command(dump_cmd)
-main.add_command(habits_cmd)
 main.add_command(streak_cmd)
 main.add_command(monthly_cmd)
 main.add_command(wp_cmd)
@@ -570,6 +541,5 @@ main.add_command(rebuild_cmd)
 main.add_command(readme_cmd)
 main.add_command(export_cmd)
 main.add_command(demo_cmd)
-main.add_command(migrate_habits_cmd)
 main.add_command(stats_cmd)
 main.add_command(this_cmd)

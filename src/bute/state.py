@@ -13,16 +13,14 @@ def state_path(config=None) -> Path:
     return get_data_dir(config) / ".state.json"
 
 
-def save_state(view_name: str, entry_ids: list[str], config=None, habits: list[str] | None = None, extra_entries: list[str] | None = None) -> Path:
-    """Write the current view state (number-to-ULID mapping, optional habits).
+def save_state(view_name: str, entry_ids: list[str], config=None, extra_entries: list[str] | None = None) -> Path:
+    """Write the current view state (number-to-ULID mapping).
 
-    extra_entries: entry IDs numbered after habits (e.g. random journal whisper).
+    extra_entries: entry IDs numbered after the main list (e.g. random journal whisper).
     """
     path = state_path(config)
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {"view": view_name, "entries": entry_ids}
-    if habits:
-        data["habits"] = habits
     if extra_entries:
         data["extra_entries"] = extra_entries
     path.write_text(json.dumps(data))
@@ -143,7 +141,7 @@ def pop_undo(entry_id: str | None = None, config=None) -> dict | None:
 def resolve_numbers(numbers: list[int], config=None) -> list[str]:
     """Map 1-indexed display numbers to ULIDs from the last view state.
 
-    Number mapping: entries (1..N), habits (N+1..N+H), extra_entries (N+H+1..).
+    Number mapping: entries (1..N), extra_entries (N+1..).
 
     Raises:
         StateNotFoundError: If no state file exists.
@@ -151,9 +149,8 @@ def resolve_numbers(numbers: list[int], config=None) -> list[str]:
     """
     state = load_state(config)
     entries = state.get("entries", [])
-    habits = state.get("habits", [])
     extra = state.get("extra_entries", [])
-    total = len(entries) + len(habits) + len(extra)
+    total = len(entries) + len(extra)
 
     result = []
     for n in numbers:
@@ -163,11 +160,6 @@ def resolve_numbers(numbers: list[int], config=None) -> list[str]:
             )
         if n <= len(entries):
             result.append(entries[n - 1])
-        elif n <= len(entries) + len(habits):
-            # Habit range — shouldn't reach here (habits dispatch handles it)
-            result.append(habits[n - len(entries) - 1])
         else:
-            # Extra entries (e.g. random journal)
-            idx = n - len(entries) - len(habits) - 1
-            result.append(extra[idx])
+            result.append(extra[n - len(entries) - 1])
     return result
