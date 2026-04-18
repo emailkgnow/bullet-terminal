@@ -207,18 +207,18 @@ def get_weekly_active_tasks(config=None) -> list[Entry]:
     """Active tasks selected for this week (week_date == this Monday).
 
     Falls back to all active tasks if none have week_date set
-    (e.g. user hasn't run bt wp yet). Excludes habits — they have
+    (e.g. user hasn't run bt wp yet). Excludes recurring tasks — they have
     their own view (bt streak).
     """
     from bute.storage import query_and_load
     weekly = query_and_load(
         config, type="task", status="active", week_date=this_monday().isoformat()
     )
-    weekly = [e for e in weekly if "habit" not in e.tags]
+    weekly = [e for e in weekly if not e.is_recurring()]
     if weekly:
         return weekly
     fallback = get_all_active_tasks(config)
-    return [e for e in fallback if "habit" not in e.tags]
+    return [e for e in fallback if not e.is_recurring()]
 
 
 def process_dump_line(line: str, config=None) -> Entry | None:
