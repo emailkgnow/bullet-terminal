@@ -6,6 +6,7 @@ import click
 from rich.console import Console
 
 from bute.display import (
+    _ZEBRA_STYLE,
     confirm_capture,
     display_entry_list,
     display_ritual_header,
@@ -106,17 +107,17 @@ def dp_cmd(ctx, non_interactive):
 def _build_month_data(target: date, config) -> dict[int, list[str]]:
     """Build a month's event-driven retrospective: dict of day_num -> list of rendered strings.
 
-    Each entry surfaces on every day any of its lifecycle events occurred
-    (captured, focused, scheduled, completed, dropped, undropped, etc.).
-    Pre-feature entries with no stored events use render-time synthesis
-    from existing date fields.
+    Each entry surfaces once per day it had a forward-moving lifecycle event
+    (captured, focused, scheduled, week-planned, done, dropped, undropped).
+    End-of-day state drives styling: done = strikethrough, dropped = dim.
+    Repeated appearance across days is the migration signal — no label needed.
+    Pre-feature entries with no stored events use render-time synthesis.
     """
     import calendar
+    from datetime import timedelta
     from bute.display import _preview
     from bute.events import (
-        CAPTURED, FOCUSED, UNFOCUSED, SCHEDULED, UNSCHEDULED,
-        DONE, DROPPED, UNDROPPED, WEEK_PLANNED, MODIFIED,
-        DUE_SET, DUE_CLEARED,
+        CAPTURED, FOCUSED, SCHEDULED, DONE, DROPPED, UNDROPPED, WEEK_PLANNED,
         synthesize_events, replay_state,
     )
     from bute.models import EntryType
@@ -129,26 +130,10 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
     if last_day > today:
         last_day = today
 
-    # Load every entry (no type/status filter) — we want everything with
-    # a lifecycle event in this month. Efficient enough for thousands of entries;
-    # add an indexed query later if needed.
     entries = query_and_load(config)
 
-    lines_by_day: dict[int, list[str]] = {}
-
-    verb = {
-        CAPTURED: "captured",
-        FOCUSED: "focused",
-        UNFOCUSED: "unfocused",
-        SCHEDULED: "scheduled",
-        UNSCHEDULED: "unscheduled",
-        DONE: "done \u2713",
-        DROPPED: "dropped \u2717",
-        UNDROPPED: "undropped",
-        WEEK_PLANNED: "week planned",
-        MODIFIED: "modified",
-        DUE_SET: "due set",
-        DUE_CLEARED: "due cleared",
+    APPEARANCE_ACTIONS = {
+        CAPTURED, FOCUSED, SCHEDULED, WEEK_PLANNED, DONE, DROPPED, UNDROPPED,
     }
     type_sigil = {
         EntryType.TASK: "[cyan].[/cyan]",
@@ -157,27 +142,31 @@ def _build_month_data(target: date, config) -> dict[int, list[str]]:
         EntryType.CALENDAR: "[green]o[/green]",
     }
 
+    lines_by_day: dict[int, list[str]] = {}
+
     for e in entries:
         events = synthesize_events(e)
-        for ev_item in events:
-            ev_date = date.fromisoformat(ev_item["date"])
-            if ev_date < first_day or ev_date > last_day:
-                continue
 
-            state = replay_state(events, ev_date)
+        # Collect the set of in-month days this entry "appears" on.
+        days_seen: set[date] = set()
+        for ev_item in events:
+            if ev_item["action"] not in APPEARANCE_ACTIONS:
+                continue
+            ev_date = date.fromisoformat(ev_item["date"])
+            if first_day <= ev_date <= last_day:
+                days_seen.add(ev_date)
+
+        for ev_date in days_seen:
+            end_state = replay_state(events, ev_date + timedelta(days=1))
             sigil = type_sigil[e.type]
             preview = _preview(e.body)
 
-            # Styling: strike/dim if the entry was already done/dropped at
-            # start of day, OR if the event itself is the done/dropped moment.
-            action = ev_item["action"]
-            if state["status"] == "done" or action == DONE:
+            if end_state["status"] == "done":
                 preview = f"[strike dim]{preview}[/strike dim]"
-            elif state["status"] == "dropped" or action == DROPPED:
+            elif end_state["status"] == "dropped":
                 preview = f"[dim]{preview}[/dim]"
 
-            action_verb = verb.get(action, action)
-            line = f"{sigil} {preview}  [dim]\u2192 {action_verb}[/dim]"
+            line = f"{sigil} {preview}"
             lines_by_day.setdefault(ev_date.day, []).append(line)
 
     return lines_by_day
@@ -204,12 +193,12 @@ def _render_month_table(target: date, lines_by_day: dict[int, list[str]], title:
     table.add_column("", width=3)  # weekday
     table.add_column("Entry", ratio=1, overflow="fold")
 
-    for day_num in sorted(lines_by_day):
+    for i, day_num in enumerate(sorted(lines_by_day)):
         d = date(target.year, target.month, day_num)
         weekday = WEEKDAYS[d.weekday()]
         entries_text = "\n".join(lines_by_day[day_num])
-        table.add_row(str(day_num), f"[dim]{weekday}[/dim]", entries_text)
-        table.add_section()
+        row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
+        table.add_row(str(day_num), f"[dim]{weekday}[/dim]", entries_text, style=row_style)
 
     return table
 
@@ -249,7 +238,7 @@ def dump_cmd(ctx):
         console.print(f"\n  [bold]{count}[/bold] [dim]task{'s' if count != 1 else ''} captured to Backlog.[/dim]")
 
 
-@click.command("monthly")
+@click.command("month-log")
 @click.argument("period", required=False, default=None)
 @click.pass_context
 def monthly_cmd(ctx, period):
