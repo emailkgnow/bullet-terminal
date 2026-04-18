@@ -65,3 +65,20 @@ def test_backlog_writes_state(runner, tmp_config, populated_data):
     state = json.loads(path.read_text())
     assert state["view"] == "backlog"
     assert len(state["entries"]) == 2  # both active tasks
+
+
+def test_tasks_view_excludes_recurring(tmp_config, tmp_data, runner):
+    """bt t / bt b exclude recurring tasks regardless of @habit tag."""
+    from bute.cli import main
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    regular = Entry.create(entry_type=EntryType.TASK, body="call dentist")
+    save_entry(regular)
+
+    recurring = Entry.create(entry_type=EntryType.TASK, body="meditate", repeat="daily")
+    save_entry(recurring)
+
+    result = runner.invoke(main, ["b"])
+    assert "call dentist" in result.output
+    assert "meditate" not in result.output
