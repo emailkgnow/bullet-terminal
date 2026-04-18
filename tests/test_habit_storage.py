@@ -35,3 +35,17 @@ def test_get_habit_entries_selects_by_repeat_not_tag(tmp_data):
     assert "daily meditation" in bodies
     assert "friday status update" in bodies
     assert "misleading legacy tag" not in bodies
+
+
+def test_habit_add_sets_repeat_not_tag(tmp_data):
+    """bt h <name> creates a recurring task without forcing an @habit tag."""
+    from bute.commands.habits import _get_habit_entries, handle_habit_add
+
+    handle_habit_add("morning walk", None)
+
+    entries = _get_habit_entries(None)
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.body == "morning walk"
+    assert entry.repeat == "daily"
+    assert "habit" not in entry.tags  # no forced tag

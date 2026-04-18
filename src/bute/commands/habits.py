@@ -137,7 +137,6 @@ def handle_habit_add(text: str, config) -> None:
     entry = Entry.create(
         entry_type=EntryType.TASK,
         body=name,
-        tags=["habit"],
         repeat="daily",
     )
     # Habits don't need @today/@thisweek
