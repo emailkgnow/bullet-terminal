@@ -6,7 +6,7 @@ from pathlib import Path
 import frontmatter
 
 from bute.config import get_data_dir
-from bute.models import Entry, EntryType, TaskStatus
+from bute.models import Entry, EntryType, TaskStatus, expand_date_runs
 
 
 def entry_path(entry: Entry, config=None) -> Path:
@@ -84,7 +84,7 @@ def load_entry(path: Path) -> Entry:
     }
 
     raw_completions = post.metadata.get("completions", [])
-    completions = [str(c) for c in raw_completions] if raw_completions else []
+    completions = expand_date_runs(raw_completions) if raw_completions else []
 
     return Entry(
         id=post["id"],

@@ -1,11 +1,61 @@
 """Entry data models for bute."""
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
 from ulid import ULID
+
+
+def compact_date_runs(dates: list[str]) -> list[str]:
+    """Run-length-encode a list of ISO dates into ranges.
+
+    Consecutive dates collapse to "YYYY-MM-DD..YYYY-MM-DD"; isolated dates
+    stay as "YYYY-MM-DD". Input may be unsorted or contain duplicates;
+    output is always sorted with unique days.
+    """
+    if not dates:
+        return []
+    sorted_dates = sorted({str(d) for d in dates})
+    runs: list[str] = []
+    run_start = sorted_dates[0]
+    prev = run_start
+    for current in sorted_dates[1:]:
+        if (date.fromisoformat(current) - date.fromisoformat(prev)).days == 1:
+            prev = current
+            continue
+        runs.append(run_start if run_start == prev else f"{run_start}..{prev}")
+        run_start = current
+        prev = current
+    runs.append(run_start if run_start == prev else f"{run_start}..{prev}")
+    return runs
+
+
+def expand_date_runs(runs: list) -> list[str]:
+    """Expand RLE-encoded date ranges back into a sorted flat list of ISO dates.
+
+    Accepts both "YYYY-MM-DD" and "YYYY-MM-DD..YYYY-MM-DD" forms. Duplicate
+    days across runs collapse to one. A plain legacy list of dates (no
+    ".." ranges) round-trips unchanged.
+    """
+    if not runs:
+        return []
+    days: set[str] = set()
+    for run in runs:
+        text = str(run).strip()
+        if ".." in text:
+            start_s, end_s = text.split("..", 1)
+            start = date.fromisoformat(start_s.strip())
+            end = date.fromisoformat(end_s.strip())
+            current = start
+            while current <= end:
+                days.add(current.isoformat())
+                current += timedelta(days=1)
+        else:
+            date.fromisoformat(text)  # validate
+            days.add(text)
+    return sorted(days)
 
 
 class EntryType(str, Enum):
@@ -138,7 +188,7 @@ class Entry:
         if self.events:
             d["events"] = self.events
         if self.completions:
-            d["completions"] = self.completions
+            d["completions"] = compact_date_runs(self.completions)
         return d
 
     def is_recurring(self) -> bool:
