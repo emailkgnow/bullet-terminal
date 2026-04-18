@@ -13,7 +13,7 @@ SIGNIFIER_PATTERN = re.compile(r"^/?[tnjc]!?$")
 WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|calendar)!?$")
 
 # Short letter to view command mapping (when no text follows)
-SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog", "m": "month-log"}
+SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog"}
 WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calendar": "calendar"}
 
 
@@ -66,11 +66,6 @@ class DwnGroup(click.Group):
             cmd = self.get_command(ctx, "backlog")
             if cmd is not None:
                 return "backlog", cmd, rest
-
-        if first == "m":
-            cmd = self.get_command(ctx, "month-log")
-            if cmd is not None:
-                return "month-log", cmd, rest
 
         # 3. Signifier (short: t, /t | word: task, note, journal, calendar)
         is_short = SIGNIFIER_PATTERN.match(first)
@@ -273,7 +268,6 @@ def _print_help():
     t.add_row("bt n", "Notes", "Grouped by date")
     t.add_row("bt j", "Journals", "Grouped by date")
     t.add_row("bt c", "Events", "Grouped by date")
-    t.add_row("bt m [dim][month|YYYY]", "Monthly Log", "bt m jan, bt m 2026-03, bt m 2026")
     t.add_row("bt due", "Tasks by deadline", "bt due all for everything")
     t.add_row("bt overdue", "Past-due tasks only", "")
     t.add_row("bt goals", "Goals with task progress", "")
@@ -287,7 +281,7 @@ def _print_help():
     console.print(t)
     console.print()
     console.print("    [dim]Also:[/dim] [bold]bt task[/bold] / [bold]bt note[/bold] / [bold]bt journal[/bold] / [bold]bt calendar[/bold] — full words work everywhere [cyan]t[/cyan]/[yellow]n[/yellow]/[magenta]j[/magenta]/[green]c[/green] do")
-    console.print("    [dim]Also:[/dim] [bold]bt backlog[/bold], [bold]bt month-log[/bold] — long forms of [bold]b[/bold]/[bold]m[/bold]")
+    console.print("    [dim]Also:[/dim] [bold]bt backlog[/bold] — long form of [bold]b[/bold]")
 
     # --- Actions ---
     t = Table(title="Actions — act on numbered entries from last view", title_style="bold cyan",
@@ -500,7 +494,6 @@ from bute.commands.views import (  # noqa: E402
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
     dump_cmd,
-    monthly_cmd,
     wp_cmd,
 )
 from bute.commands.habits import streak_cmd  # noqa: E402
@@ -532,7 +525,6 @@ main.add_command(dp_cmd)
 main.add_command(dp_cmd, name="daily-plan")
 main.add_command(dump_cmd)
 main.add_command(streak_cmd)
-main.add_command(monthly_cmd)
 main.add_command(wp_cmd)
 main.add_command(wp_cmd, name="weekly-plan")
 main.add_command(like_cmd)

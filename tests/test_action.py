@@ -378,8 +378,10 @@ def test_get_weekly_active_tasks_filters_by_week_date(tmp_data):
 # --- Event emission tests ---
 
 
-def test_action_done_emits_done_event(runner, tmp_config, tmp_data):
-    """bt <n> done should append a 'done' event to the entry."""
+def test_action_done_sets_status_and_completed_date(runner, tmp_config, tmp_data):
+    """bt <n> done should set status=done and completed_date=today."""
+    from datetime import date
+    from bute.models import TaskStatus
     entry = Entry.create(EntryType.TASK, "ship it")
     save_entry(entry)
     save_state("tasks", [entry.id])
@@ -388,12 +390,14 @@ def test_action_done_emits_done_event(runner, tmp_config, tmp_data):
     assert result.exit_code == 0
 
     reloaded = load_entry(entry_path_from_id(entry.id))
-    actions = [ev["action"] for ev in reloaded.events]
-    assert "done" in actions
+    assert reloaded.status == TaskStatus.DONE
+    assert reloaded.completed_date == date.today()
 
 
-def test_action_drop_emits_dropped_event(runner, tmp_config, tmp_data):
-    """bt <n> drop should append a 'dropped' event."""
+def test_action_drop_sets_status_dropped(runner, tmp_config, tmp_data):
+    """bt <n> drop should set status=dropped and completed_date=today."""
+    from datetime import date
+    from bute.models import TaskStatus
     entry = Entry.create(EntryType.TASK, "nope")
     save_entry(entry)
     save_state("tasks", [entry.id])
@@ -402,12 +406,12 @@ def test_action_drop_emits_dropped_event(runner, tmp_config, tmp_data):
     assert result.exit_code == 0
 
     reloaded = load_entry(entry_path_from_id(entry.id))
-    actions = [ev["action"] for ev in reloaded.events]
-    assert "dropped" in actions
+    assert reloaded.status == TaskStatus.DROPPED
+    assert reloaded.completed_date == date.today()
 
 
-def test_action_later_emits_unfocused_event(runner, tmp_config, tmp_data):
-    """bt <n> later should append an 'unfocused' event when focus_date is cleared."""
+def test_action_later_clears_focus_date(runner, tmp_config, tmp_data):
+    """bt <n> later should clear focus_date so the task drops off today's log."""
     from datetime import date
     entry = Entry.create(EntryType.TASK, "meh", focus_date=date.today())
     save_entry(entry)
@@ -417,5 +421,4 @@ def test_action_later_emits_unfocused_event(runner, tmp_config, tmp_data):
     assert result.exit_code == 0
 
     reloaded = load_entry(entry_path_from_id(entry.id))
-    actions = [ev["action"] for ev in reloaded.events]
-    assert "unfocused" in actions
+    assert reloaded.focus_date is None

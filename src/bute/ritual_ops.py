@@ -2,7 +2,6 @@
 
 from datetime import date, timedelta
 
-from bute import events as ev
 from bute.models import Entry, EntryType, TaskStatus
 from bute.parser import parse_capture_tokens
 from bute.storage import (
@@ -283,7 +282,6 @@ def set_weekly_selection(entry_ids: list[str], config=None) -> int:
         entry = load_entry(path)
         if entry.week_date != monday:
             entry.week_date = monday
-            entry.add_event(ev.WEEK_PLANNED, week_date=monday)
         update_entry(entry, config)
         count += 1
     return count
@@ -305,6 +303,5 @@ def clear_daily_focus(config=None) -> int:
     entries = query_and_load(config, has_focus_date=True)
     for entry in entries:
         entry.focus_date = None
-        entry.add_event(ev.UNFOCUSED)
         update_entry(entry, config)
     return len(entries)

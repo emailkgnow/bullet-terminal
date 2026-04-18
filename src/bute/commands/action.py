@@ -7,7 +7,6 @@ from datetime import date
 import click
 from rich.console import Console
 
-from bute import events as ev
 from bute.display import display_action_confirmation
 from bute.errors import DwnError, InvalidActionError
 from bute.models import Entry, EntryType, TaskStatus
@@ -70,7 +69,6 @@ def handle_done(entry: Entry, args: list[str], config) -> None:
         )
         entry.status = TaskStatus.DONE
         entry.completed_date = date.today()
-        entry.add_event(ev.DONE)
         update_entry(entry, config)
 
 
@@ -87,7 +85,6 @@ def handle_drop(entry: Entry, args: list[str], config) -> None:
     )
     entry.status = TaskStatus.DROPPED
     entry.completed_date = date.today()
-    entry.add_event(ev.DROPPED)
     update_entry(entry, config)
 
 
@@ -123,7 +120,6 @@ def handle_mod(entry: Entry, args: list[str], config) -> None:
     if not args:
         raise InvalidActionError("mod requires new text. Usage: bt 1 mod new text here")
     entry.body = " ".join(args)
-    entry.add_event(ev.MODIFIED)
     update_entry(entry, config)
 
 
@@ -168,7 +164,6 @@ def handle_later(entry: Entry, args: list[str], config) -> None:
             config,
         )
         entry.focus_date = None
-        entry.add_event(ev.UNFOCUSED)
         update_entry(entry, config)
     else:
         Console().print(f"  [dim]Not in today's log[/dim]")
@@ -190,7 +185,6 @@ def handle_focus(entry: Entry, args: list[str], config) -> None:
     record_undo(entry.id, "focus", prev, config)
     entry.focus_date = today
     entry.week_date = monday
-    entry.add_event(ev.FOCUSED, focus_date=today)
     update_entry(entry, config)
 
 
@@ -207,7 +201,6 @@ def handle_backlog(entry: Entry, args: list[str], config) -> None:
     record_undo(entry.id, "backlog", prev, config)
     entry.focus_date = None
     entry.week_date = None
-    entry.add_event(ev.UNFOCUSED)
     update_entry(entry, config)
 
 
@@ -255,11 +248,9 @@ def handle_set_meta(entry: Entry, meta: dict[str, str], config) -> None:
         prev["scheduled_date"] = entry.scheduled_date.isoformat() if entry.scheduled_date else None
         if not raw_date or raw_date.lower() == "none":
             entry.scheduled_date = None
-            entry.add_event(ev.UNSCHEDULED)
             labels.append("d:cleared")
         else:
             entry.scheduled_date = resolve_date(raw_date)
-            entry.add_event(ev.SCHEDULED, scheduled_date=entry.scheduled_date)
             labels.append(f"d:{entry.scheduled_date}")
 
     # t: or time: (empty clears)
@@ -393,8 +384,6 @@ def apply_undo(record: dict, config) -> None:
             entry.status = TaskStatus(prev["status"])
             prev_completed = prev.get("completed_date")
             entry.completed_date = date_type.fromisoformat(prev_completed) if prev_completed else None
-            if entry.status == TaskStatus.ACTIVE:
-                entry.add_event(ev.UNDROPPED)
             update_entry(entry, config)
     elif action == "!":
         entry.important = prev["important"]

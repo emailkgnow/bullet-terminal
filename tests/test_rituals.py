@@ -136,7 +136,7 @@ def test_streak_no_habits(runner, tmp_config, tmp_data):
     _setup_config(tmp_config, tmp_data)
     result = runner.invoke(main, ["streak"])
     assert result.exit_code == 0
-    assert "No habits" in result.output or "no habits" in result.output.lower()
+    assert "No recurring tasks" in result.output or "no habits" in result.output.lower()
 
 
 # --- Config key: core.wp_day tests ---
@@ -190,8 +190,8 @@ def test_bt_noargs_chains_wp_then_dp(runner, tmp_config, tmp_data, monkeypatch):
     assert "Plan" in result.output
 
 
-def test_dp_emits_focused_event(runner, tmp_config, tmp_data, monkeypatch):
-    """bt dp should emit a 'focused' event on picked tasks."""
+def test_dp_sets_focus_date_on_picked_task(runner, tmp_config, tmp_data, monkeypatch):
+    """bt dp should set focus_date=today on picked tasks."""
     _setup_config(tmp_config, tmp_data)
 
     t = Entry.create(EntryType.TASK, "plan me")  # no focus_date
@@ -212,13 +212,14 @@ def test_dp_emits_focused_event(runner, tmp_config, tmp_data, monkeypatch):
     config = load_config()
     path = entry_path_from_id(t.id, config)
     reloaded = load_entry(path)
-    assert any(e["action"] == "focused" for e in reloaded.events), \
-        f"expected 'focused' event in {reloaded.events}"
+    assert reloaded.focus_date == date.today(), \
+        f"expected focus_date == today on picked task, got {reloaded.focus_date}"
 
 
-def test_wp_emits_week_planned_event(runner, tmp_config, tmp_data, monkeypatch):
-    """bt wp should emit a 'week_planned' event on selected tasks."""
+def test_wp_sets_week_date_on_picked_task(runner, tmp_config, tmp_data, monkeypatch):
+    """bt wp should set week_date=this Monday on selected tasks."""
     _setup_config(tmp_config, tmp_data)
+    from bute.ritual_ops import this_monday
 
     t = Entry.create(EntryType.TASK, "weekly me")  # no week_date
     save_entry(t)
@@ -238,8 +239,8 @@ def test_wp_emits_week_planned_event(runner, tmp_config, tmp_data, monkeypatch):
     config = load_config()
     path = entry_path_from_id(t.id, config)
     reloaded = load_entry(path)
-    assert any(e["action"] == "week_planned" for e in reloaded.events), \
-        f"expected 'week_planned' event in {reloaded.events}"
+    assert reloaded.week_date == this_monday(), \
+        f"expected week_date == this_monday on picked task, got {reloaded.week_date}"
 
 
 def test_bt_noargs_skips_wp_when_done(runner, tmp_config, tmp_data, monkeypatch):
@@ -274,61 +275,3 @@ def test_bt_noargs_skips_wp_when_done(runner, tmp_config, tmp_data, monkeypatch)
     assert len(plan_lines) == 0, f"wp should not have triggered, but found: {plan_lines}"
 
 
-def test_monthly_log_shows_entry_on_each_event_day(runner, tmp_config, tmp_data):
-    """A legacy task captured Apr 7 and completed Apr 21 should surface on
-    BOTH days, via synthesized events."""
-    from datetime import datetime, timezone, date
-    from bute.models import Entry, EntryType, TaskStatus
-    from bute.storage import save_entry
-    _setup_config(tmp_config, tmp_data)
-
-    e = Entry(
-        id="01KN47RM804BG4Z762J0MEKGSZ",
-        type=EntryType.TASK,
-        body="fix auth bug",
-        created=datetime(2026, 4, 1, 10, tzinfo=timezone.utc),
-        status=TaskStatus.DONE,
-        focus_date=date(2026, 4, 7),
-        completed_date=date(2026, 4, 14),
-        events=[],  # legacy — synthesized at render time
-    )
-    save_entry(e)
-
-    result = runner.invoke(main, ["m", "2026-04"])
-    assert result.exit_code == 0
-    # Body should appear on at least 3 days: captured, focused, done
-    assert result.output.count("fix auth bug") >= 3, \
-        f"expected entry on >=3 days, got output:\n{result.output}"
-
-
-def test_wp_no_spurious_focused_event_on_week_plan(runner, tmp_config, tmp_data, monkeypatch):
-    """wp should NOT emit FOCUSED when it only sets week_date, even if task already has a focus_date."""
-    _setup_config(tmp_config, tmp_data)
-
-    t = Entry.create(EntryType.TASK, "already focused", focus_date=date.today())
-    save_entry(t)
-
-    # Count FOCUSED events in the already-persisted state (should be 1 from Entry.create)
-    from bute.storage import entry_path_from_id, load_entry
-    from bute.config import load_config
-    config = load_config()
-    path = entry_path_from_id(t.id, config)
-    before = load_entry(path)
-    focused_before = sum(1 for e in before.events if e["action"] == "focused")
-    assert focused_before == 1  # from Entry.create
-
-    # Mock questionary to select our task (same pattern as test_wp_emits_week_planned_event)
-    import questionary
-    monkeypatch.setattr(
-        questionary, "checkbox",
-        lambda *a, **kw: type("Q", (), {"ask": lambda self: [t.id]})()
-    )
-
-    result = runner.invoke(main, ["wp"], input="\n")
-    assert result.exit_code == 0
-
-    after = load_entry(path)
-    focused_after = sum(1 for e in after.events if e["action"] == "focused")
-    # wp must not add a spurious FOCUSED — the count should be the same
-    assert focused_after == focused_before, \
-        f"wp added a spurious FOCUSED event: before={focused_before} after={focused_after} events={after.events}"

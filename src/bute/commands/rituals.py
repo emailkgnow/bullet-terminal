@@ -6,7 +6,6 @@ import click
 from rich.console import Console
 
 from bute.display import (
-    _ZEBRA_STYLE,
     confirm_capture,
     display_entry_list,
     display_ritual_header,
@@ -19,7 +18,6 @@ from bute.ritual_ops import (
     process_dump_line,
     set_weekly_selection,
 )
-from bute import events as ev
 from bute.storage import update_entry
 
 console = Console()
@@ -84,11 +82,9 @@ def dp_cmd(ctx, non_interactive):
                         entry = load_entry(path)
                         if e.id in selected_set and entry.focus_date != today:
                             entry.focus_date = today
-                            entry.add_event(ev.FOCUSED, focus_date=today)
                             update_entry(entry, config)
                         elif e.id not in selected_set and entry.focus_date is not None:
                             entry.focus_date = None
-                            entry.add_event(ev.UNFOCUSED)
                             update_entry(entry, config)
                     console.print(f"  [green]{len(selected)} tasks tagged for today[/green]")
             except ImportError:
@@ -99,108 +95,6 @@ def dp_cmd(ctx, non_interactive):
     mark_dp_done(config)
 
     console.print(f"\n  [bold green]Ready. Go.[/bold green]")
-
-
-# --- Monthly Log ---
-
-
-def _build_month_data(target: date, config) -> dict[int, list[str]]:
-    """Build a month's event-driven retrospective: dict of day_num -> list of rendered strings.
-
-    Each entry surfaces once per day it had a forward-moving lifecycle event
-    (captured, focused, scheduled, week-planned, done, dropped, undropped).
-    End-of-day state drives styling: done = strikethrough, dropped = dim.
-    Repeated appearance across days is the migration signal — no label needed.
-    Pre-feature entries with no stored events use render-time synthesis.
-    """
-    import calendar
-    from datetime import timedelta
-    from bute.display import _preview
-    from bute.events import (
-        CAPTURED, FOCUSED, SCHEDULED, DONE, DROPPED, UNDROPPED, WEEK_PLANNED,
-        synthesize_events, replay_state,
-    )
-    from bute.models import EntryType
-    from bute.storage import query_and_load
-
-    first_day = date(target.year, target.month, 1)
-    _, last = calendar.monthrange(target.year, target.month)
-    last_day = date(target.year, target.month, last)
-    today = date.today()
-    if last_day > today:
-        last_day = today
-
-    entries = query_and_load(config)
-
-    APPEARANCE_ACTIONS = {
-        CAPTURED, FOCUSED, SCHEDULED, WEEK_PLANNED, DONE, DROPPED, UNDROPPED,
-    }
-    type_sigil = {
-        EntryType.TASK: "[cyan].[/cyan]",
-        EntryType.NOTE: "[yellow]-[/yellow]",
-        EntryType.JOURNAL: "[magenta]=[/magenta]",
-        EntryType.CALENDAR: "[green]o[/green]",
-    }
-
-    lines_by_day: dict[int, list[str]] = {}
-
-    for e in entries:
-        events = synthesize_events(e)
-
-        # Collect the set of in-month days this entry "appears" on.
-        days_seen: set[date] = set()
-        for ev_item in events:
-            if ev_item["action"] not in APPEARANCE_ACTIONS:
-                continue
-            ev_date = date.fromisoformat(ev_item["date"])
-            if first_day <= ev_date <= last_day:
-                days_seen.add(ev_date)
-
-        for ev_date in days_seen:
-            end_state = replay_state(events, ev_date + timedelta(days=1))
-            sigil = type_sigil[e.type]
-            preview = _preview(e.body)
-
-            if end_state["status"] == "done":
-                preview = f"[strike dim]{preview}[/strike dim]"
-            elif end_state["status"] == "dropped":
-                preview = f"[dim]{preview}[/dim]"
-
-            line = f"{sigil} {preview}"
-            lines_by_day.setdefault(ev_date.day, []).append(line)
-
-    return lines_by_day
-
-
-def _render_month_table(target: date, lines_by_day: dict[int, list[str]], title: str | None = None) -> "Table":
-    """Render a month's linelog as a Rich Table."""
-    from rich.table import Table
-    from rich.text import Text
-
-    WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-
-    table = Table(
-        title=title or f"Monthly Log — {target.strftime('%B %Y')}",
-        title_style="bold",
-        show_header=True,
-        header_style="bold dim",
-        box=None,
-        pad_edge=False,
-        padding=(0, 1),
-        expand=True,
-    )
-    table.add_column("Day", style="bold", width=3, justify="right")
-    table.add_column("", width=3)  # weekday
-    table.add_column("Entry", ratio=1, overflow="fold")
-
-    for i, day_num in enumerate(sorted(lines_by_day)):
-        d = date(target.year, target.month, day_num)
-        weekday = WEEKDAYS[d.weekday()]
-        entries_text = "\n".join(lines_by_day[day_num])
-        row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
-        table.add_row(str(day_num), f"[dim]{weekday}[/dim]", entries_text, style=row_style)
-
-    return table
 
 
 @click.command("dump")
@@ -236,63 +130,6 @@ def dump_cmd(ctx):
         console.print("  [dim]Nothing to dump — clear head.[/dim]")
     else:
         console.print(f"\n  [bold]{count}[/bold] [dim]task{'s' if count != 1 else ''} captured to Backlog.[/dim]")
-
-
-@click.command("month-log")
-@click.argument("period", required=False, default=None)
-@click.pass_context
-def monthly_cmd(ctx, period):
-    """Monthly log. No args = this month. 'bt m jan', YYYY-MM, or YYYY."""
-    config = ctx.obj.get("config")
-
-    MONTH_NAMES = {
-        "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-        "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
-        "january": 1, "february": 2, "march": 3, "april": 4, "june": 6,
-        "july": 7, "august": 8, "september": 9, "october": 10,
-        "november": 11, "december": 12,
-    }
-
-    if period and len(period) == 4 and period.isdigit():
-        # Year mode — show all months
-        year = int(period)
-        found_any = False
-        for m in range(1, 13):
-            target = date(year, m, 1)
-            data = _build_month_data(target, config)
-            if data:
-                if not found_any:
-                    console.print()
-                found_any = True
-                table = _render_month_table(target, data, title=f"Monthly Log — {target.strftime('%B %Y')}")
-                console.print(table)
-                console.print()
-        if not found_any:
-            console.print(f"  [dim]No entries for {year}.[/dim]")
-    else:
-        if period:
-            # Try month name first (jan, february, etc.)
-            month_num = MONTH_NAMES.get(period.lower())
-            if month_num:
-                target = date(date.today().year, month_num, 1)
-            else:
-                try:
-                    target = date.fromisoformat(f"{period}-01")
-                except ValueError:
-                    console.print(f"  [red]Invalid period: {period}. Use month name (jan), YYYY-MM, or YYYY.[/red]")
-                    return
-        else:
-            target = date.today()
-
-        data = _build_month_data(target, config)
-        if not data:
-            console.print(f"  [dim]No entries for {target.strftime('%B %Y')}.[/dim]")
-            return
-
-        console.print()
-        table = _render_month_table(target, data)
-        console.print(table)
-        console.print()
 
 
 # --- Weekly Plan ---

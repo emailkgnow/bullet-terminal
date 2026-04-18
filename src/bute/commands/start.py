@@ -62,7 +62,6 @@ def start_cmd(ctx):
     console.print("    [bold]bt t[/bold]             [dim]this week's tasks[/dim]")
     console.print("    [bold]bt b[/bold]             [dim]full task backlog[/dim]")
     console.print("    [bold]bt n / j / c[/bold]     [dim]notes / journals / calendar[/dim]")
-    console.print("    [bold]bt m[/bold]             [dim]monthly log[/dim]  [dim](bt m jan, bt m 2026)[/dim]")
     console.print("    [bold]bt due[/bold]           [dim]tasks by deadline[/dim]")
     console.print("    [bold]bt goals[/bold]         [dim]goals with task progress[/dim]")
     console.print("    [bold]bt @tag[/bold]          [dim]filter by tag[/dim]  [dim](bt @backend -@done)[/dim]")

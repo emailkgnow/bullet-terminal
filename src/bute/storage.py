@@ -58,22 +58,13 @@ def _normalize_tags(raw: list) -> list[str]:
     return result
 
 
-def _normalize_event(ev: dict) -> dict:
-    """Coerce date/datetime values inside an event dict to ISO strings.
-
-    Guards against PyYAML auto-parsing unquoted YYYY-MM-DD strings.
-    """
-    return {
-        k: v.isoformat() if isinstance(v, (date, datetime)) else v
-        for k, v in ev.items()
-    }
-
-
 def load_entry(path: Path) -> Entry:
     """Read a Markdown file and reconstruct an Entry."""
     post = frontmatter.load(str(path))
 
-    # Known frontmatter keys — everything else goes to extra_meta
+    # Known frontmatter keys — everything else goes to extra_meta.
+    # "events" is accepted (dropped) for back-compat with legacy .md files
+    # written before the event log was removed.
     known_keys = {
         "id", "type", "created", "status", "important",
         "due", "date", "time", "repeat", "tags", "completions",
@@ -103,7 +94,6 @@ def load_entry(path: Path) -> Entry:
         tags=_normalize_tags(post.metadata.get("tags", [])),
         extra_meta=extra_meta,
         completions=completions,
-        events=[_normalize_event(ev) for ev in (post.metadata.get("events") or [])],
     )
 
 
