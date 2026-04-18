@@ -10,7 +10,7 @@ bute (BuTe — Bullet Terminal) is a CLI life management system based on the Bul
 
 ```bash
 # Install all deps (dev + optional)
-uv sync --extra embeddings --extra ai --extra dev
+uv sync --extra embeddings --extra dev
 
 # Run tests
 uv run pytest                         # all tests
@@ -19,7 +19,7 @@ uv run pytest -m "not slow"           # skip embedding tests
 uv run pytest --cov=src/bute          # with coverage
 
 # Install globally (for manual testing)
-uv tool install --from . --with fastembed --with sqlite-vec --with openai bute --force --reinstall
+uv tool install --from . --with fastembed --with sqlite-vec bute --force --reinstall
 
 # Build
 uv build
@@ -48,7 +48,7 @@ Bullet symbols (`. - = o`) are used in display output but not accepted as CLI in
 - **Task statuses**: `active`, `done`, `dropped` (no `migrated` — removed by design)
 - **IDs**: ULID (time-sortable, 26 chars)
 - **Storage**: one `.md` file per entry at `~/bullet-terminal/entries/{type}/YYYY-MM/<ULID>.md`
-- **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter. Tags have a dual role: organizing entries (label) and processing groups via AI (analyze). Stage tracking in `tag_stages` SQLite table.
+- **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter. Pure organizational labels (cross-dimension filters, goal connections). Stage tracking in `tag_stages` SQLite table is a remnant of the removed AI analyze feature — harmless, may be pruned later.
 
 ### Data Flow
 
@@ -73,21 +73,18 @@ User input → DwnGroup.resolve_command() → capture.py
 | `display.py` | Rich rendering: `display_entry_list`, `display_entry_list_grouped`, confirmations |
 | `ritual_ops.py` | Pure functions for rituals (Focus Log, yesterday unresolved, schedule, active tasks, dump) |
 | `state.py` | View-to-action bridge, daily plan completion tracking |
-| `ai/llm.py` | Provider-agnostic OpenAI client, macOS Keychain API key resolution |
 | `ai/vectors.py` | sqlite-vec wrapper (upsert, search, delete) |
 | `ai/embeddings.py` | fastembed wrapper, lazy model loading |
-| `ai/prompts.py` | Prompt templates for AI features |
-| `ai/tools.py` | Tool schemas + execution for chat (query, create, tag, action, map) |
-| `commands/tags.py` | Tag listing, filtering helpers, analysis formatting |
+| `db.py` | SQLite index — metadata, FTS5, vec_entries, and lazy reconciliation |
+| `commands/tags.py` | Tag listing and filtering helpers |
 
-### AI Architecture
+### Local search tier (no LLM)
 
-Three independent capability tiers — each degrades gracefully:
 1. **Embeddings** (local) — fastembed ONNX model, no API key needed
-2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bute rebuild`
-3. **LLM** (remote) — OpenAI-compatible API, provider-agnostic. API key via config or macOS Keychain
+2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bt rebuild`
+3. **Lazy reconciliation** — `db.reconcile_index()` runs once per process on first read and detects externally-added/removed `.md` files, upserting or deleting matching rows. Enables the "bring your own AI" model where external agents (Claude Desktop + filesystem MCP, Claude Code, scripts) write valid .md files into `entries/` and bt picks them up automatically.
 
-AI is used for: `chat` (agentic sessions with tool calling — can query, create, tag, and act on entries with user confirmation). Core capture/view/action loop works without AI.
+There is no built-in LLM. `bt chat` was removed in favor of BYOAI — the README's data-model section is the contract external agents read. When you change the data model, update README.md in the same commit.
 
 ## CLI Grammar (Current)
 
@@ -145,12 +142,9 @@ bute 6 clear t      # clear time
 bute 6 clear repeat # clear repeat
 bute 7 edit         # open in $EDITOR
 bute 3 later        # defer — remove from today's log
-bute chat           # AI chat session with tool access
 bute undo           # undo last action
 bute 3 undo         # undo last action on entry 3
 ```
-
-**Chat sessions** — `bt chat` starts an AI conversation. The AI has tool access to query, create, tag, and act on entries — every write action requires confirmation (`y`/`n`/`p`). Use `/bt <args>` to explicitly pull entries, `/done` to exit.
 
 **Goals** — orient tasks toward outcomes:
 ```
@@ -177,13 +171,13 @@ bute streak         # habit streaks and 30-day stats
 bute stats          # personal analytics (week/month views, streaks)
 bute export         # zip backup of all data to cwd (-o path)
 bute rebuild        # rebuild search index from .md files
-bute init           # first-run setup (pick AI provider)
+bute init           # first-run setup (create config + data dirs)
 ```
 
 ## Design Decisions
 
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. Daily plan handles yesterday's unfinished items.
-- **Tags have a dual role** — `@tag` as label (organizes entries) and `@tag` as thinking tool (`analyze` clusters the group via AI). The `+collection` syntax was removed — tags absorbed collections. Stage tracking (raw → analyzed) lives in the `tag_stages` SQLite table.
+- **Tags are plain labels** — organize entries, power cross-dimension filters, connect tasks to `@goal` notes. The `+collection` syntax was removed — tags absorbed collections. A `tag_stages` SQLite table from the removed AI analyze feature still exists; harmless, may be pruned later.
 - **Logs are derived** — no stored files. Focus Log (`bt`), monthly log (`bt m`) query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label). `bt -a` expands the Focus Log to include dropped tasks, non-focus captures from today, and past-timed events — replaces the retired `bt d`/`bt w`.
 - **`bt m` is event-driven** — each entry surfaces on every day any of its lifecycle events occurred (captured, focused, scheduled, completed, dropped, undropped). Events are stored as a YAML `events:` list in the entry's frontmatter, appended by every mutation site (capture, dp, wp, done, drop, later, backlog, schedule, mod, undo). Legacy entries without a stored `events` list use render-time synthesis from `created`, `scheduled_date`, `focus_date`, `completed_date`. This makes `bt m` a BuJo retrospective — you can relive each day of the month.
 - **`bute` with no args** = planning entry point. On the trigger day (default Sunday, configurable via `core.wp_day`), runs weekly plan then daily plan. Other days, runs daily plan only. If all done, shows Focus Log.
@@ -197,7 +191,7 @@ bute init           # first-run setup (pick AI provider)
 - **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Preferred input: `t:9`, `t:14.30`. Legacy formats (`t:1430`, `3pm`) still accepted.
 - **Date format**: preferred input: `d:4.7`, `d:mar15`, `d:tomorrow`, `d:friday`. Legacy `d:0407` still accepted.
 - **API key**: resolved from config value, `keychain:<service>`, or auto-lookup in macOS Keychain.
-- **AI is chat-only** — all AI features consolidated into `bt chat`. No standalone AI commands. Chat has tool calling: AI can query entries, create, tag, and modify with user confirmation. Standalone commands (`recap`, `nudges`, `topic`, `analyze`, `autotag`, `map`) removed — their capabilities are subsumed by natural conversation.
+- **No built-in AI** — `bt chat` and the LLM layer were removed in favor of "bring your own AI." External agents (Claude Desktop + filesystem MCP, Claude Code, scripts) read/write `.md` files directly in `~/bullet-terminal/entries/`. bt's README is the schema contract; `db.reconcile_index()` picks up external writes on the next read. Local semantic search via `bt like` stays — it uses fastembed + sqlite-vec, no network.
 
 ## Backlog
 
@@ -209,9 +203,9 @@ bute init           # first-run setup (pick AI provider)
 
 ### Commands — Medium Value
 - ~~`bt streak`~~ Done — 7-day grid, current streak count, 30-day completion rate.
-- ~~`bt reflect`~~ Done as `bt recap` — end-of-day summary. `bt recap [period]` runs AI analyze pipeline for day/week/month/year.
+- ~~`bt reflect`~~ / `bt recap` — removed with the AI layer. For retrospectives, use `bt m` (per-day replay across a month) or point your own AI agent at `entries/`.
 - ~~`bt week`~~ Done — Weekly Log across all dimensions, Mon-Sun. `bt w last` for previous week, `bt w 14` for week 14.
-- ~~**Notes as reference layer**~~ Partially addressed by tag processing — `@tag analyze` clusters tagged notes. Full PKM features (pinned notes, AI recall, linked references) remain future work.
+- **Notes as reference layer** — full PKM features (pinned notes, linked references) remain future work. AI-driven recall is now handled by external agents via BYOAI.
 
 ### Commands — Nice to Have
 - **Title lines for long-form notes** — when a note body is long (multi-line or beyond a threshold), auto-extract or prompt for a title line. Gives notes a scannable heading in list views instead of truncating the first line of a wall of text.
@@ -223,13 +217,11 @@ bute init           # first-run setup (pick AI provider)
 
 ### Onboarding
 - ~~**Guided tour — first-run onboarding**~~ ✓ Done — interactive REPL teaches core concepts on first `bt` run. 11 phases: capture → see → organize → act → plan.
-- **AI tour** — triggered after `bt init` configures an AI provider. Teaches chat capabilities using real entries.
 - ~~**Redesign Daily Plan (`dp`)**~~ ✓ Done — simplified to single-phase task picker. Yesterday's unresolved highlighted at top, @thisweek/backlog pool below.
 
 ### Infrastructure
 - **`bt this` — capture Claude Code chat into bt** — add a Claude Code hook or slash command so `bt this` saves the current conversation's markdown export as a bt note. Turns ephemeral AI chats into searchable, tagged entries in the bt system.
-- **AI agent as mobile interface** — bt's CLI grammar is already agent-friendly. Via Claude desktop/mobile + MCP or remote dispatch, natural language commands can route to bt on the local machine. No mobile app, no REST API, no cloud sync needed — the AI agent is the frontend.
-- Add meaningful AI features
+- **AI agent as mobile interface** — with BYOAI, external agents (Claude Desktop + filesystem MCP, Claude Code, mobile Claude) can both read and write `.md` files under `~/bullet-terminal/entries/`. bt's reconciliation picks up their writes. No mobile app, no REST API, no cloud sync needed — the AI agent is the frontend, bt is the storage + CLI.
 - ~~SQLite index for structured queries~~ In progress — see `docs/superpowers/specs/2026-04-02-sqlite-index-design.md`. Metadata + FTS5 + vectors in one DB, write-through sync, auto-rebuild.
 - Display `extra_meta` (custom key:value pairs) — saved to YAML frontmatter and round-trips correctly, but invisible in capture confirmation and all list views
 

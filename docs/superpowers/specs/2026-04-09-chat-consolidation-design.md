@@ -20,7 +20,7 @@ The previous `bt <n> chat` (anchored session) pattern is removed. Users start bl
 The AI interacts with bt through OpenAI-style function calling. Tools are defined as JSON schemas and registered with the LLM at session start. When the AI needs data or wants to act, it emits a tool call. bt executes the call (with confirmation for writes) and feeds the result back to the AI.
 
 This approach:
-- Works with all major providers (OpenAI, Anthropic, Ollama, OpenAI-compatible APIs)
+- Works with all major providers (OpenAI, Anthropic, OpenAI-compatible APIs)
 - Cleanly separates intent (LLM) from execution (bt)
 - Is reliable and well-supported vs. prompt-driven structured output
 
