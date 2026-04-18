@@ -217,3 +217,32 @@ def test_get_today_captured(tmp_data):
     assert "a fact" in bodies
     assert "standup" in bodies
     assert "a task" not in bodies
+
+
+def test_focus_log_excludes_recurring_tasks(tmp_data):
+    """Recurring tasks are surfaced via the Habits section, not the main Focus Log."""
+    from datetime import date
+    from bute.models import Entry, EntryType
+    from bute.ritual_ops import get_daily_log
+    from bute.storage import save_entry
+
+    # Regular task in today's focus — should show
+    regular = Entry.create(
+        entry_type=EntryType.TASK,
+        body="call dentist",
+        focus_date=date.today(),
+    )
+    save_entry(regular)
+
+    # Recurring task (no @habit tag) — should be excluded from main log
+    recurring = Entry.create(
+        entry_type=EntryType.TASK,
+        body="meditate",
+        repeat="daily",
+        focus_date=date.today(),
+    )
+    save_entry(recurring)
+
+    bodies = {e.body for e in get_daily_log(None)}
+    assert "call dentist" in bodies
+    assert "meditate" not in bodies

@@ -69,7 +69,7 @@ def get_daily_log(config=None, include_all: bool = False) -> list[Entry]:
     result = []
     for e in today_entries:
         if e.type == EntryType.TASK:
-            if "habit" in e.tags:
+            if e.is_recurring():
                 continue
             if include_all:
                 # Every task captured today, any status
@@ -87,7 +87,7 @@ def get_daily_log(config=None, include_all: bool = False) -> list[Entry]:
     # Also include active tasks with focus_date == today but created on a different day
     from bute.storage import query_and_load
     today_tasks = query_and_load(config, type="task", status="active", focus_date=today.isoformat())
-    today_tasks = [e for e in today_tasks if e.created.date() != today and "habit" not in e.tags]
+    today_tasks = [e for e in today_tasks if e.created.date() != today and not e.is_recurring()]
     seen = {e.id for e in result}
     for e in today_tasks:
         if e.id not in seen:
@@ -110,13 +110,6 @@ def get_daily_log(config=None, include_all: bool = False) -> list[Entry]:
             # Skip done/dropped tasks unless include_all
             if e.type == EntryType.TASK and e.status != TaskStatus.ACTIVE and not include_all:
                 continue
-            seen.add(e.id)
-            result.append(e)
-
-    # Also include recurring entries that match today (excluding @habit — shown separately)
-    recurring = query_and_load(config, has_repeat=True, status="active")
-    for e in recurring:
-        if e.id not in seen and e.recurs_on(today) and "habit" not in e.tags:
             seen.add(e.id)
             result.append(e)
 
