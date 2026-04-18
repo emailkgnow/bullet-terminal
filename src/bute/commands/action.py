@@ -64,11 +64,17 @@ def handle_done(entry: Entry, args: list[str], config) -> None:
             {
                 "status": entry.status.value,
                 "completed_date": entry.completed_date.isoformat() if entry.completed_date else None,
+                "focus_date": entry.focus_date.isoformat() if entry.focus_date else None,
+                "week_date": entry.week_date.isoformat() if entry.week_date else None,
             },
             config,
         )
         entry.status = TaskStatus.DONE
         entry.completed_date = date.today()
+        # Resolved tasks drop their focus state — they won't show in any view
+        # anyway, so keeping it is dead metadata.
+        entry.focus_date = None
+        entry.week_date = None
         update_entry(entry, config)
 
 
@@ -80,11 +86,15 @@ def handle_drop(entry: Entry, args: list[str], config) -> None:
         {
             "status": entry.status.value,
             "completed_date": entry.completed_date.isoformat() if entry.completed_date else None,
+            "focus_date": entry.focus_date.isoformat() if entry.focus_date else None,
+            "week_date": entry.week_date.isoformat() if entry.week_date else None,
         },
         config,
     )
     entry.status = TaskStatus.DROPPED
     entry.completed_date = date.today()
+    entry.focus_date = None
+    entry.week_date = None
     update_entry(entry, config)
 
 
@@ -384,6 +394,10 @@ def apply_undo(record: dict, config) -> None:
             entry.status = TaskStatus(prev["status"])
             prev_completed = prev.get("completed_date")
             entry.completed_date = date_type.fromisoformat(prev_completed) if prev_completed else None
+            if "focus_date" in prev:
+                entry.focus_date = date_type.fromisoformat(prev["focus_date"]) if prev["focus_date"] else None
+            if "week_date" in prev:
+                entry.week_date = date_type.fromisoformat(prev["week_date"]) if prev["week_date"] else None
             update_entry(entry, config)
     elif action == "!":
         entry.important = prev["important"]
