@@ -58,10 +58,10 @@ def start_cmd(ctx):
     console.print("  [bold]View[/bold] — same letters, no text = view:")
     console.print()
     console.print("    [bold]bt[/bold]              [dim]Focus Log (or daily plan if not done)[/dim]")
+    console.print("    [bold]bt -a[/bold]           [dim]Focus Log + dropped/non-focus captures[/dim]")
     console.print("    [bold]bt t[/bold]             [dim]this week's tasks[/dim]")
     console.print("    [bold]bt b[/bold]             [dim]full task backlog[/dim]")
     console.print("    [bold]bt n / j / c[/bold]     [dim]notes / journals / calendar[/dim]")
-    console.print("    [bold]bt w[/bold]             [dim]weekly log[/dim]   [dim](bt w last, bt w 14)[/dim]")
     console.print("    [bold]bt m[/bold]             [dim]monthly log[/dim]  [dim](bt m jan, bt m 2026)[/dim]")
     console.print("    [bold]bt due[/bold]           [dim]tasks by deadline[/dim]")
     console.print("    [bold]bt goals[/bold]         [dim]goals with task progress[/dim]")
@@ -86,12 +86,20 @@ def start_cmd(ctx):
     console.print("    [bold]bt @home[/bold]          [dim]view entries tagged @home[/dim]")
     console.print("    [dim]Goals are notes tagged @goal — bt goals shows progress.[/dim]")
 
-    # AI
+    # Search
     console.print()
-    console.print("  [bold]AI[/bold] — run [bold]bt init[/bold] to set up, then:")
+    console.print("  [bold]Search[/bold] — local, no API keys:")
     console.print()
-    console.print("    [bold]bt chat[/bold]           [dim]AI chat session with tool access[/dim]")
-    console.print("    [bold]bt search <q>[/bold]     [dim]semantic search[/dim]")
+    console.print("    [bold]bt find <keyword>[/bold]  [dim]keyword search (FTS5)[/dim]")
+    console.print("    [bold]bt like <q>[/bold]        [dim]semantic search (local embeddings)[/dim]")
+
+    # Bring Your Own AI
+    console.print()
+    console.print("  [bold]Bring your own AI[/bold] — no built-in LLM:")
+    console.print()
+    console.print("    [dim]Point any agent (Claude Desktop + filesystem MCP, Claude Code,[/dim]")
+    console.print("    [dim]scripts) at[/dim] [bold]~/bullet-terminal/entries/[/bold][dim]. Write valid .md + YAML[/dim]")
+    console.print("    [dim]frontmatter; bt reconciles them on next read. Schema: README.md.[/dim]")
 
     # Habits
     console.print()

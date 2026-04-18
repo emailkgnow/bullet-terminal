@@ -9,7 +9,7 @@ from rich.table import Table
 
 from bute.display import _build_entry_row, _ZEBRA_STYLE, display_entry_list, display_entry_list_grouped
 from bute.models import EntryType, TaskStatus
-from bute.ritual_ops import get_all_active_tasks, get_week_entries, get_weekly_active_tasks
+from bute.ritual_ops import get_all_active_tasks, get_weekly_active_tasks
 from bute.state import save_state
 from bute.storage import query_and_load
 
@@ -245,96 +245,6 @@ def tags_cmd(ctx):
 
     console.print()
     console.print(table)
-
-
-@click.command("week")
-@click.argument("period", required=False, default=None)
-@click.pass_context
-def week_cmd(ctx, period):
-    """Weekly log — all entries for the week. 'bt w last' or 'bt w 14' (week number)."""
-    from datetime import date, timedelta
-
-    from bute.config import week_bounds
-
-    config = ctx.obj.get("config")
-    today = date.today()
-
-    if period == "last":
-        target = today - timedelta(weeks=1)
-    elif period and period.isdigit():
-        week_num = int(period)
-        if week_num < 1 or week_num > 53:
-            console.print(f"  [red]Invalid week number: {period}. Use 1-53.[/red]")
-            return
-        # Week N is the week (per configured start day) containing ISO-like anchor Jan 4
-        jan4 = date(today.year, 1, 4)
-        start_w1, _ = week_bounds(jan4, config)
-        target = start_w1 + timedelta(weeks=week_num - 1)
-    elif period:
-        console.print(f"  [red]Invalid period: {period}. Use 'last' or a week number (1-53).[/red]")
-        return
-    else:
-        target = today
-
-    start, end = week_bounds(target, config)
-    title = f"Weekly Log — {start.strftime('%b %d')} to {end.strftime('%b %d')}"
-
-    entries = get_week_entries(target, config)
-    if not entries:
-        console.print(f"  [dim]No entries for {title}.[/dim]")
-        return
-
-    display_entry_list_grouped(entries, title)
-    save_state("week", [e.id for e in entries], config)
-
-
-@click.command("daily")
-@click.argument("period", required=False, default=None)
-@click.pass_context
-def daily_log_cmd(ctx, period):
-    """Daily log — everything that happened today. 'bt d yesterday' or 'bt d 4.3'."""
-    from datetime import timedelta
-
-    from bute.parser import resolve_date
-
-    config = ctx.obj.get("config")
-    today = date.today()
-
-    if period == "yesterday":
-        target = today - timedelta(days=1)
-    elif period:
-        try:
-            target = resolve_date(period)
-        except (ValueError, KeyError):
-            console.print(f"  [red]Invalid date: {period}. Use 'yesterday', day name, or date.[/red]")
-            return
-    else:
-        target = today
-
-    title = f"Daily Log — {target.strftime('%a %b %d')}"
-
-    # Load all entries for that day (all types, all statuses)
-    from bute.ritual_ops import get_tasks_done_today, get_tasks_dropped_today
-    from bute.storage import load_entries_by_date
-
-    entries = load_entries_by_date(target, config)
-
-    if not entries:
-        console.print(f"  [dim]No entries for {title}.[/dim]")
-        return
-
-    # Sort: tasks first, then calendar, notes, journals
-    type_order = {EntryType.TASK: 0, EntryType.CALENDAR: 1, EntryType.NOTE: 2, EntryType.JOURNAL: 3}
-    entries.sort(key=lambda e: (type_order.get(e.type, 4), not e.important, e.created))
-
-    display_entry_list(entries, title)
-
-    # Show habits for today
-    if target == today:
-        from bute.commands.views import _show_habits
-        _show_habits(config, len(entries))
-
-    save_state("daily", [e.id for e in entries], config)
 
 
 @click.command("due")

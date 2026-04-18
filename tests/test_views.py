@@ -8,7 +8,7 @@ from bute.state import state_path
 
 
 def _setup_config(tmp_config, tmp_data):
-    doc = default_config(provider="ollama")
+    doc = default_config()
     doc["core"]["data_dir"] = str(tmp_data)
     save_config(doc)
 

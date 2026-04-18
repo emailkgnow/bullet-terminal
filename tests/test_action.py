@@ -243,22 +243,6 @@ def test_batch_action(runner, tmp_config, tmp_data):
     assert load_entry(entry_path_from_id(e2.id)).status == TaskStatus.DONE
 
 
-def test_chat_action_parsed():
-    """Verify 'chat' is recognized as an action token."""
-    nums, action, args = parse_action_tokens(("3", "chat"))
-    assert nums == [3]
-    assert action == "chat"
-    assert args == []
-
-
-def test_chat_accepts_multiple_entries():
-    """Verify chat action parses correctly with multiple entry numbers."""
-    nums, action, args = parse_action_tokens(("1", "2", "chat"))
-    assert nums == [1, 2]
-    assert action == "chat"
-    assert args == []
-
-
 def test_handle_delete_removes_from_db(tmp_data):
     from bute.commands.action import handle_delete
     from bute.db import close, get_connection

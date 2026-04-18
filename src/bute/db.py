@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 # Module-level globals
 _connection: sqlite3.Connection | None = None
 _db_path_override: Optional[Path] = None  # Set by tests via monkeypatch
+_reconciled_this_process: bool = False  # Lazy reconciliation latch (per-process)
 
 
 # ---------------------------------------------------------------------------
@@ -130,10 +131,94 @@ def ensure_schema(db: sqlite3.Connection) -> None:
 
 def close() -> None:
     """Close the connection and reset the singleton."""
-    global _connection
+    global _connection, _reconciled_this_process
     if _connection is not None:
         _connection.close()
         _connection = None
+    _reconciled_this_process = False
+
+
+def reconcile_index(config=None, embed_new: bool = False) -> int:
+    """Bring the SQLite index in sync with the entries/ directory.
+
+    Detects files added/removed externally (e.g., by a "bring your own AI"
+    agent writing valid .md files into entries/{type}/YYYY-MM/) and upserts
+    or deletes matching rows. Runs at most once per process.
+
+    When `embed_new=True`, also embeds newly-indexed entries into the
+    vector table — callers that care about `bt like` results (like `bt like`
+    and `bt rebuild`) pass this; normal views skip it to avoid loading the
+    embedding model unnecessarily.
+
+    Returns the number of changes applied (0 if already in sync).
+    """
+    global _reconciled_this_process
+    if _reconciled_this_process:
+        return 0
+    _reconciled_this_process = True
+
+    data_dir = get_data_dir(config)
+    entries_dir = data_dir / "entries"
+    if not entries_dir.exists():
+        return 0
+
+    # Disk: {entry_id -> path} keyed by filename stem (ULID)
+    disk_ids: dict[str, Path] = {}
+    for path in entries_dir.rglob("*.md"):
+        disk_ids[path.stem] = path
+
+    db = get_connection(config)
+    db_ids = {row["entry_id"] for row in db.execute("SELECT entry_id FROM entries")}
+
+    missing_in_db = disk_ids.keys() - db_ids       # external additions
+    missing_on_disk = db_ids - disk_ids.keys()      # external deletions
+
+    if not missing_in_db and not missing_on_disk:
+        return 0
+
+    changes = 0
+
+    if missing_in_db:
+        from bute.storage import load_entry
+        new_entries: list[Entry] = []
+        for entry_id in missing_in_db:
+            try:
+                entry = load_entry(disk_ids[entry_id])
+                upsert_entry(entry, config)
+                new_entries.append(entry)
+                changes += 1
+            except Exception:
+                logger.debug("reconcile: failed to load %s", entry_id, exc_info=True)
+
+        if embed_new and new_entries:
+            try:
+                from bute.ai import is_embedding_available
+                if is_embedding_available():
+                    from bute.ai.embeddings import embed_texts
+                    from bute.ai.vectors import upsert as vec_upsert
+                    vectors = embed_texts([e.body for e in new_entries])
+                    for e, v in zip(new_entries, vectors):
+                        try:
+                            vec_upsert(e.id, v, config)
+                        except Exception:
+                            logger.debug("reconcile: embed upsert failed for %s", e.id, exc_info=True)
+            except Exception:
+                logger.debug("reconcile: embedding step failed", exc_info=True)
+
+    for entry_id in missing_on_disk:
+        try:
+            db.execute("DELETE FROM entries_fts WHERE entry_id = ?", (entry_id,))
+            db.execute("DELETE FROM entries WHERE entry_id = ?", (entry_id,))
+            try:
+                db.execute("DELETE FROM vec_entries WHERE entry_id = ?", (entry_id,))
+            except sqlite3.OperationalError:
+                pass
+            changes += 1
+        except Exception:
+            logger.debug("reconcile: failed to delete %s", entry_id, exc_info=True)
+    db.commit()
+
+    return changes
 
 
 def _migrate_from_vectors(config=None) -> None:

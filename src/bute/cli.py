@@ -13,7 +13,7 @@ SIGNIFIER_PATTERN = re.compile(r"^/?[tnjc]!?$")
 WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|calendar)!?$")
 
 # Short letter to view command mapping (when no text follows)
-SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog", "d": "daily", "w": "week", "m": "monthly"}
+SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog", "m": "month-log"}
 WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calendar": "calendar"}
 
 
@@ -67,20 +67,10 @@ class DwnGroup(click.Group):
             if cmd is not None:
                 return "backlog", cmd, rest
 
-        if first == "d":
-            cmd = self.get_command(ctx, "daily")
-            if cmd is not None:
-                return "daily", cmd, rest
-
         if first == "m":
-            cmd = self.get_command(ctx, "monthly")
+            cmd = self.get_command(ctx, "month-log")
             if cmd is not None:
-                return "monthly", cmd, rest
-
-        if first == "w":
-            cmd = self.get_command(ctx, "week")
-            if cmd is not None:
-                return "week", cmd, rest
+                return "month-log", cmd, rest
 
         if first in ("h", "habit"):
             cmd = self.get_command(ctx, "habits")
@@ -269,12 +259,14 @@ def _show_random_journal(config, offset: int = 0) -> str | None:
 
 def _print_help():
     """Print the full bute help using Rich."""
+    from rich.align import Align
     from rich.console import Console
     from rich.table import Table
+    from rich.text import Text
 
     console = Console()
     console.print()
-    console.print("  [bold]bt[/bold] (Bullet-Terminal) — AI-powered life management CLI")
+    console.print(Align.center(Text.from_markup("[bold]bt[/bold] (Bullet-Terminal) — life management CLI")))
 
     # --- Capture ---
     t = Table(title="Capture — type what's on your mind", title_style="bold cyan",
@@ -303,14 +295,13 @@ def _print_help():
     t.add_column("Shows")
     t.add_column("Notes", style="dim")
     t.add_row("bt", "Focus Log", "wp → dp → Focus Log flow")
+    t.add_row("bt -a", "Focus Log + hidden items", "dropped, non-focus captures, past events")
     t.add_row("bt t", "Tasks — this week's focus", "-a for done/dropped")
     t.add_row("bt b", "Task Backlog — all active tasks", "")
     t.add_row("bt n", "Notes", "Grouped by date")
     t.add_row("bt j", "Journals", "Grouped by date")
     t.add_row("bt c", "Events", "Grouped by date")
     t.add_row("bt h", "Habits", "Today's status")
-    t.add_row("bt d [dim][date]", "Daily Log — everything for a day", "bt d yesterday, bt d 4.3")
-    t.add_row("bt w [dim][last|N]", "Weekly Log — configurable week start", "bt w last, bt w 14")
     t.add_row("bt m [dim][month|YYYY]", "Monthly Log", "bt m jan, bt m 2026-03, bt m 2026")
     t.add_row("bt due", "Tasks by deadline", "bt due all for everything")
     t.add_row("bt overdue", "Past-due tasks only", "")
@@ -325,7 +316,7 @@ def _print_help():
     console.print(t)
     console.print()
     console.print("    [dim]Also:[/dim] [bold]bt task[/bold] / [bold]bt note[/bold] / [bold]bt journal[/bold] / [bold]bt calendar[/bold] — full words work everywhere [cyan]t[/cyan]/[yellow]n[/yellow]/[magenta]j[/magenta]/[green]c[/green] do")
-    console.print("    [dim]Also:[/dim] [bold]bt backlog[/bold], [bold]bt daily[/bold], [bold]bt week[/bold], [bold]bt monthly[/bold], [bold]bt habit[/bold] — long forms of [bold]b[/bold]/[bold]d[/bold]/[bold]w[/bold]/[bold]m[/bold]/[bold]h[/bold]")
+    console.print("    [dim]Also:[/dim] [bold]bt backlog[/bold], [bold]bt month-log[/bold], [bold]bt habit[/bold] — long forms of [bold]b[/bold]/[bold]m[/bold]/[bold]h[/bold]")
 
     # --- Actions ---
     t = Table(title="Actions — act on numbered entries from last view", title_style="bold cyan",
@@ -362,16 +353,17 @@ def _print_help():
     t.add_row("bt wp [dim]| weekly-plan", "Weekly plan — select tasks for the week", "-y for non-interactive")
     t.add_row("bt dump", "Rapid-fire tasks into Backlog", "")
     t.add_row("bt export", "Export all data as zip", "-o path")
-    t.add_row("bt init", "First-run setup (pick AI provider)", "")
+    t.add_row("bt init", "First-run setup (create data dirs)", "")
     t.add_row("bt start", "Quick start guide", "")
     t.add_row("bt rebuild", "Rebuild search index", "")
     t.add_row("bt -i [dim]| --interactive", "Interactive REPL", "No quoting needed")
     t.add_row("bt -d [dim]| --demo", "Demo session", "Isolated data, auto-cleanup")
     t.add_row("bt like <input>", "Find similar entries (semantic)", "bt like 3, bt like productivity")
-    t.add_row("bt chat", "AI session — read & act on your entries", "bt init to configure")
     t.add_row("bt -j [dim]| --journal-whisper", "Toggle random journal whisper in Focus Log", "")
     console.print()
     console.print(t)
+    console.print()
+    console.print("  [bold]Bring your own AI.[/bold] [dim]Point any agent at[/dim] [bold]~/bullet-terminal/entries/[/bold] [dim]— bt auto-reconciles new .md files on next read. Schema: see README.md.[/dim]")
     console.print()
 
 
@@ -413,8 +405,9 @@ def _run_interactive(ctx):
 @click.option("-i", "--interactive", "interactive", is_flag=True, help="Interactive REPL mode")
 @click.option("-d", "--demo", "demo", is_flag=True, help="Toggle demo mode")
 @click.option("-j", "--journal-whisper", "toggle_journal", is_flag=True, help="Toggle random journal whisper in Focus Log")
+@click.option("-a", "--all", "show_all", is_flag=True, help="Focus Log + hidden items (dropped, non-focus captures, past events)")
 @click.pass_context
-def main(ctx, interactive, demo, toggle_journal):
+def main(ctx, interactive, demo, toggle_journal, show_all):
     """bt (BuTe) — AI-powered life management CLI based on Bullet Journal."""
     ctx.ensure_object(dict)
 
@@ -484,16 +477,17 @@ def main(ctx, interactive, demo, toggle_journal):
         # First day — no dp history yet, show Focus Log so new users
         # see their entries instead of being thrown into daily plan.
         first_day = not get_dp_history(config)
-        if is_dp_done_today(config) or first_day:
-            # Daily plan already done (or first day) — show Focus Log
+        if is_dp_done_today(config) or first_day or show_all:
+            # Daily plan already done (or first day, or -a) — show Focus Log
             from bute.display import display_entry_list
             from bute.ritual_ops import get_daily_log
             from bute.state import save_state
 
-            entries = get_daily_log(config)
+            entries = get_daily_log(config, include_all=show_all)
             from bute.models import EntryType as _ET, TaskStatus as _TS
             has_active_tasks = any(e.type == _ET.TASK and e.status == _TS.ACTIVE for e in entries)
-            title = f"Focus Log — {date.today().strftime('%a %b %d')}"
+            suffix = " (all)" if show_all else ""
+            title = f"Focus Log — {date.today().strftime('%a %b %d')}{suffix}"
             if not has_active_tasks:
                 title = f"[strike]{title}[/strike]"
             display_entry_list(entries, title)
@@ -519,7 +513,6 @@ from bute.commands.init_cmd import init_cmd  # noqa: E402
 from bute.commands.views import (  # noqa: E402
     backlog_cmd,
     calendar_cmd,
-    daily_log_cmd,
     due_cmd,
     goal_drill_cmd,
     goals_cmd,
@@ -529,7 +522,6 @@ from bute.commands.views import (  # noqa: E402
     tag_filter_cmd,
     tags_cmd,
     tasks_cmd,
-    week_cmd,
 )
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
@@ -542,14 +534,13 @@ from bute.commands.stats import stats_cmd  # noqa: E402
 from bute.commands.export import export_cmd  # noqa: E402
 from bute.commands.search import find_cmd, like_cmd, rebuild_cmd, readme_cmd  # noqa: E402
 from bute.commands.start import start_cmd  # noqa: E402
-from bute.commands.chat import chat_cmd  # noqa: E402
 from bute.commands.demo import demo_cmd  # noqa: E402
+from bute.commands.zen import this_cmd  # noqa: E402
 
 main.add_command(init_cmd)
 main.add_command(start_cmd)
 main.add_command(capture_cmd)
 main.add_command(open_capture_cmd)
-main.add_command(daily_log_cmd)
 main.add_command(action_cmd)
 main.add_command(undo_cmd)
 main.add_command(tasks_cmd)
@@ -560,7 +551,6 @@ main.add_command(calendar_cmd)
 main.add_command(tag_filter_cmd)
 main.add_command(important_cmd)
 main.add_command(tags_cmd)
-main.add_command(week_cmd)
 main.add_command(due_cmd)
 main.add_command(goals_cmd)
 main.add_command(goal_drill_cmd)
@@ -577,7 +567,7 @@ main.add_command(find_cmd)
 main.add_command(rebuild_cmd)
 main.add_command(readme_cmd)
 main.add_command(export_cmd)
-main.add_command(chat_cmd)
 main.add_command(demo_cmd)
 main.add_command(migrate_habits_cmd)
 main.add_command(stats_cmd)
+main.add_command(this_cmd)

@@ -11,7 +11,7 @@ from bute.storage import save_entry, update_entry
 
 def _setup_config(tmp_config, tmp_data):
     """Create a config pointing to tmp_data."""
-    doc = default_config(provider="anthropic")
+    doc = default_config()
     doc["core"]["data_dir"] = str(tmp_data)
     save_config(doc)
 

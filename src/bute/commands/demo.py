@@ -36,9 +36,9 @@ def demo_cmd(ctx):
     console.print("\n  [bold green]Demo session started[/bold green]")
     console.print("  [dim]Using isolated data — your real data is untouched.[/dim]\n")
 
-    # Run the guided tour in demo context
-    from bute.commands.tour import run_tour
-    run_tour(ctx)
+    # Run interactive REPL in demo context
+    from bute.cli import _run_interactive
+    _run_interactive(ctx)
 
     # Clean up on exit
     _cleanup_demo()

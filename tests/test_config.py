@@ -12,28 +12,22 @@ from bute.config import (
 def test_default_config_has_required_sections():
     doc = default_config()
     assert "core" in doc
-    assert "ai" in doc
     assert "habits" in doc
 
 
-def test_default_config_ollama():
-    doc = default_config(provider="ollama")
-    assert doc["ai"]["provider"] == "ollama"
-    assert "11434" in doc["ai"]["base_url"]
-
-
-def test_default_config_anthropic():
-    doc = default_config(provider="anthropic")
-    assert doc["ai"]["provider"] == "anthropic"
-    assert "anthropic" in doc["ai"]["base_url"]
+def test_default_config_core_defaults():
+    doc = default_config()
+    assert doc["core"]["data_dir"] == "~/bullet-terminal"
+    assert doc["core"]["wp_day"] == "sunday"
+    assert doc["core"]["week_start"] == "monday"
 
 
 def test_save_load_roundtrip(tmp_config):
-    doc = default_config(provider="openai", model="gpt-4o")
+    doc = default_config()
+    doc["core"]["wp_day"] = "monday"
     save_config(doc)
     loaded = load_config()
-    assert loaded["ai"]["provider"] == "openai"
-    assert loaded["ai"]["model"] == "gpt-4o"
+    assert loaded["core"]["wp_day"] == "monday"
 
 
 def test_load_missing_config_returns_empty(tmp_config):
@@ -57,19 +51,15 @@ def test_ensure_data_dirs_creates_structure(tmp_data):
     assert (path / ".index").is_dir()
 
 
-def test_init_command_with_flags(runner, tmp_config, tmp_data):
+def test_init_command_creates_config_and_dirs(runner, tmp_config, tmp_data):
     from bute.cli import main
 
-    result = runner.invoke(main, ["init", "--provider", "ollama", "--model", "llama3"])
+    result = runner.invoke(main, ["init"])
     assert result.exit_code == 0
     assert "Config saved" in result.output
 
-    # Verify config was written
     loaded = load_config()
-    assert loaded["ai"]["provider"] == "ollama"
-
-    # Verify data dirs were created
-    from bute.config import get_data_dir
+    assert "core" in loaded
 
     data_dir = get_data_dir(loaded)
     assert (data_dir / "entries").is_dir()

@@ -24,3 +24,6 @@ htmlcov/
 # bute data
 ~/bute/
 .worktrees
+
+# Claude Code local state
+.claude/

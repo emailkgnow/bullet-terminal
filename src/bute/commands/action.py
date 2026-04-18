@@ -532,31 +532,6 @@ def action_cmd(ctx, tokens):
                 display_action_confirmation(entry, label)
         return
 
-    # Handle map: bt <n> map (single @ai-analysis note)
-    if action == "map":
-        if len(entry_ids) > 1:
-            raise InvalidActionError(
-                "map works on a single entry. Usage: bt 1 map"
-            )
-        entry_id = entry_ids[0]
-        path = entry_path_from_id(entry_id, config)
-        if path is None:
-            console.print(f"  [red]Entry {entry_id[:8]} not found.[/red]")
-            return
-        entry = load_entry(path)
-        if "ai-analysis" not in entry.tags:
-            raise InvalidActionError("map only works on @ai-analysis notes.")
-        from bute.display import display_analyze_map
-        display_analyze_map(entry.tags[0] if entry.tags[0] != "ai-analysis" else "analysis", entry.body)
-        return
-
-    # Handle chat: bt chat (blank start, no entries needed)
-    if action == "chat":
-        from bute.commands.chat import start_chat_session
-
-        start_chat_session(config)
-        return
-
     # Handle metadata updates: bt 3 due:friday, bt 3 d:tomorrow t:14.30
     if _is_meta_token(action):
         all_meta_tokens = [action] + [a for a in args if _is_meta_token(a)]

@@ -20,7 +20,6 @@ MINDMAP = {
         "items": [
             "Windows support via WSL/native paths",
             "VPS/SSH — remote bt over SSH tunnel",
-            "Gemma 4 — local LLM as offline provider",
         ],
     },
     "AI Integration": {

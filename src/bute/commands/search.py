@@ -28,6 +28,11 @@ def like_cmd(ctx, tokens, limit):
 
     config = ctx.obj.get("config")
 
+    # Reconcile externally-added .md files into SQLite + vector index so
+    # `bt like` can surface them without a manual `bt rebuild`.
+    from bute.db import reconcile_index
+    reconcile_index(config, embed_new=True)
+
     # Route: single integer token → try similar-to-entry mode
     source_entry = None
     if len(tokens) == 1 and tokens[0].isdigit():
@@ -111,6 +116,10 @@ def find_cmd(ctx, query, type_filter, limit):
 
     config = ctx.obj.get("config")
     query_text = " ".join(query)
+
+    # Reconcile externally-added entries so FTS5 sees them.
+    from bute.db import reconcile_index
+    reconcile_index(config)
 
     # FTS5 body search
     body_results = search_text(query_text, type=type_filter, limit=limit, config=config)

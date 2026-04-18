@@ -408,7 +408,7 @@ def _show_outro() -> None:
         "\n"
         "  [bold cyan]bt -i[/bold cyan]      interactive mode (like this tour)\n"
         "  [bold]bt t[/bold] call mom  in the terminal, prefix with bt\n"
-        "  [bold]bt init[/bold]     set up AI features (search, chat, analysis)\n"
+        "  [bold]bt init[/bold]     (re)create config and data dirs\n"
         "\n"
         "  [dim]Cheat sheet:[/dim] [bold]bt start[/bold]  \u00b7  [dim]Full help:[/dim] [bold]bt -h[/bold]"
     )

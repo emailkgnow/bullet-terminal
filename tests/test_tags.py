@@ -11,8 +11,7 @@ from bute.storage import save_entry
 
 
 def _setup(tmp_config, tmp_data):
-    doc = default_config(provider="anthropic")
-    doc["ai"]["api_key"] = "sk-test"
+    doc = default_config()
     doc["core"]["data_dir"] = str(tmp_data)
     save_config(doc)
 

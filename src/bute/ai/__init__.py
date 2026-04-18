@@ -1,4 +1,8 @@
-"""AI subsystem for bute — embeddings, vector search, and LLM."""
+"""Local embeddings + vector search for bt — powers `bt like` and `bt rebuild`.
+
+No network calls, no API keys. fastembed runs an ONNX model locally;
+sqlite-vec stores vectors in `~/bullet-terminal/.index/entries.db`.
+"""
 
 from __future__ import annotations
 
@@ -43,35 +47,3 @@ def search_similar(
 
     query_vector = embed_text(query)
     return search(query_vector, limit, config)
-
-
-# --- LLM ---
-
-_LLM_INSTALL_MSG = (
-    "  [yellow]AI features require the openai package and a configured provider.[/yellow]\n"
-    "  Install: [bold]uv pip install 'bute\\[ai]'[/bold]\n"
-    "  Configure: [bold]bt init[/bold]"
-)
-
-
-def is_llm_available(config=None) -> bool:
-    """Check if the LLM client is available and configured."""
-    from bute.ai.llm import is_available
-
-    return is_available(config)
-
-
-def llm_send(system: str, user: str, config=None) -> str:
-    """Send a message to the LLM. Returns fallback string on error."""
-    from bute.ai.llm import send_message
-
-    return send_message(system, user, config)
-
-
-def llm_send_with_entries(
-    system: str, entries: list, question: str, config=None
-) -> str:
-    """Format entries as context and send to LLM."""
-    from bute.ai.llm import send_with_entries
-
-    return send_with_entries(system, entries, question, config)

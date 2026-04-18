@@ -1,7 +1,7 @@
 [project]
 name = "bute"
 version = "0.1.0"
-description = "AI-powered CLI life management system based on the Bullet Journal methodology"
+description = "A CLI life management system based on the Bullet Journal methodology"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -22,10 +22,6 @@ dependencies = [
 embeddings = [
     "fastembed>=0.4",
     "sqlite-vec>=0.1",
-]
-ai = [
-    "openai>=1.0",
-    "anthropic>=0.40",
 ]
 dev = [
     "pytest>=8.0",

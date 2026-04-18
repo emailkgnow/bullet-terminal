@@ -11,31 +11,6 @@ DEMO_DATA_DIR = Path.home() / "bute-demo"
 TOUR_DONE = CONFIG_DIR / ".tour_done"
 TOUR_PROGRESS = CONFIG_DIR / ".tour_progress"
 
-# Known AI provider presets
-PROVIDER_PRESETS = {
-    "anthropic": {
-        "base_url": "https://api.anthropic.com/v1/",
-        "default_model": "claude-sonnet-4-20250514",
-        "needs_api_key": True,
-    },
-    "openai": {
-        "base_url": "https://api.openai.com/v1",
-        "default_model": "gpt-4o",
-        "needs_api_key": True,
-    },
-    "gemini": {
-        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "default_model": "gemini-2.0-flash",
-        "needs_api_key": True,
-    },
-    "deepseek": {
-        "base_url": "https://api.deepseek.com/v1",
-        "default_model": "deepseek-chat",
-        "needs_api_key": True,
-    },
-}
-
-
 def get_config_path() -> Path:
     """Return the path to the config file."""
     return CONFIG_FILE
@@ -61,15 +36,8 @@ def save_config(doc: tomlkit.TOMLDocument) -> None:
     CONFIG_FILE.write_text(tomlkit.dumps(doc))
 
 
-def default_config(
-    provider: str = "anthropic",
-    model: str | None = None,
-    base_url: str | None = None,
-    api_key: str | None = None,
-) -> tomlkit.TOMLDocument:
+def default_config() -> tomlkit.TOMLDocument:
     """Generate a default config.toml with comments."""
-    preset = PROVIDER_PRESETS.get(provider, {})
-
     doc = tomlkit.document()
     doc.add(tomlkit.comment("bute (BuTe) configuration"))
     doc.add(tomlkit.nl())
@@ -82,16 +50,6 @@ def default_config(
     core.add(tomlkit.comment("First day of the week: monday-sunday"))
     core.add("week_start", "monday")
     doc.add("core", core)
-    doc.add(tomlkit.nl())
-
-    ai = tomlkit.table()
-    ai.add(tomlkit.comment("AI provider: anthropic, openai, gemini, deepseek, or custom"))
-    ai.add("provider", provider)
-    ai.add("model", model or preset.get("default_model", ""))
-    ai.add("base_url", base_url or preset.get("base_url", ""))
-    ai.add(tomlkit.comment("API key: direct value, keychain:<service>, or empty for Keychain auto-lookup"))
-    ai.add("api_key", api_key or "")
-    doc.add("ai", ai)
     doc.add(tomlkit.nl())
 
     habits = tomlkit.table()

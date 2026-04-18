@@ -159,9 +159,14 @@ def query_and_load(config=None, sort_key=None, reverse=False, **kwargs) -> list[
 
     Falls back to load_entries_by_filter if the DB is unavailable.
     Keyword args are passed to db.query_entries().
+
+    Reconciles the index with the entries/ directory on first call per
+    process so externally-added .md files (e.g., from a BYOAI agent) are
+    picked up without requiring `bt rebuild`.
     """
     try:
-        from bute.db import query_entries
+        from bute.db import query_entries, reconcile_index
+        reconcile_index(config)
         results = query_entries(config=config, **kwargs)
     except Exception:
         import logging
