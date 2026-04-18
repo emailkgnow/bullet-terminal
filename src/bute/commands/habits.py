@@ -14,12 +14,9 @@ console = Console()
 
 
 def _get_habit_entries(config) -> list:
-    """Get all habit entries (tasks tagged @habit with repeat), sorted by creation."""
-    entries = query_and_load(config, type="task", status="active", tag="habit")
-    return sorted(
-        [e for e in entries if e.is_recurring()],
-        key=lambda e: e.created,
-    )
+    """Get all recurring task entries (any task with `repeat` set), sorted by creation."""
+    entries = query_and_load(config, type="task", status="active", has_repeat=True)
+    return sorted(entries, key=lambda e: e.created)
 
 
 def _resolve_habit_entries(numbers: list[int], config) -> list:
