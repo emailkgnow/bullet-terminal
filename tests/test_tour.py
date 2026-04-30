@@ -1,14 +1,24 @@
-"""Tests for the guided tour."""
+"""Tests for the first-run onboarding tour."""
 
+from datetime import date
+
+import pytest
+from click.testing import CliRunner
+
+from bute.cli import main
 from bute.commands.tour import (
+    _has_entries,
     is_tour_done,
     mark_tour_done,
-    load_tour_progress,
-    save_tour_progress,
-    PHASES,
-    Phase,
-    Step,
+    should_run_tour,
 )
+from bute.models import Entry, EntryType
+from bute.storage import save_entry
+
+
+# ---------------------------------------------------------------------------
+# Marker helpers
+# ---------------------------------------------------------------------------
 
 
 def test_tour_not_done_initially(tmp_config):
@@ -20,97 +30,95 @@ def test_mark_tour_done(tmp_config):
     assert is_tour_done() is True
 
 
-def test_tour_progress_default(tmp_config):
-    assert load_tour_progress() == 0
+# ---------------------------------------------------------------------------
+# Trigger logic
+# ---------------------------------------------------------------------------
 
 
-def test_save_and_load_progress(tmp_config):
-    save_tour_progress(5)
-    assert load_tour_progress() == 5
+def test_should_run_when_empty_and_not_done(tmp_config, tmp_data):
+    assert should_run_tour(None) is True
 
 
-def test_mark_done_clears_progress(tmp_config):
-    save_tour_progress(7)
+def test_should_skip_when_done(tmp_config, tmp_data):
     mark_tour_done()
-    assert load_tour_progress() == 0
+    assert should_run_tour(None) is False
 
 
-def test_phases_exist():
-    assert len(PHASES) == 11
-
-
-def test_phase_has_intro_and_steps():
-    phase = PHASES[0]
-    assert isinstance(phase, Phase)
-    assert phase.name == "Tasks"
-    assert len(phase.intro) > 0
-    assert len(phase.steps) >= 1
-
-
-def test_step_has_required_fields():
-    step = PHASES[0].steps[0]
-    assert isinstance(step, Step)
-    assert len(step.prompt) > 0
-    assert step.validate is not None
-    assert len(step.feedback) > 0
+def test_should_skip_when_entries_exist(tmp_config, tmp_data):
+    e = Entry.create(EntryType.TASK, "existing task")
+    save_entry(e)
+    assert _has_entries(None) is True
+    assert should_run_tour(None) is False
 
 
 # ---------------------------------------------------------------------------
-# REPL / integration tests
+# Integration via main()
 # ---------------------------------------------------------------------------
 
-from click.testing import CliRunner
-from bute.cli import main
+
+@pytest.fixture
+def _mock_questionary(monkeypatch):
+    """Mock questionary.checkbox to avoid TUI in tests (returns no selection)."""
+    import questionary
+    monkeypatch.setattr(
+        questionary,
+        "checkbox",
+        lambda *a, **kw: type("Q", (), {"ask": lambda self: []})(),
+    )
 
 
-def test_tour_runs_on_empty_system(runner, tmp_config, tmp_data):
-    """Tour triggers when no entries exist and tour not done."""
-    result = runner.invoke(main, [], input="/done\n")
+def test_tour_runs_on_empty_system(runner, tmp_config, tmp_data, _mock_questionary):
+    """First `bt` on empty system shows the welcome panel."""
+    # Blank line ends wp dump phase; questionary mocked above.
+    result = runner.invoke(main, [], input="\n")
     assert result.exit_code == 0
-    assert "Tasks" in result.output  # Phase 1 intro
+    assert "Welcome to bt" in result.output
 
 
 def test_tour_skips_when_done(runner, tmp_config, tmp_data):
     """Tour does not trigger when .tour_done marker exists."""
     mark_tour_done()
     result = runner.invoke(main, [], input="")
-    assert "Tasks are things" not in result.output
+    assert "Welcome to bt" not in result.output
 
 
-def test_tour_phase1_capture(runner, tmp_config, tmp_data):
-    """Capturing a task in phase 1 advances the step."""
-    result = runner.invoke(main, [], input="t call dentist\n/done\n")
+def test_tour_skips_when_entries_exist(runner, tmp_config, tmp_data):
+    """Tour does not trigger if entries already exist on disk."""
+    e = Entry.create(EntryType.TASK, "pre-existing task")
+    save_entry(e)
+    result = runner.invoke(main, [], input="")
+    assert "Welcome to bt" not in result.output
+
+
+def test_tour_marks_done_after_completion(runner, tmp_config, tmp_data, _mock_questionary):
+    """Completing the tour writes the .tour_done marker."""
+    assert is_tour_done() is False
+    runner.invoke(main, [], input="\n")
+    assert is_tour_done() is True
+
+
+def test_tour_runs_wp_then_dp(runner, tmp_config, tmp_data, _mock_questionary):
+    """The flow invokes wp (Plan header) and dp (Daily Plan header)."""
+    result = runner.invoke(main, [], input="\n")
     assert result.exit_code == 0
-    assert "dot means" in result.output  # Phase 1 Step A feedback
+    assert "Plan" in result.output
+    assert "Daily Plan" in result.output
 
 
-def test_tour_skip_command(runner, tmp_config, tmp_data):
-    """User can /skip to advance to next phase."""
-    result = runner.invoke(main, [], input="/skip\n/done\n")
+def test_tour_outro_points_to_focus_log(runner, tmp_config, tmp_data, _mock_questionary):
+    """Outro points the user to `bt` and `bt -h`."""
+    result = runner.invoke(main, [], input="\n")
     assert result.exit_code == 0
-    # Should have shown Phase 1 intro, then Phase 2 intro after /skip
-    assert "Notes" in result.output
-
-
-def test_tour_bt_prefix_stripped(runner, tmp_config, tmp_data):
-    """User can type 'bt t' and the prefix is stripped."""
-    result = runner.invoke(main, [], input="bt t call dentist\n/done\n")
-    assert result.exit_code == 0
-    assert "dot means" in result.output
-
-
-def test_tour_wrong_type_shows_hint(runner, tmp_config, tmp_data):
-    """Wrong entry type shows hint, user can retry."""
-    result = runner.invoke(main, [], input="n some note\nt call dentist\n/done\n")
-    assert result.exit_code == 0
-    assert "dot means" in result.output  # Eventually succeeds with task
-
-
-def test_tour_outro_shown(runner, tmp_config, tmp_data):
-    """Completing all phases shows the outro."""
-    # Skip through all 11 phases
-    skip_all = "/skip\n" * 11
-    result = runner.invoke(main, [], input=skip_all)
-    assert result.exit_code == 0
-    assert "bt start" in result.output  # Outro mentions cheat sheet
     assert "bt -h" in result.output
+    assert "Focus Log" in result.output
+
+
+def test_tour_brain_dump_creates_tasks(runner, tmp_config, tmp_data, _mock_questionary):
+    """Tasks typed during the welcome dump phase get saved."""
+    # wp dump phase reads lines until blank; first line becomes a task.
+    result = runner.invoke(main, [], input="call dentist\n\n")
+    assert result.exit_code == 0
+    from bute.storage import load_entries_by_filter
+    entries = load_entries_by_filter(lambda e: True)
+    bodies = [e.body for e in entries]
+    assert any("call dentist" in b for b in bodies)

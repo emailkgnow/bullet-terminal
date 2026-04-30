@@ -43,7 +43,7 @@ bt 4 @urgent      # tag entry #4
 bt 5 edit         # open in $EDITOR
 ```
 
-Full command reference: `bt -h`. Quick tour in-app: `bt start`.
+Full command reference: `bt -h`. First-run onboarding triggers automatically.
 
 ---
 
@@ -189,7 +189,7 @@ Run `bt` after, and the task appears in Focus Log immediately — no rebuild nee
 
 ## Commands
 
-Full help: `bt -h` · Quick start tour: `bt start`.
+Full help: `bt -h`.
 
 | Command | What it does |
 |---|---|

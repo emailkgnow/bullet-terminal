@@ -28,4 +28,4 @@ def init_cmd(ctx):
     data_dir = ensure_data_dirs(doc)
     console.print(f"\n  [green]Config saved to {config_path}[/green]")
     console.print(f"  [green]Data directory at {data_dir}[/green]")
-    console.print("  [dim]Run[/dim] [bold]bt start[/bold] [dim]for a quick tour.[/dim]")
+    console.print("  [dim]Run[/dim] [bold]bt[/bold] [dim]to begin.[/dim]")

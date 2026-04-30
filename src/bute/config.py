@@ -9,7 +9,6 @@ CONFIG_FILE = CONFIG_DIR / "config.toml"
 DATA_DIR_DEFAULT = Path.home() / "bullet-terminal"
 DEMO_DATA_DIR = Path.home() / "bute-demo"
 TOUR_DONE = CONFIG_DIR / ".tour_done"
-TOUR_PROGRESS = CONFIG_DIR / ".tour_progress"
 
 def get_config_path() -> Path:
     """Return the path to the config file."""

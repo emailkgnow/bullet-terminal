@@ -307,7 +307,6 @@ def _print_help():
     t.add_row("bt wp [dim]| weekly-plan", "Weekly plan — select tasks for the week", "-y for non-interactive")
     t.add_row("bt export", "Export all data as zip", "-o path")
     t.add_row("bt init", "First-run setup (create data dirs)", "")
-    t.add_row("bt start", "Quick start guide", "")
     t.add_row("bt rebuild", "Rebuild search index", "")
     t.add_row("bt -i [dim]| --interactive", "Interactive REPL", "No quoting needed")
     t.add_row("bt -d [dim]| --demo", "Demo session", "Isolated data, auto-cleanup")
@@ -416,6 +415,12 @@ def main(ctx, interactive, demo, toggle_journal, show_all):
     if not ctx.invoked_subcommand:
         config = ctx.obj["config"]
 
+        # First-run onboarding — welcome → wp → dp → outro.
+        from bute.commands.tour import run_tour, should_run_tour
+        if should_run_tour(config):
+            run_tour(ctx)
+            return
+
         from datetime import date
         from bute.config import get_wp_day
         from bute.state import is_wp_done_this_week
@@ -485,12 +490,10 @@ from bute.commands.habits import streak_cmd  # noqa: E402
 from bute.commands.stats import stats_cmd  # noqa: E402
 from bute.commands.export import export_cmd  # noqa: E402
 from bute.commands.search import find_cmd, like_cmd, rebuild_cmd, readme_cmd  # noqa: E402
-from bute.commands.start import start_cmd  # noqa: E402
 from bute.commands.demo import demo_cmd  # noqa: E402
 from bute.commands.zen import this_cmd  # noqa: E402
 
 main.add_command(init_cmd)
-main.add_command(start_cmd)
 main.add_command(capture_cmd)
 main.add_command(open_capture_cmd)
 main.add_command(action_cmd)

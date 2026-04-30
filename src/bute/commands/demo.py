@@ -55,11 +55,10 @@ def _cleanup_demo():
     if DEMO_DATA_DIR.exists():
         shutil.rmtree(DEMO_DATA_DIR)
 
-    # Clean up tour markers so demo doesn't affect real first-run experience
-    from bute.config import TOUR_DONE, TOUR_PROGRESS
-    for marker in (TOUR_DONE, TOUR_PROGRESS):
-        if marker.exists():
-            marker.unlink()
+    # Clean up tour marker so demo doesn't affect real first-run experience
+    from bute.config import TOUR_DONE
+    if TOUR_DONE.exists():
+        TOUR_DONE.unlink()
 
     console.print("\n  [bold green]Demo session ended[/bold green]")
     console.print("  [dim]Demo data deleted. Back to your real data.[/dim]\n")
