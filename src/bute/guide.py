@@ -15,7 +15,7 @@ def _count_entries(entries_dir: Path) -> dict:
     if not entries_dir.exists():
         return {"counts": counts, "earliest": earliest, "latest": latest, "total": 0}
 
-    for md_file in entries_dir.rglob("*.md"):
+    for md_file in (p for p in entries_dir.rglob("*.md") if p.name != "README.md"):
         try:
             post = frontmatter.load(str(md_file))
             entry_type = post.metadata.get("type", "unknown")
@@ -41,7 +41,7 @@ def _collect_tags(entries_dir: Path) -> list[str]:
     tags = set()
     if not entries_dir.exists():
         return []
-    for md_file in entries_dir.rglob("*.md"):
+    for md_file in (p for p in entries_dir.rglob("*.md") if p.name != "README.md"):
         try:
             post = frontmatter.load(str(md_file))
             for tag in post.metadata.get("tags", []):
@@ -91,8 +91,8 @@ Organized by type, then by month.
 
 ```
 bullet-terminal/
-├── README.md             ← you are here
 ├── entries/
+│   ├── README.md         ← you are here
 {type_dirs}└── .index/
     └── bute.db           SQLite index (FTS5 + vectors)
 ```
@@ -141,15 +141,12 @@ There is no `migrated` status. Tasks stay active until done or dropped.
 
 ## Tags
 
-Tags are plain strings stored in the `tags` list. They serve two roles:
-- **Labels** — organizing entries (`@backend`, `@health`)
-- **Goals** — notes tagged `@goal` become goals; other tags on that note connect tasks to the goal
+Tags are plain strings stored in the `tags` list. They are pure organizational
+labels — use them to group entries (`@backend`, `@health`) and filter across
+dimensions (`bt @backend -@done`).
 
 Special tags with meaning:
-- `@today` — selected for the Focus Log (today's curated view)
-- `@thisweek` — selected for this week's task focus
-- `@goal` — marks a note as a goal
-- `@habit` — marks a recurring task as a habit (tracked via `bt h`)
+- `@habit` — marks a recurring task as a habit (tracked via `bt streak`)
 {tag_list}
 ## First sentence convention
 
@@ -212,8 +209,15 @@ The `.md` files are the source of truth, not the database.
 
 
 def write_guide(data_dir):
-    """Write the README.md guide to the data directory."""
-    path = data_dir / "README.md"
+    """Write the README.md guide to the entries directory."""
+    entries_dir = data_dir / "entries"
+    entries_dir.mkdir(parents=True, exist_ok=True)
+    path = entries_dir / "README.md"
     content = generate_readme(data_dir)
     path.write_text(content)
+
+    legacy = data_dir / "README.md"
+    if legacy.exists():
+        legacy.unlink()
+
     return path

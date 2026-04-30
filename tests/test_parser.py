@@ -154,6 +154,65 @@ class TestResolveDate:
         assert resolve_date("Friday", ref) == date(2026, 3, 27)
         assert resolve_date("Mar29", ref) == date(2026, 3, 29)
 
+    def test_next_day_with_hyphen(self):
+        ref = date(2026, 3, 23)  # Monday
+        # "monday" → Mar 30 (+7), "next-monday" → Apr 6 (+14)
+        assert resolve_date("next-monday", ref) == date(2026, 4, 6)
+
+    def test_next_day_no_separator(self):
+        ref = date(2026, 3, 23)  # Monday
+        assert resolve_date("nextmonday", ref) == date(2026, 4, 6)
+
+    def test_next_day_with_dot(self):
+        ref = date(2026, 3, 23)  # Monday
+        assert resolve_date("next.monday", ref) == date(2026, 4, 6)
+
+    def test_next_day_with_space(self):
+        ref = date(2026, 3, 23)  # Monday
+        assert resolve_date("next monday", ref) == date(2026, 4, 6)
+
+    def test_next_day_abbrev(self):
+        ref = date(2026, 3, 23)  # Monday
+        assert resolve_date("next-mon", ref) == date(2026, 4, 6)
+
+    def test_next_day_friday_from_monday(self):
+        ref = date(2026, 3, 23)  # Monday
+        # "friday" → Mar 27 (+4), "next-friday" → Apr 3 (+11)
+        assert resolve_date("next-friday", ref) == date(2026, 4, 3)
+
+    def test_next_day_case_insensitive(self):
+        ref = date(2026, 3, 23)  # Monday
+        assert resolve_date("Next-Friday", ref) == date(2026, 4, 3)
+
+    def test_next_day_invalid_day(self):
+        with pytest.raises(ValueError):
+            resolve_date("next-foo")
+
+
+class TestResolveTimeAmPmDot:
+    def test_pm_with_dot(self):
+        assert resolve_time("2.20pm") == "14:20"
+
+    def test_am_with_dot(self):
+        assert resolve_time("9.05am") == "09:05"
+
+    def test_dot_with_space_before_period(self):
+        assert resolve_time("2.20 pm") == "14:20"
+
+    def test_dot_form_12pm_noon(self):
+        assert resolve_time("12.00pm") == "12:00"
+
+    def test_dot_form_12am_midnight(self):
+        assert resolve_time("12.30am") == "00:30"
+
+    def test_dot_form_invalid_hour(self):
+        with pytest.raises(ValueError):
+            resolve_time("13.20pm")
+
+    def test_dot_form_invalid_minutes(self):
+        with pytest.raises(ValueError):
+            resolve_time("2.99pm")
+
 
 class TestResolveTimeInvalid:
     def test_resolve_time_invalid_ampm(self):

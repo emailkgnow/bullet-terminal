@@ -8,74 +8,9 @@ import click
 from rich.console import Console
 
 from bute.config import get_data_dir
+from bute.guide import write_guide
 
 console = Console()
-
-README_CONTENT = """\
-# Bullet Terminal Export
-
-This archive is a complete snapshot of your Bullet Terminal (bt) data,
-exported on {date}.
-
-## What's Inside
-
-```
-entries/              Your entries — organized by type, then by month
-  task/
-    YYYY-MM/
-      <ULID>.md       Tasks — actions with a status lifecycle
-  note/
-    YYYY-MM/
-      <ULID>.md       Notes — ideas, facts, reference material
-  journal/
-    YYYY-MM/
-      <ULID>.md       Journals — reflections, stream of thought
-  calendar/
-    YYYY-MM/
-      <ULID>.md       Calendar — events with optional date and time
-```
-
-## Entry Format
-
-Each `.md` file is a standalone Markdown file with YAML frontmatter:
-
-```yaml
----
-id: 01ABC123...          # ULID (time-sortable unique ID)
-type: task               # task, note, journal, or calendar
-status: active           # active, done, or dropped (tasks only)
-created: 2026-01-15T...  # ISO timestamp
-tags:                    # Optional tags
-  - backend
-  - urgent
-due: 2026-01-20          # Optional due date (tasks)
-date: 2026-01-20         # Optional scheduled date
-time: '14:30'            # Optional scheduled time
----
-
-The entry body text goes here.
-```
-
-## Using This Export
-
-These are plain Markdown files. You can:
-
-- Read them in any text editor or Markdown viewer
-- Import them into Obsidian, Notion, or any PKM tool
-- Search them with grep, ripgrep, or your editor's search
-- Reinstall Bullet Terminal and point it at these files to restore
-
-To read one type: `entries/task/**/*.md` or `entries/journal/**/*.md`
-To read one period across types: `entries/*/2026-04/*.md`
-
-The `.md` files are the source of truth — Bullet Terminal's SQLite
-index is just a performance cache and is rebuilt automatically from
-these files on first run.
-
-## Learn More
-
-Bullet Terminal: https://github.com/emailkgnow/bullet-terminal
-"""
 
 
 @click.command("export")
@@ -90,6 +25,8 @@ def export_cmd(ctx, output_dir):
     if not data_dir.exists():
         console.print("  [dim]No data to export.[/dim]")
         return
+
+    write_guide(data_dir)
 
     # Build filename with counter for same-day exports
     out_path = Path(output_dir).resolve()
@@ -123,9 +60,6 @@ def export_cmd(ctx, output_dir):
     # Write zip
     out_path.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        # Add README
-        zf.writestr("README.md", README_CONTENT.format(date=today))
-
         for file_path, arcname in files_to_zip:
             zf.write(file_path, arcname)
 

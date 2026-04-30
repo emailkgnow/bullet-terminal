@@ -11,6 +11,8 @@ from bute import __version__
 SIGNIFIER_PATTERN = re.compile(r"^/?[tnjc]!?$")
 # Full word capture: task, note, journal, calendar (with optional !)
 WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|calendar)!?$")
+# Action selector: bare number or range like 1-4
+ACTION_NUMBER_PATTERN = re.compile(r"^\d+(-\d+)?$")
 
 # Short letter to view command mapping (when no text follows)
 SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog"}
@@ -165,23 +167,11 @@ class DwnGroup(click.Group):
                     filter_args.extend(["--exclude", ex])
                 return "tag_filter", cmd, filter_args
 
-        # 6. Number-action — first token is a digit
+        # 6. Number-action — first token is a digit or range (e.g. 1-4)
         # (+collection routing was here — removed in tags-absorb-collections)
-        if first.isdigit():
-            try:
-                from bute.state import load_state
-                state = load_state()
-
-                # Goals view — number only (no action) drills into goal
-                if state.get("view") == "goals" and len(args) == 1 and first.isdigit():
-                    cmd = self.get_command(ctx, "goal_drill")
-                    if cmd is not None:
-                        return "goal_drill", cmd, args
-            except Exception:
-                pass
-
-            # Bare number (no action) — default to edit
-            if all(tok.isdigit() for tok in args):
+        if ACTION_NUMBER_PATTERN.match(first):
+            # Bare number/range (no action) — default to edit
+            if all(ACTION_NUMBER_PATTERN.match(tok) for tok in args):
                 args = list(args) + ["edit"]
 
             cmd = self.get_command(ctx, "action")
@@ -253,7 +243,7 @@ def _print_help():
     console.print()
     console.print("    [dim]Also:[/dim] bt task, bt note, bt journal, bt calendar")
     console.print("    [dim]Modifiers:[/dim] [bold red]![/bold red] important  [bold]@tag[/bold]  [bold]d:[/bold]date  [bold]t:[/bold]time  [bold]due:[/bold]deadline  [bold]r:[/bold]<daily|weekly|monthly|yearly>")
-    console.print("    [dim]Tip:[/dim] dates like [bold]d:4.7[/bold] auto-resolve to the future. For past dates, use ISO: [bold]d:2026-03-15[/bold]")
+    console.print("    [dim]Tip:[/dim] dates like [bold]d:4.7[/bold], [bold]d:friday[/bold], [bold]d:next-friday[/bold] auto-resolve to the future. For past dates, use ISO: [bold]d:2026-03-15[/bold]")
 
     # --- Views ---
     t = Table(title="Views — same letters, no text = view", title_style="bold cyan",
@@ -270,7 +260,6 @@ def _print_help():
     t.add_row("bt c", "Events", "Grouped by date")
     t.add_row("bt due", "Tasks by deadline", "bt due all for everything")
     t.add_row("bt overdue", "Past-due tasks only", "")
-    t.add_row("bt goals", "Goals with task progress", "")
     t.add_row("bt streak", "Recurring task streaks + 30-day rate", "")
     t.add_row("bt stats [dim][week|month]", "Momentum dashboard — streaks, trends", "bt stats week, bt stats month")
     t.add_row("bt tags", "All tags with counts and stage", "")
@@ -289,14 +278,14 @@ def _print_help():
     t.add_column("Command", style="bold", no_wrap=True)
     t.add_column("What it does")
     t.add_column("Example", style="dim")
-    t.add_row("bt <n> done", "Mark task(s) complete", "bt 1 done")
+    t.add_row("bt <n> done", "Mark task(s) complete", "bt 1-4 done")
     t.add_row("bt <n> drop", "Consciously delete", "bt 2 3 drop")
     t.add_row("bt <n> !", "Toggle important flag", "bt 1 !")
     t.add_row("bt <n> later", "Defer to Task log (keep @thisweek)", "bt 3 later")
     t.add_row("bt <n> backlog", "Send to Backlog (remove all focus)", "bt 3 backlog")
     t.add_row("bt <n> open", "Open in $EDITOR", "bt 1 open")
     t.add_row("bt <n> mod <text>", "Replace entry text", "bt 1 mod new text here")
-    t.add_row("bt <n> @tag", "Add a tag", "bt 1 @backend")
+    t.add_row("bt <n> @tag", "Add a tag", "bt 1-3 @backend")
     t.add_row("bt <n> due:<date>", "Set due date", "bt 1 due:friday")
     t.add_row("bt <n> d:<date>", "Set scheduled date", "bt 1 d:tomorrow")
     t.add_row("bt <n> t:<time>", "Set time", "bt 1 t:14.30")
@@ -306,7 +295,7 @@ def _print_help():
     console.print()
     console.print(t)
     console.print()
-    console.print("    [dim]Tip: most actions accept multiple entries — bt 1 2 3 done[/dim]")
+    console.print("    [dim]<n> = entry number(s):[/dim] [bold]bt 1 done[/bold] · [bold]bt 1 2 3 done[/bold] (space) · [bold]bt 1-4 done[/bold] (range) · [bold]bt 1-3 7 done[/bold] (mix)")
 
     # --- Commands ---
     t = Table(title="Commands", title_style="bold cyan",
@@ -316,7 +305,6 @@ def _print_help():
     t.add_column("Notes", style="dim")
     t.add_row("bt dp [dim]| daily-plan", "Daily plan — pick today's tasks", "-y for non-interactive")
     t.add_row("bt wp [dim]| weekly-plan", "Weekly plan — select tasks for the week", "-y for non-interactive")
-    t.add_row("bt dump", "Rapid-fire tasks into Backlog", "")
     t.add_row("bt export", "Export all data as zip", "-o path")
     t.add_row("bt init", "First-run setup (create data dirs)", "")
     t.add_row("bt start", "Quick start guide", "")
@@ -482,8 +470,6 @@ from bute.commands.views import (  # noqa: E402
     backlog_cmd,
     calendar_cmd,
     due_cmd,
-    goal_drill_cmd,
-    goals_cmd,
     important_cmd,
     journals_cmd,
     notes_cmd,
@@ -493,7 +479,6 @@ from bute.commands.views import (  # noqa: E402
 )
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
-    dump_cmd,
     wp_cmd,
 )
 from bute.commands.habits import streak_cmd  # noqa: E402
@@ -519,11 +504,8 @@ main.add_command(tag_filter_cmd)
 main.add_command(important_cmd)
 main.add_command(tags_cmd)
 main.add_command(due_cmd)
-main.add_command(goals_cmd)
-main.add_command(goal_drill_cmd)
 main.add_command(dp_cmd)
 main.add_command(dp_cmd, name="daily-plan")
-main.add_command(dump_cmd)
 main.add_command(streak_cmd)
 main.add_command(wp_cmd)
 main.add_command(wp_cmd, name="weekly-plan")

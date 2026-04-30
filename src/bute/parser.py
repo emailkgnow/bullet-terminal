@@ -28,6 +28,7 @@ MONTH_DAY_RE = re.compile(
     re.IGNORECASE,
 )
 SLASH_DATE_RE = re.compile(r"^(\d{1,2})/(\d{1,2})$")
+NEXT_DAY_RE = re.compile(r"^next[- .]?([a-z]+)$", re.IGNORECASE)
 
 DAY_NAMES = [
     "monday", "tuesday", "wednesday", "thursday",
@@ -159,8 +160,8 @@ def resolve_time(value: str) -> str:
             raise ValueError(f"Invalid time: {value}")
         return f"{h:02d}:{m:02d}"
 
-    # Legacy: "3pm", "3:30pm", "11am", "12:30am"
-    legacy = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$", value)
+    # Legacy: "3pm", "3:30pm", "2.20pm", "11am", "12:30am"
+    legacy = re.match(r"^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)$", value)
     if legacy:
         h = int(legacy.group(1))
         m = int(legacy.group(2) or 0)
@@ -244,6 +245,20 @@ def resolve_date(value: str, reference: date | None = None) -> date:
         if delta == 0:
             delta = 7  # next week's occurrence
         return ref + timedelta(days=delta)
+
+    # "next <day>" — the <day> in the week after the upcoming one
+    next_match = NEXT_DAY_RE.match(low)
+    if next_match:
+        day_part = next_match.group(1).lower()
+        if day_part in DAY_ABBR:
+            day_part = DAY_ABBR[day_part]
+        if day_part in DAY_NAMES:
+            target = DAY_NAMES.index(day_part)
+            current = ref.weekday()
+            delta = (target - current) % 7
+            if delta == 0:
+                delta = 7
+            return ref + timedelta(days=delta + 7)
 
     # Month+day: "mar29", "mar-29", "mar 29"
     month_match = MONTH_DAY_RE.match(low)

@@ -48,7 +48,7 @@ Bullet symbols (`. - = o`) are used in display output but not accepted as CLI in
 - **Task statuses**: `active`, `done`, `dropped` (no `migrated` — removed by design)
 - **IDs**: ULID (time-sortable, 26 chars)
 - **Storage**: one `.md` file per entry at `~/bullet-terminal/entries/{type}/YYYY-MM/<ULID>.md`
-- **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter. Pure organizational labels (cross-dimension filters, goal connections). Stage tracking in `tag_stages` SQLite table is a remnant of the removed AI analyze feature — harmless, may be pruned later.
+- **Tags**: `@tag` syntax in CLI, stored as plain strings in YAML frontmatter. Pure organizational labels for cross-dimension filtering. Stage tracking in `tag_stages` SQLite table is a remnant of the removed AI analyze feature — harmless, may be pruned later.
 
 ### Data Flow
 
@@ -71,7 +71,7 @@ User input → DwnGroup.resolve_command() → capture.py
 | `models.py` | Entry dataclass, EntryType/TaskStatus enums, SIGNIFIER_MAP |
 | `storage.py` | Markdown file I/O, query by date/filter, handles legacy `migrated` status |
 | `display.py` | Rich rendering: `display_entry_list`, `display_entry_list_grouped`, confirmations |
-| `ritual_ops.py` | Pure functions for rituals (Focus Log, yesterday unresolved, schedule, active tasks, dump) |
+| `ritual_ops.py` | Pure functions for rituals (Focus Log, yesterday unresolved, schedule, active tasks) |
 | `state.py` | View-to-action bridge, daily plan completion tracking |
 | `ai/vectors.py` | sqlite-vec wrapper (upsert, search, delete) |
 | `ai/embeddings.py` | fastembed wrapper, lazy model loading |
@@ -100,7 +100,7 @@ bute n check OAuth docs d:4.10             # note: resurfaces in Focus Log Apr 1
 ```
 
 **Date/time metadata:**
-- `d:` — date. Formats: `d:4.7` (MM.DD), `d:today`, `d:tomorrow`, `d:friday`, `d:mar15`. Legacy `d:0407` still works.
+- `d:` — date. Formats: `d:4.7` (MM.DD), `d:today`, `d:tomorrow`, `d:friday`, `d:next-friday` (week after the upcoming Friday), `d:mar15`. Legacy `d:0407` still works.
 - `t:` — time in 24h. Formats: `t:9` (9:00), `t:14.15` (2:15 PM). Legacy `t:1430` still works.
 - `due:` — deadline for tasks (supports same formats as `d:`)
 
@@ -130,7 +130,9 @@ bute like <input>   # semantic similarity (bt like 3, bt like productivity)
 **Actions** — number + command:
 ```
 bute 1 done         # mark complete
-bute 2 3 drop       # consciously delete
+bute 2 3 drop       # consciously delete (space-separated)
+bute 1-4 done       # range — marks 1, 2, 3, 4 done
+bute 1-3 7 done     # mix range + bare numbers
 bute 4 delete       # permanently remove from disk
 bute 5 !            # toggle important
 bute 6 @tag         # add tag
@@ -145,12 +147,6 @@ bute 3 later        # defer — remove from today's log
 bute undo           # undo last action
 bute 3 undo         # undo last action on entry 3
 ```
-
-**Goals** — orient tasks toward outcomes:
-```
-bute goals                          # show goals with task progress
-```
-Goals are notes tagged `@goal`. Other tags on the note connect tasks to the goal. `bute goals` shows each goal with active/done task counts. System tags (`@goal`, `@today`, `@thisweek`) are filtered out when computing connected tags.
 
 **Tags**:
 ```
@@ -177,7 +173,7 @@ bute init           # first-run setup (create config + data dirs)
 ## Design Decisions
 
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. Daily plan handles yesterday's unfinished items.
-- **Tags are plain labels** — organize entries, power cross-dimension filters, connect tasks to `@goal` notes. The `+collection` syntax was removed — tags absorbed collections. A `tag_stages` SQLite table from the removed AI analyze feature still exists; harmless, may be pruned later.
+- **Tags are plain labels** — organize entries and power cross-dimension filters. The `+collection` syntax was removed — tags absorbed collections. A `tag_stages` SQLite table from the removed AI analyze feature still exists; harmless, may be pruned later.
 - **Logs are derived** — no stored files. Focus Log (`bt`), monthly log (`bt m`) query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label). `bt -a` expands the Focus Log to include dropped tasks, non-focus captures from today, and past-timed events — replaces the retired `bt d`/`bt w`.
 - **`bt m` is event-driven** — each entry surfaces on every day any of its lifecycle events occurred (captured, focused, scheduled, completed, dropped, undropped). Events are stored as a YAML `events:` list in the entry's frontmatter, appended by every mutation site (capture, dp, wp, done, drop, later, backlog, schedule, mod, undo). Legacy entries without a stored `events` list use render-time synthesis from `created`, `scheduled_date`, `focus_date`, `completed_date`. This makes `bt m` a BuJo retrospective — you can relive each day of the month.
 - **`bute` with no args** = planning entry point. On the trigger day (default Sunday, configurable via `core.wp_day`), runs weekly plan then daily plan. Other days, runs daily plan only. If all done, shows Focus Log.

@@ -165,6 +165,8 @@ def reconcile_index(config=None, embed_new: bool = False) -> int:
     # Disk: {entry_id -> path} keyed by filename stem (ULID)
     disk_ids: dict[str, Path] = {}
     for path in entries_dir.rglob("*.md"):
+        if path.name == "README.md":
+            continue
         disk_ids[path.stem] = path
 
     db = get_connection(config)
@@ -248,7 +250,7 @@ def _auto_rebuild(config=None) -> None:
     if not entries_dir.exists():
         return
 
-    md_files = list(entries_dir.rglob("*.md"))
+    md_files = [p for p in entries_dir.rglob("*.md") if p.name != "README.md"]
     if not md_files:
         return
 
@@ -276,7 +278,7 @@ def rebuild_from_files(config=None, include_vectors: bool = False, show_progress
     if not entries_dir.exists():
         return 0
 
-    md_files = sorted(entries_dir.rglob("*.md"))
+    md_files = sorted(p for p in entries_dir.rglob("*.md") if p.name != "README.md")
     if not md_files:
         return 0
 

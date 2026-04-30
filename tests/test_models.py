@@ -96,7 +96,6 @@ def test_frontmatter_dict_note_has_no_status():
 def test_system_tags_is_set():
     from bute.models import SYSTEM_TAGS
     assert isinstance(SYSTEM_TAGS, set)
-    assert "goal" in SYSTEM_TAGS
     assert "habit" in SYSTEM_TAGS
     # today/thisweek are now date fields, not tags
     assert "today" not in SYSTEM_TAGS

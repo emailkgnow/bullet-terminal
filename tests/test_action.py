@@ -43,6 +43,35 @@ class TestParseActionTokens:
         with pytest.raises(InvalidActionError):
             parse_action_tokens(("2",))
 
+    def test_range_expands(self):
+        nums, action, args = parse_action_tokens(("1-4", "done"))
+        assert nums == [1, 2, 3, 4]
+        assert action == "done"
+
+    def test_range_with_bare_numbers(self):
+        nums, action, args = parse_action_tokens(("1-4", "12", "done"))
+        assert nums == [1, 2, 3, 4, 12]
+
+    def test_range_after_bare_number(self):
+        nums, action, args = parse_action_tokens(("2", "4-6", "done"))
+        assert nums == [2, 4, 5, 6]
+
+    def test_single_element_range(self):
+        nums, action, args = parse_action_tokens(("3-3", "drop"))
+        assert nums == [3]
+
+    def test_descending_range_raises(self):
+        with pytest.raises(InvalidActionError):
+            parse_action_tokens(("4-1", "done"))
+
+    def test_zero_range_raises(self):
+        with pytest.raises(InvalidActionError):
+            parse_action_tokens(("0-3", "done"))
+
+    def test_oversized_range_raises(self):
+        with pytest.raises(InvalidActionError):
+            parse_action_tokens(("1-200", "done"))
+
 
 # --- Handler tests (via CLI end-to-end) ---
 
@@ -69,6 +98,52 @@ def test_drop_marks_task(runner, tmp_config, tmp_data):
 
     loaded = load_entry(entry_path_from_id(entry.id))
     assert loaded.status == TaskStatus.DROPPED
+
+
+def test_range_marks_multiple_done(runner, tmp_config, tmp_data):
+    entries = [Entry.create(EntryType.TASK, f"task {i}") for i in range(5)]
+    for e in entries:
+        save_entry(e)
+    save_state("ls", [e.id for e in entries])
+
+    result = runner.invoke(main, ["1-3", "done"])
+    assert result.exit_code == 0
+
+    for i, e in enumerate(entries):
+        loaded = load_entry(entry_path_from_id(e.id))
+        if i < 3:
+            assert loaded.status == TaskStatus.DONE, f"task {i} should be done"
+        else:
+            assert loaded.status == TaskStatus.ACTIVE, f"task {i} should be untouched"
+
+
+def test_range_plus_bare_marks_done(runner, tmp_config, tmp_data):
+    entries = [Entry.create(EntryType.TASK, f"task {i}") for i in range(6)]
+    for e in entries:
+        save_entry(e)
+    save_state("ls", [e.id for e in entries])
+
+    # bt 1-2 5 done → entries 1, 2, 5 (indices 0, 1, 4)
+    result = runner.invoke(main, ["1-2", "5", "done"])
+    assert result.exit_code == 0
+
+    expected_done = {0, 1, 4}
+    for i, e in enumerate(entries):
+        loaded = load_entry(entry_path_from_id(e.id))
+        if i in expected_done:
+            assert loaded.status == TaskStatus.DONE
+        else:
+            assert loaded.status == TaskStatus.ACTIVE
+
+
+def test_descending_range_errors(runner, tmp_config, tmp_data):
+    entry = Entry.create(EntryType.TASK, "task")
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["4-1", "done"])
+    assert result.exit_code != 0
+    assert "descending" in result.output.lower() or "4-1" in result.output
 
 
 def test_toggle_important_on(runner, tmp_config, tmp_data):

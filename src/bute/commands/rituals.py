@@ -97,41 +97,6 @@ def dp_cmd(ctx, non_interactive):
     console.print(f"\n  [bold green]Ready. Go.[/bold green]")
 
 
-@click.command("dump")
-@click.pass_context
-def dump_cmd(ctx):
-    """Rapid-fire task capture into the backlog."""
-    config = ctx.obj.get("config")
-
-    display_ritual_header("Dump", "Get it out of your head — tasks go to Backlog")
-    console.print("  [dim]Enter tasks, one per line. Add[/dim] [bold]@today[/bold] [dim]or[/dim] [bold]@thisweek[/bold] [dim]to pull into focus.[/dim]")
-    console.print("  [dim]Blank line when done.[/dim]")
-
-    count = 0
-    while True:
-        try:
-            line = click.prompt("", prompt_suffix="  > ", default="", show_default=False)
-        except (EOFError, click.Abort):
-            break
-        if not line.strip():
-            break
-        # Force task signifier — prepend t if no signifier given
-        tokens = line.strip().split()
-        first = tokens[0]
-        from bute.parser import SIGNIFIER_RE, WORD_SIGNIFIER_RE
-        if not (SIGNIFIER_RE.match(first) or WORD_SIGNIFIER_RE.match(first)):
-            line = "t " + line
-        entry = process_dump_line(line, config, auto_tags=None)
-        if entry:
-            confirm_capture(entry)
-            count += 1
-
-    if count == 0:
-        console.print("  [dim]Nothing to dump — clear head.[/dim]")
-    else:
-        console.print(f"\n  [bold]{count}[/bold] [dim]task{'s' if count != 1 else ''} captured to Backlog.[/dim]")
-
-
 # --- Weekly Plan ---
 
 

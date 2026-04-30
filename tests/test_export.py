@@ -23,7 +23,7 @@ def test_export_creates_zip(runner, tmp_config, tmp_data, tmp_path):
 
     with zipfile.ZipFile(zips[0]) as zf:
         names = zf.namelist()
-        assert "README.md" in names
+        assert "entries/README.md" in names
         assert any("entries/" in n for n in names)
 
 
@@ -38,8 +38,8 @@ def test_export_includes_readme(runner, tmp_config, tmp_data, tmp_path):
 
     zips = list(out_dir.glob("*.zip"))
     with zipfile.ZipFile(zips[0]) as zf:
-        readme = zf.read("README.md").decode()
-        assert "Bullet Terminal Export" in readme
+        readme = zf.read("entries/README.md").decode()
+        assert "Bullet Terminal" in readme
         assert "entries/" in readme
 
 

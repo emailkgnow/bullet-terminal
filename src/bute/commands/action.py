@@ -16,19 +16,56 @@ from bute.storage import entry_path_from_id, load_entry, update_entry
 console = Console()
 
 
+_MAX_RANGE_SIZE = 100
+
+
+def _expand_number_token(tok: str) -> list[int]:
+    """Expand a digit token or `start-end` range into a list of ints.
+
+    Returns None if the token is not a number/range.
+    Raises InvalidActionError for invalid ranges.
+    """
+    if tok.isdigit():
+        return [int(tok)]
+    if "-" in tok:
+        parts = tok.split("-")
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            start, end = int(parts[0]), int(parts[1])
+            if start < 1:
+                raise InvalidActionError(
+                    f"Range '{tok}' starts below 1; entry numbers are 1-indexed."
+                )
+            if end < start:
+                raise InvalidActionError(
+                    f"Range '{tok}' is descending. Use {end}-{start} instead."
+                )
+            if end - start + 1 > _MAX_RANGE_SIZE:
+                raise InvalidActionError(
+                    f"Range '{tok}' exceeds {_MAX_RANGE_SIZE} entries."
+                )
+            return list(range(start, end + 1))
+    return None
+
+
 def parse_action_tokens(
     tokens: tuple[str, ...],
 ) -> tuple[list[int], str, list[str]]:
     """Parse action tokens into (numbers, action, args).
 
-    Example: ("1", "3", "done") → ([1, 3], "done", [])
+    Examples:
+        ("1", "3", "done") → ([1, 3], "done", [])
+        ("1-4", "12", "done") → ([1, 2, 3, 4, 12], "done", [])
     """
     numbers = []
     rest = list(tokens)
 
-    # Consume leading digits
-    while rest and rest[0].isdigit():
-        numbers.append(int(rest.pop(0)))
+    # Consume leading digit tokens and ranges
+    while rest:
+        expanded = _expand_number_token(rest[0])
+        if expanded is None:
+            break
+        numbers.extend(expanded)
+        rest.pop(0)
 
     if not numbers:
         raise InvalidActionError("No entry numbers provided.")

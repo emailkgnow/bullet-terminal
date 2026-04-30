@@ -37,6 +37,8 @@ bt like 3         # semantic: entries similar to entry #3
 
 bt 1 done         # mark entry #1 complete
 bt 2 3 drop       # drop entries #2 and #3
+bt 1-4 done       # range — mark entries 1, 2, 3, 4 complete
+bt 1-3 7 done     # mix range + bare numbers
 bt 4 @urgent      # tag entry #4
 bt 5 edit         # open in $EDITOR
 ```
@@ -203,7 +205,6 @@ Full help: `bt -h` · Quick start tour: `bt start`.
 | `bt <n> mod <text>` | replace entry body |
 | `bt dp` / `bt wp` | daily / weekly planning rituals |
 | `bt due` / `bt overdue` | deadline views |
-| `bt goals` | goals (notes tagged `@goal`) with connected task progress |
 | `bt streak` / `bt habit <name>` | habit tracking |
 | `bt stats` | personal analytics (week/month/streaks) |
 | `bt export` | zip backup of all .md files to cwd |
