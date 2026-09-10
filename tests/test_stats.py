@@ -214,3 +214,28 @@ def test_stats_cli_month(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["stats", "month"])
     assert result.exit_code == 0
     assert "Momentum" in result.output
+
+
+def test_get_period_ranges_honours_sunday_week_start():
+    """bt stats must use the same week boundary as the weekly task view."""
+    from datetime import date
+    from bute.commands.stats import get_period_ranges
+    from bute.ritual_ops import week_anchor
+
+    cfg = {"core": {"week_start": "sunday"}}
+    thursday = date(2026, 9, 10)
+
+    ranges = get_period_ranges("week", thursday, cfg)
+    assert ranges["this_week"] == (date(2026, 9, 6), thursday)
+    assert ranges["last_week"] == (date(2026, 8, 30), date(2026, 9, 5))
+    assert ranges["this_week"][0] == week_anchor(thursday, cfg)
+
+
+def test_get_period_ranges_defaults_to_monday():
+    """Without config the ranges stay ISO Monday-based."""
+    from datetime import date
+    from bute.commands.stats import get_period_ranges
+
+    ranges = get_period_ranges("week", date(2026, 9, 10))
+    assert ranges["this_week"] == (date(2026, 9, 7), date(2026, 9, 10))
+    assert ranges["last_week"] == (date(2026, 8, 31), date(2026, 9, 6))

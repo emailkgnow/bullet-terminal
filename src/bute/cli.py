@@ -193,6 +193,7 @@ def _show_random_journal(config, offset: int = 0) -> str | None:
     from datetime import date
 
     from bute.display import _preview
+    from bute.state import get_journal_history, record_journal_shown
     from bute.storage import query_and_load
 
     today = date.today()
@@ -201,7 +202,13 @@ def _show_random_journal(config, offset: int = 0) -> str | None:
     if not old:
         return None
 
-    entry = random.choice(old)
+    # Skip the recently-shown ones. With a small collection every entry ends up
+    # in the buffer — fall back to the full pool rather than showing nothing.
+    recent = set(get_journal_history(config))
+    pool = [e for e in old if e.id not in recent] or old
+
+    entry = random.choice(pool)
+    record_journal_shown(entry.id, config)
     entry_date = entry.created.date().strftime("%b %d, %Y")
     num = offset + 1
 
@@ -283,6 +290,7 @@ def _print_help():
     t.add_row("bt <n> !", "Toggle important flag", "bt 1 !")
     t.add_row("bt <n> later", "Defer to Task log (keep @thisweek)", "bt 3 later")
     t.add_row("bt <n> backlog", "Send to Backlog (remove all focus)", "bt 3 backlog")
+    t.add_row("bt <n> show", "Render body as formatted markdown", "bt 1 show")
     t.add_row("bt <n> open", "Open in $EDITOR", "bt 1 open")
     t.add_row("bt <n> mod <text>", "Replace entry text", "bt 1 mod new text here")
     t.add_row("bt <n> @tag", "Add a tag", "bt 1-3 @backend")

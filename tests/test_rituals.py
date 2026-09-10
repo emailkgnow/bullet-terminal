@@ -5,7 +5,7 @@ from datetime import date
 from bute.cli import main
 from bute.config import default_config, save_config
 from bute.models import Entry, EntryType, TaskStatus
-from bute.ritual_ops import this_monday
+from bute.ritual_ops import week_anchor
 from bute.storage import save_entry, update_entry
 
 
@@ -22,7 +22,7 @@ def _setup_config(tmp_config, tmp_data):
 def test_dp_non_interactive_shows_tasks(runner, tmp_config, tmp_data):
     """dp -y shows weekly tasks and marks daily plan done."""
     _setup_config(tmp_config, tmp_data)
-    e = Entry.create(EntryType.TASK, "deploy staging", week_date=this_monday())
+    e = Entry.create(EntryType.TASK, "deploy staging", week_date=week_anchor())
     save_entry(e)
 
     result = runner.invoke(main, ["dp", "--non-interactive"])
@@ -85,7 +85,7 @@ def test_wp_not_done_by_default(tmp_config, tmp_data):
 def test_wp_non_interactive(runner, tmp_config, tmp_data):
     _setup_config(tmp_config, tmp_data)
     e1 = Entry.create(EntryType.TASK, "task one")
-    e2 = Entry.create(EntryType.TASK, "task two", week_date=this_monday())
+    e2 = Entry.create(EntryType.TASK, "task two", week_date=week_anchor())
     save_entry(e1)
     save_entry(e2)
 
@@ -103,7 +103,7 @@ def test_wp_no_tasks(runner, tmp_config, tmp_data):
 def test_wp_shows_carryover_icon(runner, tmp_config, tmp_data):
     """wp shows ↩ for tasks that had week_date set from last week."""
     _setup_config(tmp_config, tmp_data)
-    e1 = Entry.create(EntryType.TASK, "carried over", week_date=this_monday())
+    e1 = Entry.create(EntryType.TASK, "carried over", week_date=week_anchor())
     e2 = Entry.create(EntryType.TASK, "fresh task")
     save_entry(e1)
     save_entry(e2)
@@ -219,7 +219,7 @@ def test_dp_sets_focus_date_on_picked_task(runner, tmp_config, tmp_data, monkeyp
 def test_wp_sets_week_date_on_picked_task(runner, tmp_config, tmp_data, monkeypatch):
     """bt wp should set week_date=this Monday on selected tasks."""
     _setup_config(tmp_config, tmp_data)
-    from bute.ritual_ops import this_monday
+    from bute.ritual_ops import week_anchor
 
     t = Entry.create(EntryType.TASK, "weekly me")  # no week_date
     save_entry(t)
@@ -239,8 +239,8 @@ def test_wp_sets_week_date_on_picked_task(runner, tmp_config, tmp_data, monkeypa
     config = load_config()
     path = entry_path_from_id(t.id, config)
     reloaded = load_entry(path)
-    assert reloaded.week_date == this_monday(), \
-        f"expected week_date == this_monday on picked task, got {reloaded.week_date}"
+    assert reloaded.week_date == week_anchor(), \
+        f"expected week_date == week_anchor on picked task, got {reloaded.week_date}"
 
 
 def test_bt_noargs_skips_wp_when_done(runner, tmp_config, tmp_data, monkeypatch):

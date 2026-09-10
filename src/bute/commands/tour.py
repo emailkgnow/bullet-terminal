@@ -62,11 +62,12 @@ def _show_outro() -> None:
         "\n"
         "  [bold cyan]bt[/bold cyan]        your Focus Log\n"
         "  [bold cyan]bt -h[/bold cyan]     full grammar — capture, view, act\n"
-        "  [bold cyan]bt dp[/bold cyan]     start each day with this\n"
-        "  [bold cyan]bt wp[/bold cyan]     start each week with this\n"
         "\n"
-        "[dim]Capture: [bold]bt t call mom[/bold] · [bold]bt n idea[/bold] · "
-        "[bold]bt c lunch t:12[/bold][/dim]"
+        "[dim]Capture:[/dim]\n"
+        "  [dim]task[/dim]            [bold]bt t call mom[/bold]\n"
+        "  [dim]note[/dim]            [bold]bt n idea[/bold]\n"
+        "  [dim]calendar event[/dim]  [bold]bt c lunch t:12pm[/bold]\n"
+        "  [dim]journal entry[/dim]   [bold]bt j feeling motivated today[/bold]"
     )
     _console.print(Panel(outro, border_style="green", padding=(1, 2)))
     _console.print()
@@ -83,6 +84,27 @@ def run_tour(ctx: click.Context) -> None:
     get_connection(config)
 
     _show_welcome()
+    _console.print()
+
+    try:
+        response = click.prompt(
+            "  Press Enter to begin, or type /skip",
+            default="",
+            show_default=False,
+            prompt_suffix="  ",
+        )
+    except (click.Abort, EOFError, KeyboardInterrupt):
+        mark_tour_done()
+        return
+
+    if response.strip() == "/skip":
+        mark_tour_done()
+        _console.print()
+        _console.print(
+            "  [dim]Skipped. Run [bold]bt -h[/bold] for the grammar, "
+            "or [bold]bt[/bold] anytime to see your Focus Log.[/dim]"
+        )
+        return
 
     from bute.commands.rituals import dp_cmd, wp_cmd
     try:

@@ -88,6 +88,33 @@ def is_wp_done_this_week(config=None) -> bool:
 
 
 
+# Number of recently-shown journals kept out of the whisper rotation.
+JOURNAL_HISTORY_LIMIT = 30
+
+
+def _journal_history_path(config=None) -> Path:
+    """Return the path to the recently-shown journal log."""
+    return get_data_dir(config) / ".journal_history"
+
+
+def get_journal_history(config=None) -> list[str]:
+    """Read recently-shown journal IDs, oldest first."""
+    path = _journal_history_path(config)
+    if not path.exists():
+        return []
+    return [line.strip() for line in path.read_text().splitlines() if line.strip()]
+
+
+def record_journal_shown(entry_id: str, config=None) -> None:
+    """Log a journal as shown, keeping the last JOURNAL_HISTORY_LIMIT."""
+    history = [i for i in get_journal_history(config) if i != entry_id]
+    history.append(entry_id)
+    history = history[-JOURNAL_HISTORY_LIMIT:]
+    path = _journal_history_path(config)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(history) + "\n")
+
+
 def _undo_path(config=None) -> Path:
     """Return the path to the undo log."""
     return get_data_dir(config) / ".undo.json"

@@ -100,16 +100,20 @@ def build_closure_chart(
 
 
 def get_period_ranges(
-    view: str, today: date
+    view: str, today: date, config=None
 ) -> dict[str, tuple[date, date]]:
     """Compute date ranges for period comparisons.
 
     view: "default", "week", or "month".
+    Week boundaries follow core.week_start so these ranges agree with the
+    week_date stamped on tasks by the weekly plan.
     """
-    # This week = Monday..today, last week = prev Mon..Sun
-    monday = today - timedelta(days=today.weekday())
-    last_monday = monday - timedelta(days=7)
-    last_sunday = monday - timedelta(days=1)
+    from bute.ritual_ops import week_anchor
+
+    # This week = week start..today, last week = the full preceding week
+    week_start = week_anchor(today, config)
+    last_week_start = week_start - timedelta(days=7)
+    last_week_end = week_start - timedelta(days=1)
 
     # This month = 1st..today, last month = full prev month
     first_of_month = today.replace(day=1)
@@ -118,8 +122,8 @@ def get_period_ranges(
 
     if view == "week":
         return {
-            "this_week": (monday, today),
-            "last_week": (last_monday, last_sunday),
+            "this_week": (week_start, today),
+            "last_week": (last_week_start, last_week_end),
         }
     elif view == "month":
         # Rolling 30-day windows
@@ -132,8 +136,8 @@ def get_period_ranges(
         }
     else:
         return {
-            "this_week": (monday, today),
-            "last_week": (last_monday, last_sunday),
+            "this_week": (week_start, today),
+            "last_week": (last_week_start, last_week_end),
             "this_month": (first_of_month, today),
             "last_month": (last_month_start, last_month_end),
         }
@@ -147,12 +151,13 @@ def _sum_range(per_day: dict[date, int], start: date, end: date) -> int:
 def render_stats(view: str, config) -> None:
     """Render the full stats dashboard to the console."""
     today = date.today()
-    ranges = get_period_ranges(view, today)
+    ranges = get_period_ranges(view, today, config)
 
     # Determine chart window
     if view == "week":
-        monday = today - timedelta(days=today.weekday())
-        chart_days = [monday + timedelta(days=i) for i in range(7)]
+        from bute.ritual_ops import week_anchor
+        week_start = week_anchor(today, config)
+        chart_days = [week_start + timedelta(days=i) for i in range(7)]
         chart_label = "This week"
     elif view == "month":
         chart_days = [today - timedelta(days=29 - i) for i in range(30)]

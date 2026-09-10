@@ -97,15 +97,15 @@ def capture_cmd(ctx, later, backlog, tokens):
     #   default  → focus_date=today + week_date=monday (Focus Log)
     #   -l       → week_date only (Task log, not today)
     #   -b       → no focus dates (Backlog)
+    config = ctx.obj.get("config")
     has_future_date = entry.scheduled_date and entry.scheduled_date > date.today()
     has_future_due = entry.due and entry.due > date.today()
     if entry.type == EntryType.TASK and not backlog and not has_future_date and not has_future_due:
-        from bute.ritual_ops import this_monday
-        entry.week_date = this_monday()
+        from bute.ritual_ops import week_anchor
+        entry.week_date = week_anchor(config=config)
         if not later:
             entry.focus_date = date.today()
 
-    config = ctx.obj.get("config")
     save_entry(entry, config)
     from bute.ai import embed_entry
     embed_entry(entry.id, entry.body, config)
@@ -169,14 +169,14 @@ def open_capture_cmd(ctx, signifier):
         edited.created = entry.created
 
         # Set focus dates on tasks (same logic as inline capture)
+        config = ctx.obj.get("config")
         has_future_date = edited.scheduled_date and edited.scheduled_date > date.today()
         has_future_due = edited.due and edited.due > date.today()
         if edited.type == EntryType.TASK and not has_future_date and not has_future_due:
-            from bute.ritual_ops import this_monday
-            edited.week_date = this_monday()
+            from bute.ritual_ops import week_anchor
+            edited.week_date = week_anchor(config=config)
             edited.focus_date = date.today()
 
-        config = ctx.obj.get("config")
         save_entry(edited, config)
         from bute.ai import embed_entry
         embed_entry(edited.id, edited.body, config)

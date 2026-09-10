@@ -112,8 +112,8 @@ tags:                                          # optional, list of strings
 - home-reno
 - backend
 due: '2026-04-10'                              # optional, tasks only, ISO date
-scheduled_date: '2026-04-05'                   # optional, any type — resurface date
-scheduled_time: '14:30'                        # optional, HH:MM 24h format
+date: '2026-04-05'                             # optional, any type — resurface date
+time: '14:30'                                  # optional, HH:MM 24h format
 repeat: daily                                  # optional, recurrence pattern
 extra_meta:                                    # optional, arbitrary key:value pairs
   priority: high

@@ -84,7 +84,7 @@ def test_process_dump_line_empty(tmp_data):
 
 
 def test_set_weekly_selection(tmp_data):
-    from bute.ritual_ops import this_monday
+    from bute.ritual_ops import week_anchor
     e1 = Entry.create(EntryType.TASK, "task one")
     e2 = Entry.create(EntryType.TASK, "task two")
     save_entry(e1)
@@ -94,12 +94,12 @@ def test_set_weekly_selection(tmp_data):
     assert count == 2
 
     loaded = load_entry(entry_path_from_id(e1.id))
-    assert loaded.week_date == this_monday()
+    assert loaded.week_date == week_anchor()
 
 
 def test_clear_weekly_selection(tmp_data):
-    from bute.ritual_ops import this_monday
-    e = Entry.create(EntryType.TASK, "task", week_date=this_monday())
+    from bute.ritual_ops import week_anchor
+    e = Entry.create(EntryType.TASK, "task", week_date=week_anchor())
     save_entry(e)
 
     cleared = clear_weekly_selection()
@@ -252,10 +252,10 @@ def test_weekly_active_tasks_excludes_recurring(tmp_data):
     """Weekly task selection skips recurring tasks even without @habit tag."""
     from datetime import date
     from bute.models import Entry, EntryType
-    from bute.ritual_ops import get_weekly_active_tasks, this_monday
+    from bute.ritual_ops import get_weekly_active_tasks, week_anchor
     from bute.storage import save_entry
 
-    monday = this_monday()
+    monday = week_anchor()
     planned = Entry.create(
         entry_type=EntryType.TASK, body="write report", week_date=monday
     )
@@ -269,3 +269,56 @@ def test_weekly_active_tasks_excludes_recurring(tmp_data):
     bodies = {e.body for e in get_weekly_active_tasks(None)}
     assert "write report" in bodies
     assert "meditate" not in bodies
+
+
+# --- week anchor honours core.week_start ---
+
+SUNDAY_CONFIG = {"core": {"week_start": "sunday"}}
+MONDAY_CONFIG = {"core": {"week_start": "monday"}}
+
+
+def test_week_anchor_honours_sunday_week_start():
+    """With week_start=sunday the anchor is the preceding Sunday, not Monday."""
+    from datetime import date
+    from bute.ritual_ops import week_anchor
+
+    thursday = date(2026, 9, 10)
+    assert week_anchor(thursday, SUNDAY_CONFIG) == date(2026, 9, 6)
+    assert week_anchor(thursday, MONDAY_CONFIG) == date(2026, 9, 7)
+
+
+def test_week_anchor_defaults_to_monday_without_config():
+    """No config means ISO weeks — Monday, matching the previous behaviour."""
+    from datetime import date
+    from bute.ritual_ops import week_anchor
+
+    assert week_anchor(date(2026, 9, 10)) == date(2026, 9, 7)
+
+
+def test_week_anchor_matches_week_bounds_start():
+    """The anchor must equal the start week_bounds reports for the same config."""
+    from datetime import date, timedelta
+    from bute.config import week_bounds
+    from bute.ritual_ops import week_anchor
+
+    for offset in range(14):
+        day = date(2026, 9, 1) + timedelta(days=offset)
+        for cfg in (SUNDAY_CONFIG, MONDAY_CONFIG, None):
+            assert week_anchor(day, cfg) == week_bounds(day, cfg)[0]
+
+
+def test_weekly_selection_roundtrips_under_sunday_week_start(tmp_data):
+    """A task selected for the week is found again by the weekly view."""
+    from bute.models import Entry, EntryType
+    from bute.ritual_ops import get_weekly_active_tasks, set_weekly_selection
+    from bute.storage import save_entry
+
+    picked = Entry.create(entry_type=EntryType.TASK, body="write report")
+    save_entry(picked, SUNDAY_CONFIG)
+    other = Entry.create(entry_type=EntryType.TASK, body="unpicked")
+    save_entry(other, SUNDAY_CONFIG)
+
+    set_weekly_selection([picked.id], SUNDAY_CONFIG)
+
+    bodies = {e.body for e in get_weekly_active_tasks(SUNDAY_CONFIG)}
+    assert bodies == {"write report"}

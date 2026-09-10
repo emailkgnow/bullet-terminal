@@ -341,11 +341,11 @@ def test_handle_delete_removes_from_db(tmp_data):
 def test_later_clears_focus_date(runner, tmp_config, tmp_data):
     """bt <n> later should clear focus_date but leave week_date."""
     from datetime import date
-    from bute.ritual_ops import this_monday
+    from bute.ritual_ops import week_anchor
     entry = Entry.create(
         EntryType.TASK, "focused task",
         focus_date=date.today(),
-        week_date=this_monday(),
+        week_date=week_anchor(),
     )
     save_entry(entry)
     save_state("ls", [entry.id])
@@ -355,13 +355,13 @@ def test_later_clears_focus_date(runner, tmp_config, tmp_data):
 
     loaded = load_entry(entry_path_from_id(entry.id))
     assert loaded.focus_date is None
-    assert loaded.week_date == this_monday()
+    assert loaded.week_date == week_anchor()
 
 
 def test_focus_sets_both_dates(runner, tmp_config, tmp_data):
     """bt <n> focus sets focus_date=today and week_date=monday."""
     from datetime import date
-    from bute.ritual_ops import this_monday
+    from bute.ritual_ops import week_anchor
     entry = Entry.create(EntryType.TASK, "backlog task")
     save_entry(entry)
     save_state("ls", [entry.id])
@@ -371,17 +371,17 @@ def test_focus_sets_both_dates(runner, tmp_config, tmp_data):
 
     loaded = load_entry(entry_path_from_id(entry.id))
     assert loaded.focus_date == date.today()
-    assert loaded.week_date == this_monday()
+    assert loaded.week_date == week_anchor()
 
 
 def test_backlog_clears_both_dates(runner, tmp_config, tmp_data):
     """bt <n> backlog clears focus_date and week_date."""
     from datetime import date
-    from bute.ritual_ops import this_monday
+    from bute.ritual_ops import week_anchor
     entry = Entry.create(
         EntryType.TASK, "focused task",
         focus_date=date.today(),
-        week_date=this_monday(),
+        week_date=week_anchor(),
     )
     save_entry(entry)
     save_state("ls", [entry.id])
@@ -411,13 +411,13 @@ def test_entry_roundtrip_with_focus_week_dates(tmp_data):
 def test_get_daily_log_filters_by_focus_date(tmp_data):
     """get_daily_log should only return tasks with focus_date == today."""
     from datetime import date, timedelta
-    from bute.ritual_ops import get_daily_log, this_monday
+    from bute.ritual_ops import get_daily_log, week_anchor
 
     today = date.today()
     yesterday = today - timedelta(days=1)
 
-    focused = Entry.create(EntryType.TASK, "today task", focus_date=today, week_date=this_monday())
-    stale = Entry.create(EntryType.TASK, "yesterday task", focus_date=yesterday, week_date=this_monday())
+    focused = Entry.create(EntryType.TASK, "today task", focus_date=today, week_date=week_anchor())
+    stale = Entry.create(EntryType.TASK, "yesterday task", focus_date=yesterday, week_date=week_anchor())
     unfocused = Entry.create(EntryType.TASK, "no focus")
 
     for e in [focused, stale, unfocused]:
@@ -433,9 +433,9 @@ def test_get_daily_log_filters_by_focus_date(tmp_data):
 def test_get_weekly_active_tasks_filters_by_week_date(tmp_data):
     """get_weekly_active_tasks should only return tasks with week_date == this Monday."""
     from datetime import date, timedelta
-    from bute.ritual_ops import get_weekly_active_tasks, this_monday
+    from bute.ritual_ops import get_weekly_active_tasks, week_anchor
 
-    monday = this_monday()
+    monday = week_anchor()
     last_monday = monday - timedelta(days=7)
 
     current = Entry.create(EntryType.TASK, "current", week_date=monday)
@@ -497,3 +497,37 @@ def test_action_later_clears_focus_date(runner, tmp_config, tmp_data):
 
     reloaded = load_entry(entry_path_from_id(entry.id))
     assert reloaded.focus_date is None
+
+
+def test_show_renders_markdown_body(runner, tmp_config, tmp_data):
+    """bt <n> show renders the body as formatted markdown without raw symbols."""
+    body = "# My Heading\n\nSome **bold** text and a list:\n\n- one\n- two\n"
+    entry = Entry.create(EntryType.NOTE, body, tags=["retirement"])
+    save_entry(entry)
+    save_state("notes", [entry.id])
+
+    result = runner.invoke(main, ["1", "show"])
+    assert result.exit_code == 0
+    # Header surfaces type label, tag, and short id
+    assert "note" in result.output
+    assert "@retirement" in result.output
+    assert entry.id[:8] in result.output
+    # Rendered markdown contains the words but not the raw '#' / '**' symbols
+    assert "My Heading" in result.output
+    assert "bold" in result.output
+    assert "one" in result.output
+    assert "two" in result.output
+    assert "**bold**" not in result.output
+    assert "# My Heading" not in result.output
+
+
+def test_read_aliases_show(runner, tmp_config, tmp_data):
+    """`read` is an alias for `show`."""
+    entry = Entry.create(EntryType.NOTE, "# Hi\n\nbody text")
+    save_entry(entry)
+    save_state("notes", [entry.id])
+
+    result = runner.invoke(main, ["1", "read"])
+    assert result.exit_code == 0
+    assert "Hi" in result.output
+    assert "body text" in result.output

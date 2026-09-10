@@ -114,11 +114,30 @@ def test_tour_outro_points_to_focus_log(runner, tmp_config, tmp_data, _mock_ques
 
 
 def test_tour_brain_dump_creates_tasks(runner, tmp_config, tmp_data, _mock_questionary):
-    """Tasks typed during the welcome dump phase get saved."""
-    # wp dump phase reads lines until blank; first line becomes a task.
-    result = runner.invoke(main, [], input="call dentist\n\n")
+    """Tasks typed during the wp dump phase get saved."""
+    # First \n clears welcome prompt; then wp dump reads until blank.
+    result = runner.invoke(main, [], input="\ncall dentist\n\n")
     assert result.exit_code == 0
     from bute.storage import load_entries_by_filter
     entries = load_entries_by_filter(lambda e: True)
     bodies = [e.body for e in entries]
     assert any("call dentist" in b for b in bodies)
+
+
+def test_tour_skip_skips_wp_and_dp(runner, tmp_config, tmp_data, _mock_questionary):
+    """Typing /skip at the welcome prompt exits before wp/dp run."""
+    result = runner.invoke(main, [], input="/skip\n")
+    assert result.exit_code == 0
+    assert "Welcome to bt" in result.output
+    # wp/dp headers should NOT appear
+    assert "Daily Plan" not in result.output
+    # Marker should be set so tour does not refire
+    assert is_tour_done() is True
+
+
+def test_tour_skip_does_not_create_entries(runner, tmp_config, tmp_data, _mock_questionary):
+    """/skip leaves the data dir untouched."""
+    runner.invoke(main, [], input="/skip\n")
+    from bute.storage import load_entries_by_filter
+    entries = load_entries_by_filter(lambda e: True)
+    assert entries == []

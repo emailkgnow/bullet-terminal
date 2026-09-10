@@ -11,10 +11,16 @@ from bute.storage import (
 )
 
 
-def this_monday(today: date | None = None) -> date:
-    """Return Monday of the ISO week containing the given date (defaults to today)."""
-    d = today or date.today()
-    return d - timedelta(days=d.weekday())
+def week_anchor(today: date | None = None, config=None) -> date:
+    """Return the first day of the week containing `today`, per core.week_start.
+
+    This is the value stamped into `Entry.week_date`, so it must agree with
+    `config.week_bounds` — otherwise the weekly task view and the weekly stats
+    disagree about which week it is.
+    """
+    from bute.config import week_bounds
+
+    return week_bounds(today or date.today(), config)[0]
 
 
 def get_yesterday_unresolved(config=None) -> list[Entry]:
@@ -203,7 +209,7 @@ def get_all_active_tasks(config=None) -> list[Entry]:
 
 
 def get_weekly_active_tasks(config=None) -> list[Entry]:
-    """Active tasks selected for this week (week_date == this Monday).
+    """Active tasks selected for this week (week_date == this week's anchor day).
 
     Falls back to all active tasks if none have week_date set
     (e.g. user hasn't run bt wp yet). Excludes recurring tasks — they have
@@ -211,7 +217,7 @@ def get_weekly_active_tasks(config=None) -> list[Entry]:
     """
     from bute.storage import query_and_load
     weekly = query_and_load(
-        config, type="task", status="active", week_date=this_monday().isoformat()
+        config, type="task", status="active", week_date=week_anchor(config=config).isoformat()
     )
     weekly = [e for e in weekly if not e.is_recurring()]
     if weekly:
@@ -223,7 +229,7 @@ def get_weekly_active_tasks(config=None) -> list[Entry]:
 def process_dump_line(line: str, config=None) -> Entry | None:
     """Parse a dump line and save it. Defaults to j if no signifier.
 
-    Tasks captured during rituals automatically get week_date set to this Monday.
+    Tasks captured during rituals automatically get week_date set to this week's anchor.
     """
     from bute.parser import SIGNIFIER_RE, WORD_SIGNIFIER_RE
 
@@ -261,7 +267,7 @@ def process_dump_line(line: str, config=None) -> Entry | None:
 
     # Set week_date on tasks captured during rituals
     if entry.type == EntryType.TASK:
-        entry.week_date = this_monday()
+        entry.week_date = week_anchor(config=config)
 
     save_entry(entry, config)
     from bute.ai import embed_entry
@@ -270,18 +276,18 @@ def process_dump_line(line: str, config=None) -> Entry | None:
 
 
 def set_weekly_selection(entry_ids: list[str], config=None) -> int:
-    """Set week_date=this_monday on entries. Returns count updated."""
+    """Set week_date to this week's anchor day on entries. Returns count updated."""
     from bute.storage import entry_path_from_id, load_entry
 
-    monday = this_monday()
+    anchor = week_anchor(config=config)
     count = 0
     for eid in entry_ids:
         path = entry_path_from_id(eid, config)
         if path is None:
             continue
         entry = load_entry(path)
-        if entry.week_date != monday:
-            entry.week_date = monday
+        if entry.week_date != anchor:
+            entry.week_date = anchor
         update_entry(entry, config)
         count += 1
     return count

@@ -2,7 +2,9 @@
 
 from rich.align import Align
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 from bute.models import Entry, EntryType, SYSTEM_TAGS, TaskStatus
@@ -399,4 +401,46 @@ def display_search_results(
     console.print(f"\n  [bold]{title}[/bold]")
     console.print(Align.center(table))
 
+
+def display_entry_full(entry: Entry) -> None:
+    """Render an entry's body as formatted markdown with a clean header.
+
+    Used by `bt <n> show` — strips frontmatter symbols and renders the body
+    via Rich's Markdown (headings, bold, lists, code blocks, rules).
+    """
+    style = TYPE_STYLE[entry.type]
+    color = style["color"]
+
+    header = Text()
+    header.append("  ")
+    if entry.important:
+        header.append("! ", style="bold red")
+    header.append(style["icon"], style=f"bold {color}")
+    header.append(f"  {style['label']}", style=f"bold {color}")
+    if entry.status == TaskStatus.DONE:
+        header.append("  · done", style="green")
+    elif entry.status == TaskStatus.DROPPED:
+        header.append("  · dropped", style="dim")
+
+    meta_parts = []
+    if entry.due:
+        meta_parts.append(f"due {entry.due}")
+    if entry.scheduled_date:
+        meta_parts.append(f"on {entry.scheduled_date}")
+    if entry.scheduled_time:
+        meta_parts.append(format_time_display(entry.scheduled_time))
+    if entry.repeat:
+        meta_parts.append(f"repeat {entry.repeat}")
+    visible_tags = [t for t in entry.tags if t not in SYSTEM_TAGS]
+    if visible_tags:
+        meta_parts.append(" ".join(f"@{t}" for t in visible_tags))
+    meta_parts.append(entry.id[:8])
+
+    console.print()
+    console.print(header)
+    console.print(f"  [dim]{' · '.join(meta_parts)}[/dim]")
+    console.print(Rule(style="dim"))
+    console.print()
+    console.print(Markdown(entry.body))
+    console.print()
 

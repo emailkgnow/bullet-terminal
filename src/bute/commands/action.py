@@ -7,7 +7,7 @@ from datetime import date
 import click
 from rich.console import Console
 
-from bute.display import display_action_confirmation
+from bute.display import display_action_confirmation, display_entry_full
 from bute.errors import DwnError, InvalidActionError
 from bute.models import Entry, EntryType, TaskStatus
 from bute.state import pop_undo, record_undo, resolve_numbers
@@ -192,6 +192,11 @@ def handle_edit(entry: Entry, args: list[str], config) -> None:
     _reindex_entry(path, config)
 
 
+def handle_show(entry: Entry, args: list[str], config) -> None:
+    """Render the entry body as formatted markdown."""
+    display_entry_full(entry)
+
+
 def handle_add_tag(entry: Entry, tag: str, config) -> None:
     """Add a tag to an entry (no duplicates)."""
     if tag not in entry.tags:
@@ -218,11 +223,11 @@ def handle_later(entry: Entry, args: list[str], config) -> None:
 
 def handle_focus(entry: Entry, args: list[str], config) -> None:
     """Set focus_date and week_date — pull task into Focus Log."""
-    from bute.ritual_ops import this_monday
+    from bute.ritual_ops import week_anchor
     _require_task(entry, "focus")
     today = date.today()
-    monday = this_monday(today)
-    if entry.focus_date == today and entry.week_date == monday:
+    anchor = week_anchor(today, config)
+    if entry.focus_date == today and entry.week_date == anchor:
         Console().print(f"  [dim]Already in Focus Log[/dim]")
         return
     prev = {
@@ -231,7 +236,7 @@ def handle_focus(entry: Entry, args: list[str], config) -> None:
     }
     record_undo(entry.id, "focus", prev, config)
     entry.focus_date = today
-    entry.week_date = monday
+    entry.week_date = anchor
     update_entry(entry, config)
 
 
@@ -501,6 +506,8 @@ ACTION_HANDLERS = {
     "modify": handle_mod,
     "open": handle_edit,
     "edit": handle_edit,
+    "show": handle_show,
+    "read": handle_show,
     "later": handle_later,
     "focus": handle_focus,
     "backlog": handle_backlog,
@@ -602,7 +609,7 @@ def action_cmd(ctx, tokens):
         entry = load_entry(path)
         try:
             handler(entry, args, config)
-            if action not in ("edit", "open"):
+            if action not in ("edit", "open", "show", "read"):
                 display_action_confirmation(entry, action)
         except DwnError as e:
             console.print(f"  [red]{e.format_message()}[/red]")

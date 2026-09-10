@@ -91,7 +91,7 @@ def test_capture_task_sets_focus_and_week_dates(runner, tmp_config, tmp_data):
     """Capturing a task (no flags, no future date) sets focus_date=today and week_date=monday."""
     from datetime import date
     from bute.storage import load_entry
-    from bute.ritual_ops import this_monday
+    from bute.ritual_ops import week_anchor
 
     result = runner.invoke(main, ["/t", "do", "a", "thing"])
     assert result.exit_code == 0
@@ -99,14 +99,14 @@ def test_capture_task_sets_focus_and_week_dates(runner, tmp_config, tmp_data):
     assert len(entries) == 1
     loaded = load_entry(entries[0])
     assert loaded.focus_date == date.today()
-    assert loaded.week_date == this_monday()
+    assert loaded.week_date == week_anchor()
 
 
 def test_capture_task_later_flag_sets_week_date_only(runner, tmp_config, tmp_data):
     """bt t -l sets week_date but not focus_date."""
     from datetime import date
     from bute.storage import load_entry
-    from bute.ritual_ops import this_monday
+    from bute.ritual_ops import week_anchor
 
     result = runner.invoke(main, ["/t", "-l", "next", "week"])
     # The -l flag is parsed by the capture_cmd; may or may not support here. Skip if unsupported.
@@ -116,7 +116,7 @@ def test_capture_task_later_flag_sets_week_date_only(runner, tmp_config, tmp_dat
     if entries:
         loaded = load_entry(entries[0])
         assert loaded.focus_date is None
-        assert loaded.week_date == this_monday()
+        assert loaded.week_date == week_anchor()
 
 
 def test_capture_note_has_no_focus_dates(runner, tmp_config, tmp_data):

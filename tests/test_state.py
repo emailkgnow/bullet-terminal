@@ -56,3 +56,40 @@ def test_resolve_numbers_zero(tmp_data):
         resolve_numbers([0])
 
 
+
+
+# --- Journal whisper history (recently-shown ring buffer) ---
+
+
+def test_journal_history_empty_by_default(tmp_data):
+    from bute.state import get_journal_history
+
+    assert get_journal_history() == []
+
+
+def test_record_journal_shown_appends(tmp_data):
+    from bute.state import get_journal_history, record_journal_shown
+
+    record_journal_shown("A")
+    record_journal_shown("B")
+    assert get_journal_history() == ["A", "B"]
+
+
+def test_journal_history_caps_at_limit(tmp_data):
+    from bute.state import JOURNAL_HISTORY_LIMIT, get_journal_history, record_journal_shown
+
+    ids = [f"ID{i:03d}" for i in range(JOURNAL_HISTORY_LIMIT + 10)]
+    for entry_id in ids:
+        record_journal_shown(entry_id)
+    history = get_journal_history()
+    assert len(history) == JOURNAL_HISTORY_LIMIT
+    assert history == ids[-JOURNAL_HISTORY_LIMIT:]
+
+
+def test_record_journal_shown_moves_repeat_to_end(tmp_data):
+    from bute.state import get_journal_history, record_journal_shown
+
+    record_journal_shown("A")
+    record_journal_shown("B")
+    record_journal_shown("A")
+    assert get_journal_history() == ["B", "A"]
