@@ -150,7 +150,7 @@ bt has no built-in LLM. If you want AI over your entries, point your own agent (
 3. **Frontmatter must be valid YAML** with the keys documented above. At minimum: `id`, `type`, `created`. Tasks should set `status: active`.
 4. **Body is free-form Markdown.** First line is the title shown in list views.
 
-To read what bt shows without parsing tables, append `--json` to any view (`bt --json`, `bt b --json`, `bt @home --json`, `bt find x --json`). The `n` field is the number you would pass to `bt <n> done`.
+To read what bt shows without parsing tables, append `--json` to any numbered entry view — the Focus Log, Tasks/Backlog/Notes/Journals/Calendar, tag filters, `due`, `tags`, `find`, and `like` (`bt --json`, `bt b --json`, `bt @home --json`, `bt find x --json`). It does not apply to `bt stats`/`bt streak` (their own reports), or to actions and captures (which still print Rich confirmations). The `n` field is the number you would pass to `bt <n> done`.
 
 ### How reconciliation works
 
@@ -205,7 +205,7 @@ Full help: `bt -h`.
 | `bt m` / `bt m jan` / `bt m 2026` | Monthly Log (event-driven daily retrospective) |
 | `bt @tag` | filter across all types; `@a @b` = AND, `-@c` = NOT |
 | `bt find <q>` | keyword + tag search (FTS5) |
-| `bt <view> --json` | any view as JSON — same numbers as the table, so `bt 3 done` works from a script |
+| `bt <view> --json` | numbered entry views as JSON (`bt`, `bt b`/`t`/`n`/`j`/`c`, `bt @tag`, `bt due`, `bt tags`, `bt find`, `bt like`) — same numbers as the table, so `bt 3 done` works from a script |
 | `bt like <q>` | semantic search (local embeddings, no API key) |
 | `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `edit`, `later`, `focus`, `restore`) |
 | `bt <n> clear <field>` | clear tag, due, date, time, repeat, or `!` |

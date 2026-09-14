@@ -120,3 +120,87 @@ def test_find_json(runner, tmp_config, tmp_data):
     assert result.exit_code == 0, result.output
     data = _parse(result.output)
     assert data["entries"][0]["body"] == "OAuth tokens expire"
+
+
+def test_find_json_empty(runner, tmp_config, tmp_data):
+    """The no-results early return in find_cmd must also emit JSON, not Rich text."""
+    result = runner.invoke(main, ["find", "nonexistent", "--json"])
+    assert result.exit_code == 0, result.output
+    data = _parse(result.output)
+    assert data == {"view": 'Find: "nonexistent"', "entries": []}
+
+
+def test_extra_meta_is_raw_not_escaped_in_json(runner, tmp_config, tmp_data):
+    """Task 6 wraps extra_meta in rich.markup.escape() for terminal rendering;
+    JSON must carry the literal value an agent would need to round-trip."""
+    save_entry(Entry.create(EntryType.TASK, "call bank", extra_meta={"key": "[bold]x"}))
+    result = runner.invoke(main, ["b", "--json"])
+    assert result.exit_code == 0, result.output
+    data = _parse(result.output)
+    assert data["entries"][0]["extra"]["key"] == "[bold]x"
+
+
+def test_dash_at_tag_filter_then_json_flag(runner, tmp_config, tmp_data):
+    """bt -@habit --json must still route as a tag-exclude filter, not choke
+    on -@ as an unrecognized option once --json is hoisted in front of it."""
+    save_entry(Entry.create(EntryType.TASK, "plain"))
+    save_entry(Entry.create(EntryType.TASK, "habit task", tags=["habit"]))
+    result = runner.invoke(main, ["-@habit", "--json"])
+    assert result.exit_code == 0, result.output
+    data = _parse(result.output)
+    bodies = [e["body"] for e in data["entries"]]
+    assert "plain" in bodies
+    assert "habit task" not in bodies
+
+
+def test_json_flag_then_dash_at_tag_filter(runner, tmp_config, tmp_data):
+    """Same as above with the flag before the -@tag token."""
+    save_entry(Entry.create(EntryType.TASK, "plain"))
+    save_entry(Entry.create(EntryType.TASK, "habit task", tags=["habit"]))
+    result = runner.invoke(main, ["--json", "-@habit"])
+    assert result.exit_code == 0, result.output
+    data = _parse(result.output)
+    bodies = [e["body"] for e in data["entries"]]
+    assert "plain" in bodies
+    assert "habit task" not in bodies
+
+
+def test_bare_json_skips_tour_wp_and_dp_rituals(runner, tmp_config, tmp_data):
+    """bt --json on an ordinary morning (dp/wp not done, no tour marker) must
+    return the Focus Log unconditionally — never fall into an interactive
+    ritual, which would also write focus/week-date side effects."""
+    from bute.state import is_dp_done_today, is_wp_done_this_week
+    from bute.config import TOUR_DONE
+
+    save_entry(Entry.create(EntryType.TASK, "today task", focus_date=date.today()))
+    config = None
+    from bute.config import load_config
+    config = load_config()
+
+    assert not is_dp_done_today(config)
+    assert not is_wp_done_this_week(config)
+
+    result = runner.invoke(main, ["--json"])
+    assert result.exit_code == 0, result.output
+    data = _parse(result.output)
+    assert data["view"].startswith("Focus Log")
+    assert any(e["body"] == "today task" for e in data["entries"])
+
+    # No ritual side effects — dp/wp still undone, no tour marker written.
+    assert not is_dp_done_today(config)
+    assert not is_wp_done_this_week(config)
+    assert not TOUR_DONE.exists()
+
+
+def test_like_json_without_embeddings(runner, tmp_config, tmp_data, monkeypatch):
+    """When embeddings aren't installed, bt like --json must emit JSON
+    (with an error field), not the Rich install-instructions message."""
+    import bute.ai as ai_mod
+    monkeypatch.setattr(ai_mod, "is_embedding_available", lambda: False)
+
+    result = runner.invoke(main, ["like", "productivity", "--json"])
+    assert result.exit_code == 0, result.output
+    data = _parse(result.output)
+    assert data["view"] == "Like"
+    assert data["entries"] == []
+    assert "error" in data

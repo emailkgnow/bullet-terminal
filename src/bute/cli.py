@@ -29,10 +29,13 @@ class DwnGroup(click.Group):
     def parse_args(self, ctx, args):
         """Prevent Click from treating -@tag as an option flag; hoist --json to the front."""
         args = list(args)
-        if "--json" in args:
-            args = ["--json"] + [a for a in args if a != "--json"]
+        has_json = "--json" in args
+        if has_json:
+            args = [a for a in args if a != "--json"]
         if args and args[0].startswith("-@"):
             args = ["--"] + args
+        if has_json:
+            args = ["--json"] + args
         return super().parse_args(ctx, args)
 
     def resolve_command(self, ctx, args):
@@ -432,6 +435,23 @@ def main(ctx, interactive, demo, toggle_journal, show_all, as_json):
 
     if not ctx.invoked_subcommand:
         config = ctx.obj["config"]
+
+        if as_json:
+            # Non-interactive callers always get the Focus Log — never the
+            # first-run tour, the weekly plan, or the daily plan ritual,
+            # none of which produce JSON and all of which have write
+            # side effects (focus/week dates, completion markers).
+            from datetime import date
+            from bute.display import display_entry_list
+            from bute.ritual_ops import get_daily_log
+            from bute.state import save_state
+
+            entries = get_daily_log(config, include_all=show_all)
+            suffix = " (all)" if show_all else ""
+            title = f"Focus Log — {date.today().strftime('%a %b %d')}{suffix}"
+            display_entry_list(entries, title)
+            save_state("ls", [e.id for e in entries], config)
+            return
 
         # First-run onboarding — welcome → wp → dp → outro.
         from bute.commands.tour import run_tour, should_run_tour

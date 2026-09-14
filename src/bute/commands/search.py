@@ -23,7 +23,14 @@ def like_cmd(ctx, tokens, limit):
     from bute.ai import is_embedding_available
 
     if not is_embedding_available():
-        console.print(_INSTALL_MSG)
+        from bute.display import json_mode
+        if json_mode():
+            # Explicit "error" field so an agent can tell "feature unavailable"
+            # apart from "no results" (an empty entries list means the latter).
+            import json as _json
+            click.echo(_json.dumps({"view": "Like", "entries": [], "error": "embeddings not installed"}))
+        else:
+            console.print(_INSTALL_MSG)
         return
 
     config = ctx.obj.get("config")
@@ -155,7 +162,11 @@ def find_cmd(ctx, query, type_filter, limit):
     entries = entries[:limit]
 
     if not entries:
-        console.print(f'  [dim]No entries found for "{query_text}".[/dim]')
+        from bute.display import emit_json, json_mode
+        if json_mode():
+            emit_json(f'Find: "{query_text}"', [])
+        else:
+            console.print(f'  [dim]No entries found for "{query_text}".[/dim]')
         return
 
     from bute.display import display_entry_list
