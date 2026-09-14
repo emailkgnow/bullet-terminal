@@ -309,7 +309,7 @@ def _print_help():
     t.add_row("bt overdue", "Past-due tasks only", "")
     t.add_row("bt streak", "Recurring task streaks + 30-day rate", "")
     t.add_row("bt stats [dim][week|month]", "Momentum dashboard — streaks, trends", "bt stats week, bt stats month")
-    t.add_row("bt tags", "All tags with counts and stage", "")
+    t.add_row("bt tags", "All tags with counts", "")
     t.add_row("bt !", "Important entries", "bt t! for tasks only")
     t.add_row("bt @tag [@tag2] [-@ex]", "Filter by tags (AND + exclude)", "bt @backend -@done")
     t.add_row("bt find <text>", "Keyword search", "-t -n -j -c to filter")
@@ -329,7 +329,7 @@ def _print_help():
     t.add_row("bt <n> done", "Mark task(s) complete", "bt 1-4 done")
     t.add_row("bt <n> drop", "Consciously delete", "bt 2 3 drop")
     t.add_row("bt <n> !", "Toggle important flag", "bt 1 !")
-    t.add_row("bt <n> later", "Defer to Task log (keep @thisweek)", "bt 3 later")
+    t.add_row("bt <n> later", "Defer to Task log (stays in this week)", "bt 3 later")
     t.add_row("bt <n> backlog", "Send to Backlog (remove all focus)", "bt 3 backlog")
     t.add_row("bt <n> show", "Read entry in glow (q to quit), else Rich", "bt 1 view")
     t.add_row("bt <n> open", "Open in $EDITOR", "bt 1 open")
@@ -367,7 +367,12 @@ def _print_help():
     console.print()
     console.print(t)
     console.print()
-    console.print("  [bold]Bring your own AI.[/bold] [dim]Point any agent at[/dim] [bold]~/bullet-terminal/entries/[/bold] [dim]— bt auto-reconciles new .md files on next read. Schema: see README.md.[/dim]")
+    try:
+        from bute.config import get_data_dir, load_config
+        entries_hint = str(get_data_dir(load_config()) / "entries") + "/"
+    except Exception:
+        entries_hint = "your bt entries/ folder"
+    console.print(f"  [bold]Bring your own AI.[/bold] [dim]Point any agent at[/dim] [bold]{entries_hint}[/bold] [dim]— bt auto-reconciles new .md files on next read. Schema: see README.md.[/dim]")
     console.print()
 
 
@@ -437,7 +442,8 @@ def main(ctx, interactive, demo, toggle_journal, show_all, as_json):
             console.print(f"\n  [green]Migrated {result['total']} entries "
                           f"({result['task']} tasks, {result['note']} notes, "
                           f"{result['journal']} journals, {result['calendar']} calendar)[/green]")
-            console.print(f"  [dim]Backup saved to ~/bullet-terminal/entries-backup-*.zip[/dim]\n")
+            from bute.config import get_data_dir
+            console.print(f"  [dim]Backup saved to {get_data_dir(config)}/entries-backup-*.zip[/dim]\n")
         ctx.obj["_migrated"] = True
 
     # Daily auto-backup — silent, idempotent, skipped in demo mode
