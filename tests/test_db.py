@@ -392,6 +392,22 @@ class TestQueryEntries:
         # All entries were just created so all should match
         assert len(results) == 5
 
+    def test_created_date_filter_uses_local_date_not_utc(self):
+        """An entry created after local midnight belongs to the local date.
+
+        created is stored local-with-offset by Entry.create(). SQLite's
+        date() normalises an offset to UTC, so a 01:30+03:00 timestamp came
+        back as the previous day and the entry vanished from that day's
+        queries. Regression test for that skew.
+        """
+        from bute.db import upsert_entry
+        e = _task("after midnight")
+        e.created = datetime.fromisoformat("2026-03-15T01:30:00+03:00")
+        upsert_entry(e)
+        ids = self._ids(query_entries(created_date="2026-03-15"))
+        assert e.id in ids, "entry created 01:30 local must match its local date"
+        assert e.id not in self._ids(query_entries(created_date="2026-03-14"))
+
     def test_created_since(self):
         results = query_entries(created_since="2020-01-01T00:00:00")
         assert len(results) == 5

@@ -474,17 +474,22 @@ def query_entries(
         conditions.append("important = ?")
         params.append(1 if important else 0)
 
+    # created is stored local-with-offset by Entry.create(), so its first 10
+    # characters are the local calendar date the entry was written on. Compare
+    # on that prefix rather than SQLite's date(), which normalises the offset
+    # to UTC and pushes after-midnight entries onto the previous day. Callers
+    # may pass a date or a full datetime, so trim both sides to the date.
     if created_date is not None:
-        conditions.append("date(created) = ?")
-        params.append(created_date)
+        conditions.append("substr(created, 1, 10) = ?")
+        params.append(str(created_date)[:10])
 
     if created_since is not None:
-        conditions.append("date(created) >= ?")
-        params.append(created_since)
+        conditions.append("substr(created, 1, 10) >= ?")
+        params.append(str(created_since)[:10])
 
     if created_until is not None:
-        conditions.append("date(created) <= ?")
-        params.append(created_until)
+        conditions.append("substr(created, 1, 10) <= ?")
+        params.append(str(created_until)[:10])
 
     if scheduled_date is not None:
         conditions.append("scheduled_date = ?")

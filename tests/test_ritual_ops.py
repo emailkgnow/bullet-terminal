@@ -22,7 +22,10 @@ from bute.storage import entry_path, entry_path_from_id, load_entry, save_entry,
 
 def test_get_yesterday_unresolved(tmp_data):
     """Yesterday's active tasks show up; done tasks and notes don't."""
-    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    # Match Entry.create()'s local-with-offset timestamp. A bare UTC datetime
+    # makes .date() the UTC date, which disagrees with get_yesterday_unresolved's
+    # local date.today() for the hours either side of midnight.
+    yesterday = datetime.now(timezone.utc).astimezone() - timedelta(days=1)
 
     e1 = Entry.create(EntryType.TASK, "active task")
     e1.created = yesterday
