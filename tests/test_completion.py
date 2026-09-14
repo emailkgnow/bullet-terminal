@@ -46,13 +46,13 @@ def test_view_tag_argument_completes(tmp_config, tmp_data):
     assert _complete(["tasks"], "@he") == ["@health"]
 
 
-def test_completion_command_prints_zsh_line(runner):
+def test_completion_command_prints_zsh_line(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["completion"])
     assert result.exit_code == 0
     assert '_BT_COMPLETE=zsh_source bt' in result.output
 
 
-def test_completion_command_bash(runner):
+def test_completion_command_bash(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["completion", "bash"])
     assert result.exit_code == 0
     assert '_BT_COMPLETE=bash_source bt' in result.output

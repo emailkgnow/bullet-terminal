@@ -18,7 +18,12 @@ def _known_tags() -> list[str]:
 
 
 def complete_tags(ctx, param, incomplete: str) -> list[CompletionItem]:
-    """Complete '@ba' → '@backend'. Anything not starting with '@' gets no suggestions."""
+    """Complete '@ba' → '@backend'.
+
+    Anything not starting with '@' returns nothing: capture and action tokens
+    are free text, so there is no candidate set to offer, and suggesting tag
+    names for a plain word would be noise.
+    """
     if not incomplete.startswith("@"):
         return []
     prefix = incomplete[1:]

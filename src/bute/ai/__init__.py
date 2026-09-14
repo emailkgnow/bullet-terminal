@@ -6,10 +6,6 @@ sqlite-vec stores vectors in `~/bullet-terminal/.index/entries.db`.
 
 from __future__ import annotations
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 
 def is_embedding_available() -> bool:
     """Check if both fastembed and sqlite-vec are installed."""

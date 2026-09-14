@@ -64,7 +64,7 @@ def test_number_action_routes_to_action(runner, tmp_config, tmp_data):
     assert "done" in result.output
 
 
-def test_unknown_command(runner):
+def test_unknown_command(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["foobar"])
     assert result.exit_code != 0
 

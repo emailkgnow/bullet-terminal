@@ -1,7 +1,5 @@
 """Tests for action commands."""
 
-import os
-
 import pytest
 
 from bute.cli import main
@@ -593,24 +591,9 @@ def test_show_falls_back_to_rich_when_glow_missing(runner, tmp_config, tmp_data,
     assert "# Heading" not in result.output
 
 
-def test_show_pages_long_body(runner, tmp_config, tmp_data, fake_glow, monkeypatch):
-    """A long body opens in glow's pager."""
-    import shutil
-    monkeypatch.setattr(shutil, "get_terminal_size", lambda *a, **kw: os.terminal_size((80, 24)))
+def test_show_pages_long_body(runner, tmp_config, tmp_data, fake_glow):
+    """handle_show always passes -p — reading an entry is always an interactive glow session."""
     entry = Entry.create(EntryType.NOTE, "\n".join(f"line {i}" for i in range(60)))
-    save_entry(entry)
-    save_state("notes", [entry.id])
-
-    result = runner.invoke(main, ["1", "show"])
-    assert result.exit_code == 0
-    assert "-p" in fake_glow[0]
-
-
-def test_show_pages_short_body_too(runner, tmp_config, tmp_data, fake_glow, monkeypatch):
-    """Short bodies get the same glow session — reading is always interactive."""
-    import shutil
-    monkeypatch.setattr(shutil, "get_terminal_size", lambda *a, **kw: os.terminal_size((80, 24)))
-    entry = Entry.create(EntryType.NOTE, "one liner")
     save_entry(entry)
     save_state("notes", [entry.id])
 

@@ -40,3 +40,6 @@ packages = ["src/bute"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: tests that load the embedding model (deselect with -m 'not slow')",
+]
