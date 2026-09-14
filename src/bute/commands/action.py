@@ -1,6 +1,7 @@
 """Action command — handles number-based actions (done, drop, etc.)."""
 
 import os
+import shutil
 import subprocess
 from datetime import date
 
@@ -193,7 +194,16 @@ def handle_edit(entry: Entry, args: list[str], config) -> None:
 
 
 def handle_show(entry: Entry, args: list[str], config) -> None:
-    """Render the entry body as formatted markdown."""
+    """Render the entry as markdown — via glow when installed, Rich otherwise.
+
+    glow strips the YAML frontmatter itself, so it gets the file path directly.
+    Always opens glow's pager (-p) so reading is a real glow session — scroll,
+    search with /, quit with q — rather than a dump into scrollback.
+    """
+    path = entry_path_from_id(entry.id, config)
+    if path is not None and shutil.which("glow"):
+        subprocess.call(["glow", "-p", str(path)])
+        return
     display_entry_full(entry)
 
 
@@ -508,6 +518,7 @@ ACTION_HANDLERS = {
     "edit": handle_edit,
     "show": handle_show,
     "read": handle_show,
+    "view": handle_show,
     "later": handle_later,
     "focus": handle_focus,
     "backlog": handle_backlog,
@@ -609,7 +620,7 @@ def action_cmd(ctx, tokens):
         entry = load_entry(path)
         try:
             handler(entry, args, config)
-            if action not in ("edit", "open", "show", "read"):
+            if action not in ("edit", "open", "show", "read", "view"):
                 display_action_confirmation(entry, action)
         except DwnError as e:
             console.print(f"  [red]{e.format_message()}[/red]")

@@ -143,6 +143,7 @@ bute 6 clear d      # clear scheduled date
 bute 6 clear t      # clear time
 bute 6 clear repeat # clear repeat
 bute 7 edit         # open in $EDITOR
+bute 3 show         # read entry in glow pager, q to quit (aliases: view, read)
 bute 3 later        # defer — remove from today's log
 bute undo           # undo last action
 bute 3 undo         # undo last action on entry 3
