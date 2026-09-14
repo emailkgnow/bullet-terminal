@@ -137,23 +137,12 @@ def handle_drop(entry: Entry, args: list[str], config) -> None:
 
 
 def handle_delete(entry: Entry, args: list[str], config) -> None:
-    """Permanently delete an entry from disk, vector DB, and index."""
-    path = entry_path_from_id(entry.id, config)
-    # Save file content for undo before deleting
-    file_content = None
-    if path and path.exists():
-        file_content = path.read_text()
-        path.unlink()
-    from bute.ai.vectors import is_available, delete as vec_delete
-    if is_available():
-        vec_delete(entry.id, config)
-    try:
-        from bute.db import delete_entry
-        delete_entry(entry.id, config)
-    except Exception:
-        pass
-    if file_content is not None:
-        record_undo(entry.id, "delete", {"file_content": file_content}, config)
+    """Move an entry to .trash/ (recoverable via bt trash → bt <n> restore, or bt undo)."""
+    from bute.storage import trash_entry
+
+    trashed = trash_entry(entry.id, config)
+    if trashed is not None:
+        record_undo(entry.id, "delete", {"trashed": True}, config)
 
 
 def handle_toggle_important(entry: Entry, args: list[str], config) -> None:
@@ -407,33 +396,35 @@ def apply_undo(record: dict, config) -> None:
     action = record["action"]
     prev = record["prev"]
 
-    # Delete undo: recreate the file from saved content
+    # Delete undo: restore from trash, or (legacy records) from saved content
     if action == "delete":
-        file_content = prev.get("file_content")
-        if not file_content:
-            raise DwnError(f"Entry {entry_id[:8]} — no saved content to restore.")
-        from bute.storage import save_entry, load_entry as _load
-        from bute.config import get_data_dir
-        data_dir = get_data_dir(config)
-        # Reconstruct the file path from entry metadata
-        import frontmatter
-        post = frontmatter.loads(file_content)
-        created = post.metadata.get("created", "")
-        if isinstance(created, str):
+        from bute.storage import restore_entry, trash_dir
+        if (trash_dir(config) / f"{entry_id}.md").exists():
+            entry = restore_entry(entry_id, config)
+        else:
+            # Legacy undo record from before the trash existed: recreate from saved text
+            file_content = prev.get("file_content")
+            if not file_content:
+                raise DwnError(f"Entry {entry_id[:8]} — nothing in trash and no saved content to restore.")
+            import frontmatter
             from datetime import datetime
-            created = datetime.fromisoformat(created)
-        entry_type = post.metadata.get("type", "note")
-        month_dir = data_dir / "entries" / entry_type / created.strftime("%Y-%m")
-        month_dir.mkdir(parents=True, exist_ok=True)
-        restored_path = month_dir / f"{entry_id}.md"
-        restored_path.write_text(file_content)
-        entry = _load(restored_path)
-        # Re-index
-        try:
-            from bute.db import upsert_entry
-            upsert_entry(entry, config)
-        except Exception:
-            pass
+            from bute.config import get_data_dir
+            from bute.storage import load_entry as _load
+            post = frontmatter.loads(file_content)
+            created = post.metadata.get("created", "")
+            if isinstance(created, str):
+                created = datetime.fromisoformat(created)
+            entry_type = post.metadata.get("type", "note")
+            month_dir = get_data_dir(config) / "entries" / entry_type / created.strftime("%Y-%m")
+            month_dir.mkdir(parents=True, exist_ok=True)
+            restored_path = month_dir / f"{entry_id}.md"
+            restored_path.write_text(file_content)
+            entry = _load(restored_path)
+            try:
+                from bute.db import upsert_entry
+                upsert_entry(entry, config)
+            except Exception:
+                pass
         display_action_confirmation(entry, "undo delete")
         return
 
@@ -550,6 +541,22 @@ def action_cmd(ctx, tokens):
                 console.print(f"  [dim]Nothing to undo for {entry_id[:8]}[/dim]")
                 continue
             apply_undo(record, config)
+        return
+
+    # Handle restore: bt <n> restore — only meaningful from the bt trash view
+    if action == "restore":
+        from bute.state import load_state
+        from bute.storage import restore_entry
+        if load_state(config).get("view") != "trash":
+            console.print("  [red]Those numbers are not in the trash. Run [bold]bt trash[/bold] first.[/red]")
+            return
+        for entry_id in entry_ids:
+            try:
+                entry = restore_entry(entry_id, config)
+            except DwnError as e:
+                console.print(f"  [red]{e.format_message()}[/red]")
+                continue
+            display_action_confirmation(entry, "restore")
         return
 
     # Handle @tag action — collect all @tags from action + args

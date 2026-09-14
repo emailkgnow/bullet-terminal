@@ -60,11 +60,15 @@ Full command reference: `bt -h`. First-run onboarding triggers automatically.
 │   ├── note/YYYY-MM/<ULID>.md
 │   ├── journal/YYYY-MM/<ULID>.md
 │   └── calendar/YYYY-MM/<ULID>.md
+├── .trash/
+│   └── <ULID>.md       # deleted entries (bt <n> delete) — flat, restorable with bt trash → bt <n> restore
 └── .index/
     └── bute.db         # SQLite index (metadata + FTS5 + vectors) — regenerable
 ```
 
 Each entry is one file. The filename (without `.md`) is the entry's ULID, which must match the `id` frontmatter key. The `YYYY-MM` folder must match the `created` timestamp's month in the entry's local time.
+
+External agents should ignore `.trash/`. It is outside `entries/`, so reconciliation never indexes it. To delete an entry the bt way, move its file into `.trash/` rather than unlinking it.
 
 ### Frontmatter schema
 
@@ -200,11 +204,12 @@ Full help: `bt -h`.
 | `bt @tag` | filter across all types; `@a @b` = AND, `-@c` = NOT |
 | `bt find <q>` | keyword + tag search (FTS5) |
 | `bt like <q>` | semantic search (local embeddings, no API key) |
-| `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `edit`, `later`, `focus`) |
+| `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `edit`, `later`, `focus`, `restore`) |
 | `bt <n> clear <field>` | clear tag, due, date, time, repeat, or `!` |
 | `bt <n> mod <text>` | replace entry body |
 | `bt dp` / `bt wp` | daily / weekly planning rituals |
 | `bt due` / `bt overdue` | deadline views |
+| `bt trash` / `bt trash empty` | list trashed entries (restore with `bt <n> restore`) / purge them |
 | `bt streak` / `bt habit <name>` | habit tracking |
 | `bt stats` | personal analytics (week/month/streaks) |
 | `bt export` | zip backup of all .md files to cwd |

@@ -216,3 +216,82 @@ def _parse_date(value) -> date | None:
     if isinstance(value, date):
         return value
     return date.fromisoformat(str(value))
+
+
+# ---------------------------------------------------------------------------
+# Trash — delete moves files here; restore moves them back
+# ---------------------------------------------------------------------------
+
+
+def trash_dir(config=None) -> Path:
+    """Return the trash folder: <data_dir>/.trash (beside entries/, never inside)."""
+    return get_data_dir(config) / ".trash"
+
+
+def trash_entry(entry_id: str, config=None) -> Path | None:
+    """Move an entry's .md file into .trash/ and drop it from the index.
+
+    Returns the new path, or None if the entry file does not exist.
+    """
+    import shutil
+
+    src = entry_path_from_id(entry_id, config)
+    if src is None:
+        return None
+    dest_dir = trash_dir(config)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / f"{entry_id}.md"
+    shutil.move(str(src), str(dest))
+    try:
+        from bute.db import delete_entry
+        delete_entry(entry_id, config)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).debug("Index delete failed for %s", entry_id[:8], exc_info=True)
+    try:
+        from bute.ai.vectors import is_available, delete as vec_delete
+        if is_available():
+            vec_delete(entry_id, config)
+    except Exception:
+        pass
+    return dest
+
+
+def restore_entry(entry_id: str, config=None) -> Entry:
+    """Move a trashed entry back to entries/{type}/YYYY-MM/ and re-index it.
+
+    Raises DwnError if the entry is not in the trash.
+    """
+    import shutil
+
+    from bute.errors import DwnError
+
+    src = trash_dir(config) / f"{entry_id}.md"
+    if not src.exists():
+        raise DwnError(f"Entry {entry_id[:8]} is not in the trash.")
+    entry = load_entry(src)
+    dest = entry_path(entry, config)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(src), str(dest))
+    try:
+        from bute.db import upsert_entry
+        upsert_entry(entry, config)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).debug("Index write failed for %s", entry_id[:8], exc_info=True)
+    return entry
+
+
+def list_trash(config=None) -> list[Entry]:
+    """Load every trashed entry, newest-trashed (file mtime) first."""
+    folder = trash_dir(config)
+    if not folder.exists():
+        return []
+    paths = sorted(folder.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+    entries: list[Entry] = []
+    for path in paths:
+        try:
+            entries.append(load_entry(path))
+        except Exception:
+            continue
+    return entries

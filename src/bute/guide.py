@@ -93,7 +93,8 @@ Organized by type, then by month.
 bullet-terminal/
 ├── entries/
 │   ├── README.md         ← you are here
-{type_dirs}└── .index/
+{type_dirs}├── .trash/           deleted entries — ignore; restore with bt trash → bt <n> restore
+└── .index/
     └── bute.db           SQLite index (FTS5 + vectors)
 ```
 

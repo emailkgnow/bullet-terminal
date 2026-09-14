@@ -273,6 +273,7 @@ def _print_help():
     t.add_row("bt !", "Important entries", "bt t! for tasks only")
     t.add_row("bt @tag [@tag2] [-@ex]", "Filter by tags (AND + exclude)", "bt @backend -@done")
     t.add_row("bt find <text>", "Keyword search", "-t -n -j -c to filter")
+    t.add_row("bt trash", "Trashed entries, newest first", "bt trash empty -y to purge")
     console.print()
     console.print(t)
     console.print()
@@ -298,7 +299,8 @@ def _print_help():
     t.add_row("bt <n> d:<date>", "Set scheduled date", "bt 1 d:tomorrow")
     t.add_row("bt <n> t:<time>", "Set time", "bt 1 t:14.30")
     t.add_row("bt <n> clear <field>", "Remove @tag ! due d t repeat", "bt 1 clear @backend")
-    t.add_row("bt <n> delete", "Permanently remove from disk", "bt 1 delete")
+    t.add_row("bt <n> delete", "Move to trash (bt trash to see, restore to recover)", "bt 1 delete")
+    t.add_row("bt <n> restore", "Restore from trash (after bt trash)", "bt trash → bt 1 restore")
     t.add_row("bt undo", "Undo last action", "bt undo")
     console.print()
     console.print(t)
@@ -500,6 +502,7 @@ from bute.commands.export import export_cmd  # noqa: E402
 from bute.commands.search import find_cmd, like_cmd, rebuild_cmd, readme_cmd  # noqa: E402
 from bute.commands.demo import demo_cmd  # noqa: E402
 from bute.commands.zen import this_cmd  # noqa: E402
+from bute.commands.trash import trash_cmd  # noqa: E402
 
 main.add_command(init_cmd)
 main.add_command(capture_cmd)
@@ -528,3 +531,4 @@ main.add_command(export_cmd)
 main.add_command(demo_cmd)
 main.add_command(stats_cmd)
 main.add_command(this_cmd)
+main.add_command(trash_cmd)
