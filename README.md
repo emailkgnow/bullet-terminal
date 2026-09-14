@@ -150,6 +150,8 @@ bt has no built-in LLM. If you want AI over your entries, point your own agent (
 3. **Frontmatter must be valid YAML** with the keys documented above. At minimum: `id`, `type`, `created`. Tasks should set `status: active`.
 4. **Body is free-form Markdown.** First line is the title shown in list views.
 
+To read what bt shows without parsing tables, append `--json` to any view (`bt --json`, `bt b --json`, `bt @home --json`, `bt find x --json`). The `n` field is the number you would pass to `bt <n> done`.
+
 ### How reconciliation works
 
 The first read operation per bt process (`bt`, `bt t`, `bt m`, `bt find`, `bt like`, etc.) compares the set of `.md` files under `entries/` against the SQLite index's `entry_id` column:
@@ -203,6 +205,7 @@ Full help: `bt -h`.
 | `bt m` / `bt m jan` / `bt m 2026` | Monthly Log (event-driven daily retrospective) |
 | `bt @tag` | filter across all types; `@a @b` = AND, `-@c` = NOT |
 | `bt find <q>` | keyword + tag search (FTS5) |
+| `bt <view> --json` | any view as JSON — same numbers as the table, so `bt 3 done` works from a script |
 | `bt like <q>` | semantic search (local embeddings, no API key) |
 | `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `edit`, `later`, `focus`, `restore`) |
 | `bt <n> clear <field>` | clear tag, due, date, time, repeat, or `!` |

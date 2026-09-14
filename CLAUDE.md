@@ -125,6 +125,7 @@ bute !              # all important entries
 bute t!             # important tasks (also: n!, j!, c!)
 bute find <keyword> # keyword search in body + tags (-t -n -j -c to filter)
 bute like <input>   # semantic similarity (bt like 3, bt like productivity)
+bute b --json        # any view as JSON (n = display number)
 ```
 
 **Actions** — number + command:

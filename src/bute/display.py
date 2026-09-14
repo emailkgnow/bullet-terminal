@@ -1,5 +1,8 @@
 """Rich terminal display for bute."""
 
+import json as _json
+
+import click
 from rich.align import Align
 from rich.console import Console
 from rich.markdown import Markdown
@@ -12,6 +15,51 @@ from bute.models import Entry, EntryType, SYSTEM_TAGS, TaskStatus
 from bute.parser import format_time_display
 
 console = Console()
+
+_JSON_MODE = False
+
+
+def set_json_mode(enabled: bool) -> None:
+    """Switch every list renderer to emit JSON instead of Rich tables."""
+    global _JSON_MODE
+    _JSON_MODE = enabled
+
+
+def json_mode() -> bool:
+    return _JSON_MODE
+
+
+def entry_to_dict(n: int, entry: Entry, **extra) -> dict:
+    """Serialize one entry for --json output. n is its 1-based display number."""
+    d = {
+        "n": n,
+        "id": entry.id,
+        "type": entry.type.value,
+        "body": entry.body,
+        "status": entry.status.value if entry.status else None,
+        "important": entry.important,
+        "due": entry.due.isoformat() if entry.due else None,
+        "date": entry.scheduled_date.isoformat() if entry.scheduled_date else None,
+        "time": entry.scheduled_time,
+        "repeat": entry.repeat,
+        "tags": list(entry.tags),
+        "focus_date": entry.focus_date.isoformat() if entry.focus_date else None,
+        "week_date": entry.week_date.isoformat() if entry.week_date else None,
+        "created": entry.created.isoformat(),
+        "extra": dict(entry.extra_meta),
+    }
+    d.update(extra)
+    return d
+
+
+def emit_json(view: str, entries: list[Entry], extra_per_entry: list[dict] | None = None) -> None:
+    """Print {"view": ..., "entries": [...]} as one JSON document."""
+    rows = []
+    for i, entry in enumerate(entries, 1):
+        extra = extra_per_entry[i - 1] if extra_per_entry else {}
+        rows.append(entry_to_dict(i, entry, **extra))
+    click.echo(_json.dumps({"view": view, "entries": rows}))
+
 
 _MAX_WIDTH = 100
 _ZEBRA_STYLE = "on #1a1a2e"  # subtle background for alternating rows
@@ -152,6 +200,9 @@ def _display_sort_key(e: Entry) -> tuple[bool, bool]:
 def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | None = None) -> None:
     """Render a numbered list of entries as a Rich Table."""
     if not entries:
+        if json_mode():
+            emit_json(title, [])
+            return
         if title:
             console.print(f"[bold]{title}[/bold]", justify="center")
         console.print(f"  [dim]No entries found.[/dim]")
@@ -159,6 +210,10 @@ def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | N
 
     # Stable sort: important first, done/dropped last
     entries.sort(key=_display_sort_key)
+
+    if json_mode():
+        emit_json(title, entries)
+        return
 
     table = Table(
         title=title or None,
@@ -186,7 +241,10 @@ def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | N
 def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
     """Render a numbered list of entries grouped by date in a single table."""
     if not entries:
-        console.print(f"  [dim]No entries found.[/dim]")
+        if json_mode():
+            emit_json(title, [])
+        else:
+            console.print(f"  [dim]No entries found.[/dim]")
         return
 
     # Group entries by date (calendar events use scheduled_date if set)
@@ -212,6 +270,10 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
     entries.clear()
     for d in sorted_dates:
         entries.extend(grouped[d])
+
+    if json_mode():
+        emit_json(title, entries)
+        return
 
     table = Table(
         title=title or None,
@@ -385,7 +447,17 @@ def display_search_results(
 ) -> None:
     """Render search results with relevance scores."""
     if not entries:
-        console.print("  [dim]No results found.[/dim]")
+        if json_mode():
+            emit_json(f'Like: "{query}"' if query else "Like", [])
+        else:
+            console.print("  [dim]No results found.[/dim]")
+        return
+    if json_mode():
+        emit_json(
+            f'Like: "{query}"' if query else "Like",
+            entries,
+            [{"distance": d} for d in distances],
+        )
         return
 
     table = Table(

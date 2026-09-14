@@ -27,9 +27,12 @@ class DwnGroup(click.Group):
         _print_help()
 
     def parse_args(self, ctx, args):
-        """Prevent Click from treating -@tag as an option flag."""
+        """Prevent Click from treating -@tag as an option flag; hoist --json to the front."""
+        args = list(args)
+        if "--json" in args:
+            args = ["--json"] + [a for a in args if a != "--json"]
         if args and args[0].startswith("-@"):
-            args = ["--"] + list(args)
+            args = ["--"] + args
         return super().parse_args(ctx, args)
 
     def resolve_command(self, ctx, args):
@@ -322,6 +325,7 @@ def _print_help():
     t.add_row("bt -d [dim]| --demo", "Demo session", "Isolated data, auto-cleanup")
     t.add_row("bt like <input>", "Find similar entries (semantic)", "bt like 3, bt like productivity")
     t.add_row("bt -j [dim]| --journal-whisper", "Toggle random journal whisper in Focus Log", "")
+    t.add_row("bt <view> --json", "Emit any view as JSON", "bt b --json, bt @home --json")
     console.print()
     console.print(t)
     console.print()
@@ -368,10 +372,14 @@ def _run_interactive(ctx):
 @click.option("-d", "--demo", "demo", is_flag=True, help="Toggle demo mode")
 @click.option("-j", "--journal-whisper", "toggle_journal", is_flag=True, help="Toggle random journal whisper in Focus Log")
 @click.option("-a", "--all", "show_all", is_flag=True, help="Focus Log + hidden items (dropped, non-focus captures, past events)")
+@click.option("--json", "as_json", is_flag=True, help="Emit views as JSON (for scripts and agents)")
 @click.pass_context
-def main(ctx, interactive, demo, toggle_journal, show_all):
+def main(ctx, interactive, demo, toggle_journal, show_all, as_json):
     """bt (BuTe) — AI-powered life management CLI based on Bullet Journal."""
     ctx.ensure_object(dict)
+
+    from bute.display import set_json_mode
+    set_json_mode(bool(as_json))
 
     # Reuse config from parent context (e.g. demo mode) or load from disk
     if "config" in ctx.obj:
@@ -458,7 +466,17 @@ def main(ctx, interactive, demo, toggle_journal, show_all):
             title = f"Focus Log — {date.today().strftime('%a %b %d')}{suffix}"
             if not has_active_tasks:
                 title = f"[strike]{title}[/strike]"
+
+            from bute.display import json_mode as _jm
+            if _jm():
+                title = f"Focus Log — {date.today().strftime('%a %b %d')}{suffix}"
+
             display_entry_list(entries, title)
+
+            from bute.display import json_mode
+            if json_mode():
+                save_state("ls", [e.id for e in entries], config)
+                return
 
             # Show recurring tasks — their IDs flow into the main entries list
             # for uniform numbering (bt <n> done works the same as for any entry)

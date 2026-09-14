@@ -7,7 +7,15 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from bute.display import _build_entry_row, _ZEBRA_STYLE, display_entry_list, display_entry_list_grouped
+from bute.display import (
+    _build_entry_row,
+    _ZEBRA_STYLE,
+    display_entry_list,
+    display_entry_list_grouped,
+    emit_json,
+    entry_to_dict,
+    json_mode,
+)
 from bute.models import EntryType, TaskStatus
 from bute.ritual_ops import get_all_active_tasks, get_weekly_active_tasks
 from bute.state import save_state
@@ -216,6 +224,13 @@ def tags_cmd(ctx):
         for tag in entry.tags:
             counts[tag] = counts.get(tag, 0) + 1
 
+    if json_mode():
+        import json as _json
+        import click as _click
+        ordered = sorted(counts.items(), key=lambda x: (-x[1], x[0]))
+        _click.echo(_json.dumps({"view": "Tags", "tags": [{"tag": t, "count": c} for t, c in ordered]}))
+        return
+
     if not counts:
         console.print("  [dim]No tags found.[/dim]")
         return
@@ -261,7 +276,10 @@ def due_cmd(ctx, scope):
     entries = query_and_load(config, type="task", status="active", has_due=True)
 
     if not entries:
-        console.print("  [dim]No tasks with due dates.[/dim]")
+        if json_mode():
+            emit_json("Due Tasks", [])
+        else:
+            console.print("  [dim]No tasks with due dates.[/dim]")
         return
 
     entries.sort(key=lambda e: (e.due, not e.important))
@@ -290,7 +308,17 @@ def due_cmd(ctx, scope):
 
     filtered = overdue + due_today + due_week
     if not filtered:
-        console.print("  [dim]Nothing due this week.[/dim]")
+        if json_mode():
+            emit_json("Due Tasks", [])
+        else:
+            console.print("  [dim]Nothing due this week.[/dim]")
+        return
+
+    if json_mode():
+        ordered = overdue + due_today + due_week
+        labels = (["Overdue"] * len(overdue)) + (["Today"] * len(due_today)) + (["Next 7 Days"] * len(due_week))
+        emit_json("Due Tasks", ordered, [{"group": g} for g in labels])
+        save_state("due", [e.id for e in ordered], config)
         return
 
     # Build grouped table

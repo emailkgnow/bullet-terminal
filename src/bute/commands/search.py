@@ -74,7 +74,9 @@ def like_cmd(ctx, tokens, limit):
         entries = entries[:effective_limit]
         distances = distances[:effective_limit]
 
-        console.print(f"\n  [bold]Like:[/bold] {source_entry.body}")
+        from bute.display import json_mode
+        if not json_mode():
+            console.print(f"\n  [bold]Like:[/bold] {source_entry.body}")
         display_search_results(entries, distances)
     else:
         # Search mode — embed query text
@@ -86,7 +88,11 @@ def like_cmd(ctx, tokens, limit):
 
         results = search_similar(query_text, effective_limit, config)
         if not results:
-            console.print("  [dim]No results found.[/dim]")
+            from bute.display import emit_json, json_mode
+            if json_mode():
+                emit_json(f'Like: "{query_text}"', [])
+            else:
+                console.print("  [dim]No results found.[/dim]")
             return
 
         entries = []
