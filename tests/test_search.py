@@ -24,24 +24,28 @@ def _fake_embed_texts(texts):
 def _mock_embeddings():
     """Mock embedding functions for speed."""
     with (
-        patch("dwn.ai.embeddings.is_available", return_value=True),
-        patch("dwn.ai.vectors.is_available", return_value=True),
-        patch("dwn.ai.embeddings.embed_text", side_effect=_fake_embed_text),
-        patch("dwn.ai.embeddings.embed_texts", side_effect=_fake_embed_texts),
+        patch("bute.ai.embeddings.is_available", return_value=True),
+        patch("bute.ai.vectors.is_available", return_value=True),
+        patch("bute.ai.embeddings.embed_text", side_effect=_fake_embed_text),
+        patch("bute.ai.embeddings.embed_texts", side_effect=_fake_embed_texts),
     ):
         yield
 
 
 def test_like_no_embeddings(runner, tmp_config, tmp_data):
     """Without embeddings, show install message."""
-    with patch("dwn.ai.embeddings.is_available", return_value=False):
+    with patch("bute.ai.embeddings.is_available", return_value=False):
         result = runner.invoke(main, ["like", "test"])
     assert result.exit_code == 0
     assert "embeddings" in result.output.lower()
 
 
 def test_rebuild_no_embeddings(runner, tmp_config, tmp_data):
-    with patch("dwn.ai.embeddings.is_available", return_value=False):
+    """Without embeddings, rebuild still indexes entries but skips vectors."""
+    e = Entry.create(EntryType.TASK, "call dentist")
+    save_entry(e)
+
+    with patch("bute.ai.embeddings.is_available", return_value=False):
         result = runner.invoke(main, ["rebuild"])
     assert result.exit_code == 0
     assert "embeddings" in result.output.lower()
@@ -52,17 +56,13 @@ def test_rebuild_no_embeddings(runner, tmp_config, tmp_data):
     reason="sqlite-vec required",
 )
 class TestWithVectorDB:
-    """Tests that need a real sqlite-vec DB but use mocked embeddings."""
+    """Tests that need a real sqlite-vec DB but use mocked embeddings.
 
-    @pytest.fixture(autouse=True)
-    def setup_vecdb(self, tmp_data):
-        """Set up a temp vector DB."""
-        from bute.ai.vectors import close, connect
-
-        db_path = tmp_data / ".vectors" / "test.db"
-        connect(db_path=db_path)
-        yield
-        close()
+    No dedicated vector-DB setup/teardown is needed: `bute.ai.vectors`
+    stores vectors in the same SQLite index as the rest of bt (see
+    `bute.db.get_connection`), which the `tmp_data` fixture already
+    points at a fresh temp directory and closes on teardown.
+    """
 
     def test_rebuild_embeds_all(self, runner, tmp_config, tmp_data, _mock_embeddings):
         # Create entries
