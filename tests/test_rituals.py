@@ -261,6 +261,13 @@ def test_bt_noargs_skips_wp_when_done(runner, tmp_config, tmp_data, monkeypatch)
     from bute.state import mark_wp_done
     mark_wp_done()
 
+    # cli.py shows the Focus Log instead of dp when there is no dp history
+    # at all ("first day" rule). Seed one past day so dp is expected today.
+    from datetime import timedelta
+    (tmp_data / ".dp_history").write_text(
+        (date.today() - timedelta(days=1)).isoformat() + "\n"
+    )
+
     # Mock questionary to avoid interactive TUI
     import questionary
     monkeypatch.setattr(questionary, "checkbox", lambda *a, **kw: type("Q", (), {"ask": lambda self: []})())

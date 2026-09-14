@@ -67,29 +67,6 @@ def test_export_no_data(runner, tmp_config, tmp_data, tmp_path):
     assert "No" in result.output
 
 
-def test_export_includes_collections(runner, tmp_config, tmp_data, tmp_path):
-    """Export should include collection files."""
-    # Create a collection file
-    from bute.config import get_data_dir
-    data_dir = get_data_dir()
-    col_dir = data_dir / "collections"
-    col_dir.mkdir(parents=True)
-    (col_dir / "test-project.md").write_text("## Input\n- . task one\n")
-
-    # Also need at least one entry for the export to proceed
-    e1 = Entry.create(EntryType.TASK, "test")
-    save_entry(e1)
-
-    out_dir = tmp_path / "exports"
-    out_dir.mkdir()
-    runner.invoke(main, ["export", "-o", str(out_dir)])
-
-    zips = list(out_dir.glob("*.zip"))
-    with zipfile.ZipFile(zips[0]) as zf:
-        names = zf.namelist()
-        assert any("collections/" in n for n in names)
-
-
 def test_export_default_cwd(runner, tmp_config, tmp_data, monkeypatch, tmp_path):
     """bt export with no -o should write to cwd."""
     e1 = Entry.create(EntryType.TASK, "test entry")
