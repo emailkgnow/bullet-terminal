@@ -25,6 +25,22 @@ def test_atomic_write_leaves_no_temp_files(tmp_path):
     assert leftovers == []
 
 
+def test_atomic_write_preserves_existing_mode(tmp_path):
+    import os
+    target = tmp_path / "entry.md"
+    target.write_text("old")
+    os.chmod(target, 0o644)
+    atomic_write_text(target, "new")
+    assert target.stat().st_mode & 0o777 == 0o644
+
+
+def test_atomic_write_new_file_not_created_as_0600(tmp_path):
+    import os
+    target = tmp_path / "entry.md"
+    atomic_write_text(target, "hello")
+    assert target.stat().st_mode & 0o777 != 0o600
+
+
 def test_atomic_write_failure_keeps_original(tmp_path, monkeypatch):
     import os
     target = tmp_path / "entry.md"

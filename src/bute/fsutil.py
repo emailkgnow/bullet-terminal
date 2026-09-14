@@ -24,6 +24,20 @@ def atomic_write_text(path: Path, text: str) -> None:
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
+        # mkstemp creates the temp file as 0600, and os.replace carries that
+        # mode onto the destination. Preserve the existing file's mode (or
+        # apply the umask-derived default for a new file) so a rewrite
+        # doesn't silently tighten permissions on the user's entry files.
+        try:
+            mode = path.stat().st_mode & 0o777
+        except FileNotFoundError:
+            umask = os.umask(0)
+            os.umask(umask)
+            mode = 0o666 & ~umask
+        try:
+            os.chmod(tmp_name, mode)
+        except FileNotFoundError:
+            pass
         os.replace(tmp_name, path)
     except BaseException:
         try:
