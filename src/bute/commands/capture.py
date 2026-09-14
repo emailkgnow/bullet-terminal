@@ -22,7 +22,7 @@ from bute.parser import (
 from bute.storage import load_entry, save_entry
 
 
-@click.command("capture", hidden=True)
+@click.command("capture", hidden=True, context_settings={"ignore_unknown_options": True})
 @click.option("--later", "-l", is_flag=True, help="This week, not today (Task log).")
 @click.option("--backlog", "-b", is_flag=True, help="Backlog only — no focus tags.")
 @click.argument("tokens", nargs=-1, required=True, shell_complete=complete_tags)

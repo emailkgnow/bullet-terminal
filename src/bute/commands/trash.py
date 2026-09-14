@@ -3,7 +3,7 @@
 import click
 from rich.console import Console
 
-from bute.display import display_entry_list
+from bute.display import display_entry_list, emit_json, json_mode
 from bute.state import save_state
 from bute.storage import list_trash, trash_dir
 
@@ -36,8 +36,12 @@ def trash_cmd(ctx, subcommand, yes):
 
     entries = list_trash(config)
     if not entries:
-        console.print("  [dim]Trash is empty.[/dim]")
-        save_state("trash", [], config)
+        # Leave the previous view's number mapping intact — `bt trash` on an
+        # empty trash must not break a pending `bt <n> done`.
+        if json_mode():
+            emit_json("Trash", [])
+        else:
+            console.print("  [dim]Trash is empty.[/dim]")
         return
 
     display_entry_list(entries, "Trash")

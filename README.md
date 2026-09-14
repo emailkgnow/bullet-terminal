@@ -63,13 +63,15 @@ Full command reference: `bt -h`. First-run onboarding triggers automatically.
 │   └── calendar/YYYY-MM/<ULID>.md
 ├── .trash/
 │   └── <ULID>.md       # deleted entries (bt <n> delete) — flat, restorable with bt trash → bt <n> restore
-└── .index/
-    └── bute.db         # SQLite index (metadata + FTS5 + vectors) — regenerable
+├── .index/
+│   └── bute.db         # SQLite index (metadata + FTS5 + vectors) — regenerable
+└── backups/
+    └── bt-YYYY-MM-DD.zip   # daily auto-backup, pruned after 30 days — regenerable
 ```
 
 Each entry is one file. The filename (without `.md`) is the entry's ULID, which must match the `id` frontmatter key. The `YYYY-MM` folder must match the `created` timestamp's month in the entry's local time.
 
-External agents should ignore `.trash/`. It is outside `entries/`, so reconciliation never indexes it. To delete an entry the bt way, move its file into `.trash/` rather than unlinking it.
+External agents should ignore `.trash/` and `backups/`. Both are outside `entries/`, so reconciliation never indexes them. To delete an entry the bt way, move its file into `.trash/` rather than unlinking it.
 
 ### Frontmatter schema
 
@@ -151,7 +153,7 @@ bt has no built-in LLM. If you want AI over your entries, point your own agent (
 3. **Frontmatter must be valid YAML** with the keys documented above. At minimum: `id`, `type`, `created`. Tasks should set `status: active`.
 4. **Body is free-form Markdown.** First line is the title shown in list views.
 
-To read what bt shows without parsing tables, append `--json` to any numbered entry view — the Focus Log, Tasks/Backlog/Notes/Journals/Calendar, tag filters, `due`, `tags`, `find`, and `like` (`bt --json`, `bt b --json`, `bt @home --json`, `bt find x --json`). It does not apply to `bt stats`/`bt streak` (their own reports), or to actions and captures (which still print Rich confirmations). The `n` field is the number you would pass to `bt <n> done`.
+To read what bt shows without parsing tables, append `--json` to any numbered entry view — the Focus Log, Tasks/Backlog/Notes/Journals/Calendar, tag filters, `due`, `tags`, `find`, and `like` (`bt --json`, `bt b --json`, `bt @home --json`, `bt find x --json`). It does not apply to `bt stats`/`bt streak` (their own reports), or to actions and captures (which still print Rich confirmations). The `n` field is the number you would pass to `bt <n> done`. Every view returns `{"view": ..., "entries": [...]}`; the one exception is `bt tags --json`, which returns a `tags` array of `{"tag", "count"}` objects instead of `entries` (tags are not numbered).
 
 ### How reconciliation works
 

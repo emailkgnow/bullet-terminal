@@ -204,3 +204,55 @@ def test_like_json_without_embeddings(runner, tmp_config, tmp_data, monkeypatch)
     assert data["view"] == "Like"
     assert data["entries"] == []
     assert "error" in data
+
+
+# --- --json must never be stripped out of captured text ---
+
+def test_capture_keeps_literal_json_token_in_body(runner, tmp_config, tmp_data):
+    """`bt n add --json flag to api` stores the word, it does not vanish."""
+    result = runner.invoke(main, ["n", "add", "--json", "flag", "to", "api"])
+    assert result.exit_code == 0, result.output
+    from bute.storage import query_and_load
+    notes = query_and_load(None, type="note")
+    assert [e.body for e in notes] == ["add --json flag to api"]
+
+
+def test_capture_word_signifier_keeps_literal_json_token(runner, tmp_config, tmp_data):
+    result = runner.invoke(main, ["note", "add", "--json", "flag"])
+    assert result.exit_code == 0, result.output
+    from bute.storage import query_and_load
+    notes = query_and_load(None, type="note")
+    assert [e.body for e in notes] == ["add --json flag"]
+
+
+def test_mod_keeps_literal_json_token_in_body(runner, tmp_config, tmp_data):
+    from bute.state import save_state
+    from bute.storage import entry_path_from_id, load_entry
+    entry = Entry.create(EntryType.TASK, "old text")
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "mod", "add", "--json", "flag"])
+    assert result.exit_code == 0, result.output
+    assert load_entry(entry_path_from_id(entry.id)).body == "add --json flag"
+
+
+def test_action_json_flag_still_hoists(runner, tmp_config, tmp_data):
+    """A non-capture action keeps working with a trailing --json."""
+    from bute.state import save_state
+    from bute.storage import entry_path_from_id, load_entry
+    from bute.models import TaskStatus
+    entry = Entry.create(EntryType.TASK, "finish me")
+    save_entry(entry)
+    save_state("ls", [entry.id])
+
+    result = runner.invoke(main, ["1", "done", "--json"])
+    assert result.exit_code == 0, result.output
+    assert load_entry(entry_path_from_id(entry.id)).status == TaskStatus.DONE
+
+
+def test_signifier_view_with_tag_and_json_still_routes_to_view(runner, tmp_config, tmp_data):
+    save_entry(Entry.create(EntryType.TASK, "tagged", tags=["x"], week_date=None))
+    result = runner.invoke(main, ["t", "@x", "--json"])
+    assert result.exit_code == 0, result.output
+    assert _parse(result.output)["view"].startswith("Task")

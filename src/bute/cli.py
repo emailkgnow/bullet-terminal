@@ -19,6 +19,31 @@ SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "
 WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calendar": "calendar"}
 
 
+def _is_capture_like(args: list[str]) -> bool:
+    """True if argv will route to capture / open_capture / a `mod` action.
+
+    On those paths the remaining tokens become the entry body, so `--json`
+    must be left alone — stripping it would silently edit the user's text.
+    Mirrors the routing conditions in resolve_command, ignoring `--json`
+    itself when deciding whether capture text follows a signifier.
+    """
+    if not args:
+        return False
+    first = args[0]
+    rest = [a for a in args[1:] if a != "--json"]
+
+    if SIGNIFIER_PATTERN.match(first) or WORD_SIGNIFIER_PATTERN.match(first):
+        view_flags = {"-a", "--all"}
+        # Only @tags / view flags after the signifier → it's a view, not capture.
+        return bool(rest) and not all(r.startswith("@") or r in view_flags for r in rest)
+
+    # Number-action with a `mod` verb — the tail is replacement body text.
+    if ACTION_NUMBER_PATTERN.match(first):
+        return any(tok in ("mod", "modify") for tok in rest)
+
+    return False
+
+
 class DwnGroup(click.Group):
     """Custom group that dispatches signifiers and number-actions."""
 
@@ -36,7 +61,9 @@ class DwnGroup(click.Group):
     def parse_args(self, ctx, args):
         """Prevent Click from treating -@tag as an option flag; hoist --json to the front."""
         args = list(args)
-        has_json = "--json" in args
+        # Never hoist out of capture text — `bt n add --json flag to api` must
+        # store the literal word, not silently lose it (see _is_capture_like).
+        has_json = "--json" in args and not _is_capture_like(args)
         if has_json:
             args = [a for a in args if a != "--json"]
         if args and args[0].startswith("-@"):
@@ -495,16 +522,7 @@ def main(ctx, interactive, demo, toggle_journal, show_all, as_json):
             if not has_active_tasks:
                 title = f"[strike]{title}[/strike]"
 
-            from bute.display import json_mode as _jm
-            if _jm():
-                title = f"Focus Log — {date.today().strftime('%a %b %d')}{suffix}"
-
             display_entry_list(entries, title)
-
-            from bute.display import json_mode
-            if json_mode():
-                save_state("ls", [e.id for e in entries], config)
-                return
 
             # Show recurring tasks — their IDs flow into the main entries list
             # for uniform numbering (bt <n> done works the same as for any entry)

@@ -525,7 +525,7 @@ ACTION_HANDLERS = {
 }
 
 
-@click.command("action", hidden=True)
+@click.command("action", hidden=True, context_settings={"ignore_unknown_options": True})
 @click.argument("tokens", nargs=-1, required=True, shell_complete=complete_tags)
 @click.pass_context
 def action_cmd(ctx, tokens):

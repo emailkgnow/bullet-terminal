@@ -1,6 +1,10 @@
 """Tests for the trash: delete moves to .trash/, bt trash lists, restore brings back."""
 
 import json
+import os
+import time
+
+import pytest
 
 from bute.cli import main
 from bute.models import Entry, EntryType
@@ -35,7 +39,6 @@ def test_trash_entry_missing_returns_none(tmp_data):
 
 
 def test_list_trash_newest_first(tmp_data):
-    import os, time
     a = Entry.create(EntryType.TASK, "first")
     b = Entry.create(EntryType.NOTE, "second")
     save_entry(a)
@@ -76,7 +79,6 @@ def test_restore_entry_moves_back_and_reindexes(tmp_data):
 
 
 def test_restore_entry_not_in_trash_raises(tmp_data):
-    import pytest
     from bute.errors import DwnError
     e = Entry.create(EntryType.TASK, "still live")
     save_entry(e)
@@ -86,7 +88,6 @@ def test_restore_entry_not_in_trash_raises(tmp_data):
 
 def test_trash_entry_collision_raises_and_preserves_existing(tmp_data):
     """Trashing the same ULID twice must not clobber the older trashed copy."""
-    import pytest
     from bute.errors import DwnError
 
     e = Entry.create(EntryType.TASK, "first version")
@@ -114,7 +115,6 @@ def test_trash_entry_collision_raises_and_preserves_existing(tmp_data):
 
 def test_restore_entry_collision_raises_and_preserves_existing(tmp_data):
     """Restoring must not overwrite a live file that already occupies the destination."""
-    import pytest
     from bute.errors import DwnError
 
     e = Entry.create(EntryType.TASK, "trashed original")
@@ -169,6 +169,24 @@ def test_trash_view_empty(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["trash"])
     assert result.exit_code == 0
     assert "Trash is empty" in result.output
+
+
+def test_empty_trash_view_preserves_previous_numbering(runner, tmp_config, tmp_data):
+    """`bt trash` on an empty trash must not clobber the last view's number map."""
+    e = Entry.create(EntryType.TASK, "still numbered")
+    save_entry(e)
+    runner.invoke(main, ["b"])
+    before = json.loads(state_path().read_text())
+
+    runner.invoke(main, ["trash"])
+
+    assert json.loads(state_path().read_text()) == before
+
+
+def test_trash_view_empty_json(runner, tmp_config, tmp_data):
+    result = runner.invoke(main, ["trash", "--json"])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == {"view": "Trash", "entries": []}
 
 
 def test_restore_action_from_trash_view(runner, tmp_config, tmp_data):
