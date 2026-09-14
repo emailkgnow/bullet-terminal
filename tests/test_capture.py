@@ -157,3 +157,14 @@ def test_capture_confirmation_shows_extra_meta(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["t", "call", "bank", "project:alpha"])
     assert result.exit_code == 0, result.output
     assert "project:alpha" in result.output
+
+
+def test_capture_confirmation_safe_with_rich_markup_in_extra_meta(runner, tmp_config, tmp_data):
+    """Verify capture confirmation handles Rich markup characters in extra_meta without crashing or escaping visibly."""
+    # Test with unmatched closing tag — would crash if not escaped
+    result = runner.invoke(main, ["t", "call", "bank", "key:[/]"])
+    assert result.exit_code == 0, result.output
+    # Confirmation should show the literal value (with escaped brackets, but that's internal)
+    assert "key:" in result.output
+    # Confirm no stray backslashes visible (Text() doesn't show escape chars)
+    assert "\\[" not in result.output

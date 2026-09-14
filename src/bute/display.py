@@ -3,6 +3,7 @@
 from rich.align import Align
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.markup import escape as escape_markup
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
@@ -131,7 +132,8 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
         meta_parts.append(f"due:{entry.due}")
     if entry.scheduled_time:
         meta_parts.append(format_time_display(entry.scheduled_time))
-    meta_parts.extend(_extra_meta_parts(entry))
+    # Escape extra_meta values to prevent Rich markup interpretation in table cells
+    meta_parts.extend(escape_markup(part) for part in _extra_meta_parts(entry))
     hidden = hide_tags or set()
     visible_tags = [t for t in entry.tags if t not in SYSTEM_TAGS and t not in hidden]
     if visible_tags:
@@ -438,7 +440,8 @@ def display_entry_full(entry: Entry) -> None:
         meta_parts.append(format_time_display(entry.scheduled_time))
     if entry.repeat:
         meta_parts.append(f"repeat {entry.repeat}")
-    meta_parts.extend(_extra_meta_parts(entry))
+    # Escape extra_meta values to prevent Rich markup interpretation when printed
+    meta_parts.extend(escape_markup(part) for part in _extra_meta_parts(entry))
     visible_tags = [t for t in entry.tags if t not in SYSTEM_TAGS]
     if visible_tags:
         meta_parts.append(" ".join(f"@{t}" for t in visible_tags))

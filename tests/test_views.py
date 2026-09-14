@@ -91,3 +91,54 @@ def test_list_view_shows_extra_meta(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["b"])
     assert result.exit_code == 0, result.output
     assert "project:alpha" in result.output
+
+
+def test_list_view_safe_with_unmatched_rich_tag_in_extra_meta(runner, tmp_config, tmp_data):
+    """Verify list view (table) doesn't crash when extra_meta contains unmatched Rich markup."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+    # Unmatched closing tag [/] would crash Rich table without escaping
+    save_entry(Entry.create(EntryType.TASK, "call bank", extra_meta={"key": "[/]"}))
+    result = runner.invoke(main, ["b"])
+    assert result.exit_code == 0, result.output
+    # Literal value should appear in output
+    assert "key:[/]" in result.output
+
+
+def test_list_view_renders_literal_text_with_styling_markup_in_extra_meta(runner, tmp_config, tmp_data):
+    """Verify that styling markup like [bold] is rendered literally, not consumed as styling."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+    # [bold]x should render as literal text, not as bold x
+    save_entry(Entry.create(EntryType.TASK, "call bank", extra_meta={"key": "[bold]x"}))
+    result = runner.invoke(main, ["b"])
+    assert result.exit_code == 0, result.output
+    # Literal value should appear (without being consumed as markup)
+    assert "key:[bold]x" in result.output
+
+
+def test_show_entry_safe_with_rich_markup_in_extra_meta(runner, tmp_config, tmp_data, monkeypatch):
+    """Verify bt <n> show (display_entry_full) doesn't crash with markup in extra_meta."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+    from bute.state import save_state
+    from bute.cli import main
+
+    # Mock shutil.which to disable glow, forcing Rich fallback
+    import shutil
+    real_which = shutil.which
+    monkeypatch.setattr(
+        shutil, "which",
+        lambda cmd, *a, **kw: None if cmd == "glow" else real_which(cmd, *a, **kw),
+    )
+
+    # Create entry and save it
+    entry = Entry.create(EntryType.TASK, "call bank", extra_meta={"key": "[/]"})
+    save_entry(entry)
+    # Set up state so entry is in the display list
+    save_state("tasks", [entry.id])
+    # Show the entry
+    result = runner.invoke(main, ["1", "show"])
+    assert result.exit_code == 0, result.output
+    # Literal value should appear in the output
+    assert "key:[/]" in result.output
