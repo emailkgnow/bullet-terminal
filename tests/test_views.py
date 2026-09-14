@@ -82,3 +82,12 @@ def test_tasks_view_excludes_recurring(tmp_config, tmp_data, runner):
     result = runner.invoke(main, ["b"])
     assert "call dentist" in result.output
     assert "meditate" not in result.output
+
+
+def test_list_view_shows_extra_meta(runner, tmp_config, tmp_data):
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+    save_entry(Entry.create(EntryType.TASK, "call bank", extra_meta={"project": "alpha"}))
+    result = runner.invoke(main, ["b"])
+    assert result.exit_code == 0, result.output
+    assert "project:alpha" in result.output

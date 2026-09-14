@@ -222,7 +222,6 @@ bute init           # first-run setup (create config + data dirs)
 - **`bt this` — capture Claude Code chat into bt** — add a Claude Code hook or slash command so `bt this` saves the current conversation's markdown export as a bt note. Turns ephemeral AI chats into searchable, tagged entries in the bt system.
 - **AI agent as mobile interface** — with BYOAI, external agents (Claude Desktop + filesystem MCP, Claude Code, mobile Claude) can both read and write `.md` files under `~/bullet-terminal/entries/`. bt's reconciliation picks up their writes. No mobile app, no REST API, no cloud sync needed — the AI agent is the frontend, bt is the storage + CLI.
 - ~~SQLite index for structured queries~~ In progress — see `docs/superpowers/specs/2026-04-02-sqlite-index-design.md`. Metadata + FTS5 + vectors in one DB, write-through sync, auto-rebuild.
-- Display `extra_meta` (custom key:value pairs) — saved to YAML frontmatter and round-trips correctly, but invisible in capture confirmation and all list views
 
 ### Design Guardrail
 - **Stay BuJo, not Notion.** As bt grows into a PKM, resist becoming a general-purpose notes app. Every feature should serve the BuJo methodology — signifiers, rapid logging, rituals, migration. The CLI constraint and opinionated simplicity are features, not limitations. If a feature requires explaining, it probably doesn't belong.

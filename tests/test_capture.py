@@ -151,3 +151,9 @@ def test_capture_does_not_embed(runner, tmp_config, tmp_data, monkeypatch):
     assert result.exit_code == 0, result.output
     assert "fast capture" in result.output
     assert calls == [], "capture must not load the embedding model"
+
+
+def test_capture_confirmation_shows_extra_meta(runner, tmp_config, tmp_data):
+    result = runner.invoke(main, ["t", "call", "bank", "project:alpha"])
+    assert result.exit_code == 0, result.output
+    assert "project:alpha" in result.output

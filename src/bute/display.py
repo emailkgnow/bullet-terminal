@@ -51,6 +51,7 @@ def confirm_capture(entry: Entry) -> None:
         meta_parts.append(format_time_display(entry.scheduled_time))
     if entry.repeat:
         meta_parts.append(f"repeat:{entry.repeat}")
+    meta_parts.extend(_extra_meta_parts(entry))
     visible_tags = [t for t in entry.tags if t not in SYSTEM_TAGS]
     if visible_tags:
         meta_parts.append(" ".join(f"@{t}" for t in visible_tags))
@@ -99,6 +100,11 @@ def _preview(text: str) -> str:
     return preview
 
 
+def _extra_meta_parts(entry: Entry) -> list[str]:
+    """Render custom key:value frontmatter as 'key:value' strings, sorted by key."""
+    return [f"{k}:{v}" for k, v in sorted(entry.extra_meta.items())]
+
+
 def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tuple[str, Text, Text, str]:
     """Build the common columns for an entry row: (#, icon, body, meta)."""
     style = TYPE_STYLE[entry.type]
@@ -125,6 +131,7 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
         meta_parts.append(f"due:{entry.due}")
     if entry.scheduled_time:
         meta_parts.append(format_time_display(entry.scheduled_time))
+    meta_parts.extend(_extra_meta_parts(entry))
     hidden = hide_tags or set()
     visible_tags = [t for t in entry.tags if t not in SYSTEM_TAGS and t not in hidden]
     if visible_tags:
@@ -431,6 +438,7 @@ def display_entry_full(entry: Entry) -> None:
         meta_parts.append(format_time_display(entry.scheduled_time))
     if entry.repeat:
         meta_parts.append(f"repeat {entry.repeat}")
+    meta_parts.extend(_extra_meta_parts(entry))
     visible_tags = [t for t in entry.tags if t not in SYSTEM_TAGS]
     if visible_tags:
         meta_parts.append(" ".join(f"@{t}" for t in visible_tags))
