@@ -227,8 +227,8 @@ def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | N
     )
     table.add_column("#", style="bold dim", width=3, justify="right")
     table.add_column("", width=2)  # type icon (e.g. .!)
-    table.add_column("Entry", ratio=1, overflow="fold")
-    table.add_column("Meta", style="dim")
+    table.add_column("Entry", ratio=3, overflow="fold")
+    table.add_column("Meta", style="dim", ratio=1, overflow="fold")
 
     for i, entry in enumerate(entries, 1):
         row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
@@ -288,8 +288,8 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
     table.add_column("Date", style="bold", width=10)
     table.add_column("#", style="bold dim", width=3, justify="right")
     table.add_column("", width=2)  # type icon (e.g. .!)
-    table.add_column("Entry", ratio=1, overflow="fold")
-    table.add_column("Meta", style="dim")
+    table.add_column("Entry", ratio=3, overflow="fold")
+    table.add_column("Meta", style="dim", ratio=1, overflow="fold")
 
     counter = 1
     for d in sorted_dates:
@@ -470,8 +470,8 @@ def display_search_results(
     )
     table.add_column("#", style="bold dim", width=4, justify="right")
     table.add_column("", width=2)  # type icon
-    table.add_column("", ratio=1)  # body
-    table.add_column("", style="dim")  # meta
+    table.add_column("", ratio=3)  # body
+    table.add_column("", style="dim", ratio=1, overflow="fold")  # meta
 
     for i, entry in enumerate(entries, 1):
         num, icon, body, meta = _build_entry_row(i, entry)
