@@ -682,6 +682,15 @@ def get_all_tag_stages(config=None) -> list[dict]:
     ]
 
 
+def all_tags(config=None) -> list[str]:
+    """Return every distinct tag across all entries, sorted."""
+    db = get_connection(config)
+    rows = db.execute(
+        "SELECT DISTINCT j.value FROM entries e, json_each(e.tags) j ORDER BY j.value"
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
 def count(config=None) -> int:
     """Return the total number of entries in the index."""
     db = get_connection(config)

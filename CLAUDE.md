@@ -125,7 +125,7 @@ bute !              # all important entries
 bute t!             # important tasks (also: n!, j!, c!)
 bute find <keyword> # keyword search in body + tags (-t -n -j -c to filter)
 bute like <input>   # semantic similarity (bt like 3, bt like productivity)
-bute b --json        # any view as JSON (n = display number)
+bt b --json         # numbered entry views as JSON (n = display number); not stats/streak/actions/captures
 ```
 
 **Actions** — number + command:
@@ -172,6 +172,7 @@ bute stats          # personal analytics (week/month views, streaks)
 bute export         # zip backup of all data to cwd (-o path)
 bute rebuild        # rebuild search index from .md files
 bute init           # first-run setup (create config + data dirs)
+bute completion     # print the shell line that enables @tag tab completion
 ```
 
 ## Design Decisions

@@ -9,6 +9,7 @@ from datetime import date
 import click
 import frontmatter
 
+from bute.completion import complete_tags
 from bute.display import confirm_capture
 from bute.models import SIGNIFIER_MAP, Entry, EntryType
 from bute.parser import (
@@ -24,7 +25,7 @@ from bute.storage import load_entry, save_entry
 @click.command("capture", hidden=True)
 @click.option("--later", "-l", is_flag=True, help="This week, not today (Task log).")
 @click.option("--backlog", "-b", is_flag=True, help="Backlog only — no focus tags.")
-@click.argument("tokens", nargs=-1, required=True)
+@click.argument("tokens", nargs=-1, required=True, shell_complete=complete_tags)
 @click.pass_context
 def capture_cmd(ctx, later, backlog, tokens):
     """Capture a new entry."""

@@ -8,6 +8,7 @@ from datetime import date
 import click
 from rich.console import Console
 
+from bute.completion import complete_tags
 from bute.display import display_action_confirmation, display_entry_full
 from bute.errors import DwnError, InvalidActionError
 from bute.models import Entry, EntryType, TaskStatus
@@ -525,7 +526,7 @@ ACTION_HANDLERS = {
 
 
 @click.command("action", hidden=True)
-@click.argument("tokens", nargs=-1, required=True)
+@click.argument("tokens", nargs=-1, required=True, shell_complete=complete_tags)
 @click.pass_context
 def action_cmd(ctx, tokens):
     """Perform actions on numbered entries."""

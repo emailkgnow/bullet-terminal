@@ -14,6 +14,7 @@ uv tool install --from . --with fastembed --with sqlite-vec bute
 
 - `fastembed` + `sqlite-vec` are optional — they enable `bt like` (local semantic search). Skip them if you only want the core BuJo loop.
 - Run `bt init` once to create `~/.config/bute/config.toml` and `~/bullet-terminal/`.
+- Tab completion for `@tags` and command names: run `bt completion` and add the printed line to `~/.zshrc`.
 
 ---
 

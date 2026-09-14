@@ -26,6 +26,13 @@ class DwnGroup(click.Group):
         """Override default help to show our custom Rich help."""
         _print_help()
 
+    def shell_complete(self, ctx, incomplete):
+        """Complete @tags at the first position (bt @ba<TAB>); otherwise command names."""
+        if incomplete.startswith("@"):
+            from bute.completion import complete_tags
+            return complete_tags(ctx, None, incomplete)
+        return super().shell_complete(ctx, incomplete)
+
     def parse_args(self, ctx, args):
         """Prevent Click from treating -@tag as an option flag; hoist --json to the front."""
         args = list(args)
@@ -324,11 +331,12 @@ def _print_help():
     t.add_row("bt export", "Export all data as zip", "-o path")
     t.add_row("bt init", "First-run setup (create data dirs)", "")
     t.add_row("bt rebuild", "Rebuild search index", "")
+    t.add_row("bt completion [zsh|bash|fish]", "Print the shell line that enables @tag tab completion", "bt completion")
     t.add_row("bt -i [dim]| --interactive", "Interactive REPL", "No quoting needed")
     t.add_row("bt -d [dim]| --demo", "Demo session", "Isolated data, auto-cleanup")
     t.add_row("bt like <input>", "Find similar entries (semantic)", "bt like 3, bt like productivity")
     t.add_row("bt -j [dim]| --journal-whisper", "Toggle random journal whisper in Focus Log", "")
-    t.add_row("bt <view> --json", "Emit any view as JSON", "bt b --json, bt @home --json")
+    t.add_row("bt <view> --json", "Emit numbered entry views as JSON", "bt b --json, bt @home --json")
     console.print()
     console.print(t)
     console.print()
@@ -541,6 +549,7 @@ from bute.commands.search import find_cmd, like_cmd, rebuild_cmd, readme_cmd  # 
 from bute.commands.demo import demo_cmd  # noqa: E402
 from bute.commands.zen import this_cmd  # noqa: E402
 from bute.commands.trash import trash_cmd  # noqa: E402
+from bute.completion import completion_cmd  # noqa: E402
 
 main.add_command(init_cmd)
 main.add_command(capture_cmd)
@@ -570,3 +579,4 @@ main.add_command(demo_cmd)
 main.add_command(stats_cmd)
 main.add_command(this_cmd)
 main.add_command(trash_cmd)
+main.add_command(completion_cmd)

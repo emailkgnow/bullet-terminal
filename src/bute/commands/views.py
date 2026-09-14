@@ -7,6 +7,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from bute.completion import complete_tags
 from bute.display import (
     _build_entry_row,
     _ZEBRA_STYLE,
@@ -40,11 +41,14 @@ def _dimension_command(name, entry_type, label, group_by_date=False):
     """Factory for dimension view commands (tasks, notes, journals, calendar)."""
 
     @click.command(name)
-    @click.argument("tag", required=False, default=None)
+    @click.argument("tag", required=False, default=None, shell_complete=complete_tags)
     @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
     @click.pass_context
     def cmd(ctx, tag, show_all):
         config = ctx.obj.get("config")
+
+        if tag and tag.startswith("@"):
+            tag = tag[1:]
 
         kwargs = {"type": entry_type.value}
         if tag:
@@ -71,12 +75,15 @@ def _dimension_command(name, entry_type, label, group_by_date=False):
 
 
 @click.command("tasks")
-@click.argument("tag", required=False, default=None)
+@click.argument("tag", required=False, default=None, shell_complete=complete_tags)
 @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
 @click.pass_context
 def tasks_cmd(ctx, tag, show_all):
     """Show this week's focus tasks (@thisweek). -a for done/dropped."""
     config = ctx.obj.get("config")
+
+    if tag and tag.startswith("@"):
+        tag = tag[1:]
 
     if show_all:
         kwargs = {"type": "task", "status": None}
@@ -96,12 +103,15 @@ def tasks_cmd(ctx, tag, show_all):
 
 
 @click.command("backlog")
-@click.argument("tag", required=False, default=None)
+@click.argument("tag", required=False, default=None, shell_complete=complete_tags)
 @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
 @click.pass_context
 def backlog_cmd(ctx, tag, show_all):
     """Show all active tasks. -a for done/dropped."""
     config = ctx.obj.get("config")
+
+    if tag and tag.startswith("@"):
+        tag = tag[1:]
 
     kwargs = {"type": "task"}
     if tag:
@@ -174,7 +184,7 @@ def important_cmd(ctx, entry_type, show_all):
 
 
 @click.command("tag_filter", hidden=True)
-@click.argument("tags", nargs=-1)
+@click.argument("tags", nargs=-1, shell_complete=complete_tags)
 @click.option("--exclude", "-x", multiple=True, help="Exclude entries with this tag.")
 @click.option("--all", "show_all", is_flag=True, hidden=True)
 @click.pass_context

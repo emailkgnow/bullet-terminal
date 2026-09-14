@@ -612,3 +612,14 @@ def test_embed_missing_vectors_embeds_only_unvectored(tmp_data, monkeypatch):
     assert db.embed_missing_vectors() == 0
     assert embedded == []
     db.close()
+
+
+def test_all_tags_distinct_sorted(tmp_data):
+    from bute import db
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+    save_entry(Entry.create(EntryType.TASK, "a", tags=["zeta", "alpha"]))
+    save_entry(Entry.create(EntryType.NOTE, "b", tags=["alpha"]))
+    save_entry(Entry.create(EntryType.NOTE, "c"))
+    assert db.all_tags() == ["alpha", "zeta"]
+    db.close()
