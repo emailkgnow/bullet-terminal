@@ -6,6 +6,7 @@ from pathlib import Path
 import frontmatter
 
 from bute.config import get_data_dir
+from bute.fsutil import atomic_write_text
 from bute.models import Entry, EntryType, TaskStatus, expand_date_runs
 
 
@@ -26,7 +27,7 @@ def save_entry(entry: Entry, config=None) -> Path:
         content=entry.body,
         **entry.to_frontmatter_dict(),
     )
-    path.write_text(frontmatter.dumps(post))
+    atomic_write_text(path, frontmatter.dumps(post))
 
     # Write-through to SQLite index
     try:

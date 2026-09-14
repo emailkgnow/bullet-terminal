@@ -6,6 +6,7 @@ from pathlib import Path
 
 from bute.config import get_data_dir
 from bute.errors import InvalidEntryNumberError, StateNotFoundError
+from bute.fsutil import atomic_write_text
 
 
 def state_path(config=None) -> Path:
@@ -23,7 +24,7 @@ def save_state(view_name: str, entry_ids: list[str], config=None, extra_entries:
     data = {"view": view_name, "entries": entry_ids}
     if extra_entries:
         data["extra_entries"] = extra_entries
-    path.write_text(json.dumps(data))
+    atomic_write_text(path, json.dumps(data))
     return path
 
 
@@ -39,7 +40,7 @@ def mark_dp_done(config=None) -> None:
     """Record that daily plan was completed today."""
     path = get_data_dir(config) / ".dp_date"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(date.today().isoformat())
+    atomic_write_text(path, date.today().isoformat())
     # Append to history for streak tracking
     history_path = get_data_dir(config) / ".dp_history"
     today_iso = date.today().isoformat()
@@ -47,8 +48,8 @@ def mark_dp_done(config=None) -> None:
     if history_path.exists():
         existing = set(history_path.read_text().strip().splitlines())
     if today_iso not in existing:
-        with open(history_path, "a") as f:
-            f.write(today_iso + "\n")
+        lines = sorted(existing | {today_iso})
+        atomic_write_text(history_path, "\n".join(lines) + "\n")
 
 
 def get_dp_history(config=None) -> set[date]:
@@ -76,7 +77,7 @@ def mark_wp_done(config=None) -> None:
     """Record that weekly plan was completed this week."""
     path = get_data_dir(config) / ".wp_date"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(date.today().strftime("%G-W%V"))
+    atomic_write_text(path, date.today().strftime("%G-W%V"))
 
 
 def is_wp_done_this_week(config=None) -> bool:
@@ -112,7 +113,7 @@ def record_journal_shown(entry_id: str, config=None) -> None:
     history = history[-JOURNAL_HISTORY_LIMIT:]
     path = _journal_history_path(config)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(history) + "\n")
+    atomic_write_text(path, "\n".join(history) + "\n")
 
 
 def _undo_path(config=None) -> Path:
@@ -135,7 +136,7 @@ def record_undo(entry_id: str, action: str, prev: dict, config=None) -> None:
         "ts": datetime.now().isoformat(),
     })
     # Keep last 50 actions
-    path.write_text(json.dumps(log[-50:]))
+    atomic_write_text(path, json.dumps(log[-50:]))
 
 
 def pop_undo(entry_id: str | None = None, config=None) -> dict | None:
@@ -161,7 +162,7 @@ def pop_undo(entry_id: str | None = None, config=None) -> dict | None:
         else:
             return None
 
-    path.write_text(json.dumps(log))
+    atomic_write_text(path, json.dumps(log))
     return record
 
 
