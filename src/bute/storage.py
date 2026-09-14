@@ -232,8 +232,12 @@ def trash_entry(entry_id: str, config=None) -> Path | None:
     """Move an entry's .md file into .trash/ and drop it from the index.
 
     Returns the new path, or None if the entry file does not exist.
+    Raises DwnError if a trashed copy of this ULID already exists — never
+    silently clobbers an older trashed file.
     """
     import shutil
+
+    from bute.errors import DwnError
 
     src = entry_path_from_id(entry_id, config)
     if src is None:
@@ -241,6 +245,11 @@ def trash_entry(entry_id: str, config=None) -> Path | None:
     dest_dir = trash_dir(config)
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / f"{entry_id}.md"
+    if dest.exists():
+        raise DwnError(
+            f"A trashed copy of {entry_id[:8]} already exists at {dest}. "
+            "Restore or empty the trash before deleting it again."
+        )
     shutil.move(str(src), str(dest))
     try:
         from bute.db import delete_entry
@@ -260,7 +269,8 @@ def trash_entry(entry_id: str, config=None) -> Path | None:
 def restore_entry(entry_id: str, config=None) -> Entry:
     """Move a trashed entry back to entries/{type}/YYYY-MM/ and re-index it.
 
-    Raises DwnError if the entry is not in the trash.
+    Raises DwnError if the entry is not in the trash, or if a live file
+    already occupies the destination path (never silently overwritten).
     """
     import shutil
 
@@ -271,6 +281,8 @@ def restore_entry(entry_id: str, config=None) -> Entry:
         raise DwnError(f"Entry {entry_id[:8]} is not in the trash.")
     entry = load_entry(src)
     dest = entry_path(entry, config)
+    if dest.exists():
+        raise DwnError(f"{entry_id[:8]} already exists at {dest} — remove it first.")
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), str(dest))
     try:

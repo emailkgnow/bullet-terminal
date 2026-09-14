@@ -84,6 +84,61 @@ def test_restore_entry_not_in_trash_raises(tmp_data):
         restore_entry(e.id)
 
 
+def test_trash_entry_collision_raises_and_preserves_existing(tmp_data):
+    """Trashing the same ULID twice must not clobber the older trashed copy."""
+    import pytest
+    from bute.errors import DwnError
+
+    e = Entry.create(EntryType.TASK, "first version")
+    save_entry(e)
+    trash_entry(e.id)
+    trashed_path = trash_dir() / f"{e.id}.md"
+    original_content = trashed_path.read_text()
+
+    # Simulate the same ULID reappearing on disk (e.g. an external agent
+    # rewriting entries/ by ULID) and being deleted again.
+    e2 = Entry.create(EntryType.TASK, "second version")
+    e2.id = e.id
+    save_entry(e2)
+    live_path = entry_path_from_id(e.id)
+    assert live_path is not None
+
+    with pytest.raises(DwnError):
+        trash_entry(e.id)
+
+    # Neither copy was destroyed by the failed second trash attempt.
+    assert trashed_path.read_text() == original_content
+    assert live_path.exists()
+    assert "second version" in live_path.read_text()
+
+
+def test_restore_entry_collision_raises_and_preserves_existing(tmp_data):
+    """Restoring must not overwrite a live file that already occupies the destination."""
+    import pytest
+    from bute.errors import DwnError
+
+    e = Entry.create(EntryType.TASK, "trashed original")
+    save_entry(e)
+    trash_entry(e.id)
+    trashed_path = trash_dir() / f"{e.id}.md"
+    assert trashed_path.exists()
+
+    # A file with the same ULID has since reappeared at the live destination.
+    e2 = Entry.create(EntryType.TASK, "live occupant")
+    e2.id = e.id
+    save_entry(e2)
+    live_path = entry_path_from_id(e.id)
+    assert live_path is not None
+    live_content = live_path.read_text()
+
+    with pytest.raises(DwnError):
+        restore_entry(e.id)
+
+    # Neither copy was destroyed by the failed restore attempt.
+    assert live_path.read_text() == live_content
+    assert trashed_path.exists()
+
+
 # --- CLI ---
 
 

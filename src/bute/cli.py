@@ -273,7 +273,7 @@ def _print_help():
     t.add_row("bt !", "Important entries", "bt t! for tasks only")
     t.add_row("bt @tag [@tag2] [-@ex]", "Filter by tags (AND + exclude)", "bt @backend -@done")
     t.add_row("bt find <text>", "Keyword search", "-t -n -j -c to filter")
-    t.add_row("bt trash", "Trashed entries, newest first", "bt trash empty -y to purge")
+    t.add_row("bt trash", "Trashed entries", "bt trash empty -y to purge")
     console.print()
     console.print(t)
     console.print()

@@ -134,7 +134,7 @@ bute 2 3 drop       # consciously delete (space-separated)
 bute 1-4 done       # range — marks 1, 2, 3, 4 done
 bute 1-3 7 done     # mix range + bare numbers
 bute 4 delete       # move to .trash/ (recoverable)
-bute trash          # list trashed entries (newest first); bute trash empty -y to purge
+bute trash          # list trashed entries; bute trash empty -y to purge
 bute 2 restore      # restore entry 2 from the trash view
 bute 5 !            # toggle important
 bute 6 @tag         # add tag
