@@ -169,18 +169,28 @@ def handle_mod(entry: Entry, args: list[str], config) -> None:
         raise InvalidActionError("mod requires new text. Usage: bt 1 mod new text here")
     entry.body = " ".join(args)
     update_entry(entry, config)
+    _invalidate_vector(entry.id, config)
 
 
 def _reindex_entry(path, config):
-    """Re-index an entry after edits so DB and embeddings stay in sync."""
+    """Re-index an entry after edits. Drops its vector so `bt like` re-embeds it."""
     updated = load_entry(path)
     try:
         from bute.db import upsert_entry
         upsert_entry(updated, config)
     except Exception:
         pass
-    from bute.ai import embed_entry
-    embed_entry(updated.id, updated.body, config)
+    _invalidate_vector(updated.id, config)
+
+
+def _invalidate_vector(entry_id: str, config) -> None:
+    """Delete an entry's stale vector. Cheap — no model load. Re-embedded lazily."""
+    try:
+        from bute.ai.vectors import is_available, delete as vec_delete
+        if is_available():
+            vec_delete(entry_id, config)
+    except Exception:
+        pass
 
 
 def handle_edit(entry: Entry, args: list[str], config) -> None:
@@ -419,8 +429,6 @@ def apply_undo(record: dict, config) -> None:
         restored_path.write_text(file_content)
         entry = _load(restored_path)
         # Re-index
-        from bute.ai import embed_entry
-        embed_entry(entry.id, entry.body, config)
         try:
             from bute.db import upsert_entry
             upsert_entry(entry, config)

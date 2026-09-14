@@ -138,17 +138,15 @@ def close() -> None:
     _reconciled_this_process = False
 
 
-def reconcile_index(config=None, embed_new: bool = False) -> int:
+def reconcile_index(config=None) -> int:
     """Bring the SQLite index in sync with the entries/ directory.
 
     Detects files added/removed externally (e.g., by a "bring your own AI"
     agent writing valid .md files into entries/{type}/YYYY-MM/) and upserts
     or deletes matching rows. Runs at most once per process.
 
-    When `embed_new=True`, also embeds newly-indexed entries into the
-    vector table — callers that care about `bt like` results (like `bt like`
-    and `bt rebuild`) pass this; normal views skip it to avoid loading the
-    embedding model unnecessarily.
+    Vectors are not written here; `embed_missing_vectors()` backfills them
+    when `bt like` runs.
 
     Returns the number of changes applied (0 if already in sync).
     """
@@ -182,30 +180,13 @@ def reconcile_index(config=None, embed_new: bool = False) -> int:
 
     if missing_in_db:
         from bute.storage import load_entry
-        new_entries: list[Entry] = []
         for entry_id in missing_in_db:
             try:
                 entry = load_entry(disk_ids[entry_id])
                 upsert_entry(entry, config)
-                new_entries.append(entry)
                 changes += 1
             except Exception:
                 logger.debug("reconcile: failed to load %s", entry_id, exc_info=True)
-
-        if embed_new and new_entries:
-            try:
-                from bute.ai import is_embedding_available
-                if is_embedding_available():
-                    from bute.ai.embeddings import embed_texts
-                    from bute.ai.vectors import upsert as vec_upsert
-                    vectors = embed_texts([e.body for e in new_entries])
-                    for e, v in zip(new_entries, vectors):
-                        try:
-                            vec_upsert(e.id, v, config)
-                        except Exception:
-                            logger.debug("reconcile: embed upsert failed for %s", e.id, exc_info=True)
-            except Exception:
-                logger.debug("reconcile: embedding step failed", exc_info=True)
 
     for entry_id in missing_on_disk:
         try:
@@ -221,6 +202,46 @@ def reconcile_index(config=None, embed_new: bool = False) -> int:
     db.commit()
 
     return changes
+
+
+def embed_missing_vectors(config=None) -> int:
+    """Embed every indexed entry that has no row in vec_entries.
+
+    Capture never embeds (it would load the ONNX model on every write).
+    `bt like` calls this first, so semantic search lazily catches up on
+    everything captured, edited, or restored since the last search.
+
+    Returns the number of entries embedded. 0 when embeddings are not
+    installed or the vec table does not exist.
+    """
+    from bute.ai import is_embedding_available
+    if not is_embedding_available():
+        return 0
+
+    db = get_connection(config)
+    try:
+        rows = db.execute(
+            "SELECT entry_id, body FROM entries "
+            "WHERE entry_id NOT IN (SELECT entry_id FROM vec_entries)"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return 0
+    if not rows:
+        return 0
+
+    from bute.ai.embeddings import embed_texts
+    from bute.ai.vectors import upsert as vec_upsert
+
+    ids = [r[0] for r in rows]
+    vectors = embed_texts([r[1] for r in rows])
+    embedded = 0
+    for entry_id, vector in zip(ids, vectors):
+        try:
+            vec_upsert(entry_id, vector, config)
+            embedded += 1
+        except Exception:
+            logger.debug("embed_missing_vectors: upsert failed for %s", entry_id, exc_info=True)
+    return embedded
 
 
 def _migrate_from_vectors(config=None) -> None:

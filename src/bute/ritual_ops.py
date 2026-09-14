@@ -270,8 +270,6 @@ def process_dump_line(line: str, config=None) -> Entry | None:
         entry.week_date = week_anchor(config=config)
 
     save_entry(entry, config)
-    from bute.ai import embed_entry
-    embed_entry(entry.id, entry.body, config)
     return entry
 
 

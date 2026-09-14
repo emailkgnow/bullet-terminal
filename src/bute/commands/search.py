@@ -30,8 +30,9 @@ def like_cmd(ctx, tokens, limit):
 
     # Reconcile externally-added .md files into SQLite + vector index so
     # `bt like` can surface them without a manual `bt rebuild`.
-    from bute.db import reconcile_index
-    reconcile_index(config, embed_new=True)
+    from bute.db import embed_missing_vectors, reconcile_index
+    reconcile_index(config)
+    embed_missing_vectors(config)
 
     # Route: single integer token → try similar-to-entry mode
     source_entry = None

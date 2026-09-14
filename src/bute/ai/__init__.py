@@ -19,20 +19,6 @@ def is_embedding_available() -> bool:
     return embed_ok() and vec_ok()
 
 
-def embed_entry(entry_id: str, body: str, config=None) -> None:
-    """Embed an entry's body text and store the vector. No-op if deps missing."""
-    if not is_embedding_available():
-        return
-    try:
-        from bute.ai.embeddings import embed_text
-        from bute.ai.vectors import upsert
-
-        vector = embed_text(body)
-        upsert(entry_id, vector, config)
-    except Exception:
-        logger.debug("Embedding failed for entry %s", entry_id[:8], exc_info=True)
-
-
 def search_similar(
     query: str, limit: int = 10, config=None
 ) -> list[tuple[str, float]]:

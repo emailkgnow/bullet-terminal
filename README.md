@@ -154,7 +154,7 @@ The first read operation per bt process (`bt`, `bt t`, `bt m`, `bt find`, `bt li
 - **IDs in the index without a file** → delete from index.
 - On subsequent reads in the same process, reconciliation is a no-op (latched per process).
 
-`bt like` additionally runs the embedding step for new entries, so semantic search sees them without manual rebuild.
+Vectors are never written at capture time. `bt like` first embeds every indexed entry that has no vector yet (new captures, external files, edited bodies), so semantic search catches up lazily and capture stays fast.
 
 Edits to an existing file (same ID, new body) are not yet auto-detected. Run `bt rebuild` after external edits until that's handled. Capture/delete flows are fully auto-reconciled.
 

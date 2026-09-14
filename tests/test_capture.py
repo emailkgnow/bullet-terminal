@@ -129,3 +129,25 @@ def test_capture_note_has_no_focus_dates(runner, tmp_config, tmp_data):
     loaded = load_entry(entries[0])
     assert loaded.focus_date is None
     assert loaded.week_date is None
+
+
+def test_capture_does_not_embed(runner, tmp_config, tmp_data, monkeypatch):
+    """Capture must never load the embedding model — bt like backfills lazily.
+
+    Spies on the actual ONNX model constructor (`_get_model`, the lowest
+    point in bute.ai.embeddings where the model is built) rather than
+    raising from it: the old capture-path embed helper (since removed)
+    wrapped its call in a bare `except Exception`, so a raising mock was
+    silently swallowed and the test would pass regardless of whether the
+    model was ever loaded. A
+    call-count spy proves the real thing: zero calls means capture never
+    touched the model.
+    """
+    import bute.ai.embeddings as emb
+
+    calls = []
+    monkeypatch.setattr(emb, "_get_model", lambda: calls.append(1))
+    result = runner.invoke(main, ["t", "fast", "capture"])
+    assert result.exit_code == 0, result.output
+    assert "fast capture" in result.output
+    assert calls == [], "capture must not load the embedding model"

@@ -107,8 +107,6 @@ def capture_cmd(ctx, later, backlog, tokens):
             entry.focus_date = date.today()
 
     save_entry(entry, config)
-    from bute.ai import embed_entry
-    embed_entry(entry.id, entry.body, config)
     confirm_capture(entry)
 
 
@@ -178,8 +176,6 @@ def open_capture_cmd(ctx, signifier):
             edited.focus_date = date.today()
 
         save_entry(edited, config)
-        from bute.ai import embed_entry
-        embed_entry(edited.id, edited.body, config)
         confirm_capture(edited)
     finally:
         os.unlink(tmp_path)
