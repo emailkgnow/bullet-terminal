@@ -124,7 +124,12 @@ def like_cmd(ctx, tokens, limit):
 @click.option("--limit", default=50, help="Max results.")
 @click.pass_context
 def find_cmd(ctx, query, type_filter, limit):
-    """Find entries by keyword in body text and tags. Matches partial words."""
+    """Search the full text of every entry — body and tags.
+
+    Partial words match: `bt find dent` finds "dentist", and `bt find ntist`
+    finds it too. Multiple words all have to match. Results show the matching
+    line when the hit is buried below an entry's first line.
+    """
     import sqlite3
 
     from bute.db import build_prefix_query, query_entries, search_substring, search_text
