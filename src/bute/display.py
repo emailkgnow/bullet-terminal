@@ -316,7 +316,7 @@ def display_entry_list(
             emit_json(title, [])
             return
         if title:
-            console.print(f"[bold]{title}[/bold]", justify="center")
+            console.print(f"[bold]{escape_markup(title)}[/bold]", justify="center")
         console.print(f"  [dim]No entries found.[/dim]")
         return
 
@@ -447,7 +447,7 @@ def display_action_confirmation(entry: Entry, action: str) -> None:
     icon = style["icon"]
     color = style["color"]
     short_id = entry.id[:8]
-    body = _truncate_body(entry.body)
+    body = escape_markup(_truncate_body(entry.body))
     console.print(
         f"  [{color}]{icon}[/{color}] [bold]\\[{action}][/bold] "
         f"{body} [dim]({short_id})[/dim]"
@@ -474,7 +474,7 @@ def display_habit_status(
             icon = "[green]●[/green]"
         else:
             icon = "[dim]○[/dim]"
-        console.print(f"  {icon} {name}")
+        console.print(f"  {icon} {escape_markup(name)}")
 
 
 def display_habit_line(
@@ -495,9 +495,9 @@ def display_habit_line(
         for name in configured:
             status = habits.get(name)
             if status is True:
-                parts.append(f"[green]●[/green] {name}")
+                parts.append(f"[green]●[/green] {escape_markup(name)}")
             else:
-                parts.append(f"[dim]○[/dim] {name}")
+                parts.append(f"[dim]○[/dim] {escape_markup(name)}")
         console.print(f"  [bold dim]Habits[/bold dim]   {'   '.join(parts)}")
     else:
         # Numbered rows (used in daily log)
@@ -518,7 +518,7 @@ def display_habit_line(
                 icon = Text("●", style="green")
             else:
                 icon = Text("○", style="dim")
-            table.add_row(str(start_num + i), icon, name)
+            table.add_row(str(start_num + i), icon, Text(name))
 
         console.print(table)
 
@@ -536,10 +536,11 @@ def display_habit_line_entries(
         parts = []
         for entry in habits:
             completed = entry.is_completed_for_date(target_date)
+            body = escape_markup(entry.body)
             if completed:
-                parts.append(f"[green]●[/green] {entry.body}")
+                parts.append(f"[green]●[/green] {body}")
             else:
-                parts.append(f"[dim]○[/dim] {entry.body}")
+                parts.append(f"[dim]○[/dim] {body}")
         console.print(f"  [bold dim]Habits[/bold dim]   {'   '.join(parts)}")
     else:
         table = Table(
@@ -556,7 +557,7 @@ def display_habit_line_entries(
         for i, entry in enumerate(habits):
             completed = entry.is_completed_for_date(target_date)
             icon = Text("●", style="green") if completed else Text("○", style="dim")
-            table.add_row(str(start_num + i), icon, entry.body)
+            table.add_row(str(start_num + i), icon, Text(entry.body))
 
         console.print(table)
 
@@ -598,7 +599,7 @@ def display_search_results(
         table.add_row(num, icon, body, meta, style=row_style)
 
     title = f'Like: "{query}"' if query else "Like"
-    console.print(f"\n  [bold]{title}[/bold]")
+    console.print(f"\n  [bold]{escape_markup(title)}[/bold]")
     console.print(Align.center(table))
 
 
