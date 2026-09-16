@@ -2,18 +2,18 @@
 
 A CLI life management system based on the [Bullet Journal](https://bulletjournal.com/) methodology. Single user, local data, plain Markdown files. No cloud, no accounts, no network.
 
-bt stays opinionated and lean. The goal is to capture fast, plan each morning, and keep the mental loop closed — in a terminal.
+bt stays opinionated and lean. The goal is to capture fast, plan each morning, and keep the mental loop closed — in a terminal. The name mirrors BuJo (Bullet Journal): same family, different medium.
 
 ---
 
 ## Install
 
 ```bash
-uv tool install --from . --with fastembed --with sqlite-vec bute
+uv tool install 'bullet-terminal[embeddings] @ git+https://github.com/emailkgnow/bullet-terminal'
 ```
 
-- `fastembed` + `sqlite-vec` are optional — they enable `bt like` (local semantic search). Skip them if you only want the core BuJo loop.
-- Run `bt init` once to create `~/.config/bute/config.toml` and `~/bullet-terminal/`.
+- `[embeddings]` pulls in `fastembed` + `sqlite-vec` for `bt like` (local semantic search). Drop the extra if you only want the core BuJo loop: `uv tool install 'bullet-terminal @ git+https://github.com/emailkgnow/bullet-terminal'`.
+- Run `bt init` once to create `~/.config/bt/config.toml` and `~/bullet-terminal/`.
 - Tab completion for `@tags` and command names: run `bt completion` and add the printed line to `~/.zshrc`.
 
 ---
@@ -50,7 +50,7 @@ Full command reference: `bt -h`. First-run onboarding triggers automatically.
 
 ## Data model — the source of truth
 
-**Everything bt knows lives in plain Markdown files.** The SQLite index at `~/bullet-terminal/.index/bute.db` is a derived cache — it can be rebuilt from the `.md` files at any time with `bt rebuild`, and bt auto-reconciles it on each read (see [Bring Your Own AI](#bring-your-own-ai) below).
+**Everything bt knows lives in plain Markdown files.** The SQLite index at `~/bullet-terminal/.index/bt.db` is a derived cache — it can be rebuilt from the `.md` files at any time with `bt rebuild`, and bt auto-reconciles it on each read (see [Bring Your Own AI](#bring-your-own-ai) below).
 
 ### Folder layout
 
@@ -64,7 +64,7 @@ Full command reference: `bt -h`. First-run onboarding triggers automatically.
 ├── .trash/
 │   └── <ULID>.md       # deleted entries (bt <n> delete) — flat, restorable with bt trash → bt <n> restore
 ├── .index/
-│   └── bute.db         # SQLite index (metadata + FTS5 + vectors) — regenerable
+│   └── bt.db           # SQLite index (metadata + FTS5 + vectors) — regenerable
 └── backups/
     └── bt-YYYY-MM-DD.zip   # daily auto-backup, pruned after 30 days — regenerable
 ```
@@ -227,7 +227,7 @@ Full help: `bt -h`.
 ## Architecture (short version)
 
 - **Source of truth**: `.md` files. Everything else is derived.
-- **Index**: SQLite at `.index/bute.db` — metadata table, FTS5 virtual table, `vec_entries` virtual table (sqlite-vec). Auto-rebuilt on first run; auto-reconciled on each read.
+- **Index**: SQLite at `.index/bt.db` — metadata table, FTS5 virtual table, `vec_entries` virtual table (sqlite-vec). Auto-rebuilt on first run; auto-reconciled on each read.
 - **Embeddings**: local via fastembed (ONNX). No API keys, no network.
 - **State**: `.state.json` at config dir remembers the last displayed list so `bt 1 done` knows which entry "#1" maps to.
 

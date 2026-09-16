@@ -2,9 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What is bute?
+## What is bt?
 
-bute (BuTe — Bullet Terminal) is a CLI life management system based on the Bullet Journal methodology. Single user, local data, plain Markdown files. The name mirrors BuJo (Bullet Journal) — same family, different medium.
+bt (Bullet Terminal) is a CLI life management system based on the Bullet Journal methodology. Single user, local data, plain Markdown files. The name mirrors BuJo (Bullet Journal) — same family, different medium. The distribution is `bullet-terminal`; the Python import package is still `bute` (invisible to users, so it was never renamed).
 
 ## Development Commands
 
@@ -19,7 +19,7 @@ uv run pytest -m "not slow"           # skip embedding tests
 uv run pytest --cov=src/bute          # with coverage
 
 # Install globally (for manual testing)
-uv tool install --from . --with fastembed --with sqlite-vec bute --force --reinstall
+uv tool install --from . --with fastembed --with sqlite-vec bullet-terminal --force --reinstall
 
 # Build
 uv build
@@ -27,16 +27,16 @@ uv build
 
 ## Architecture
 
-### CLI Dispatch (cli.py — ButeGroup)
+### CLI Dispatch (cli.py — DwnGroup)
 
 Custom Click group with 5-layer routing in `resolve_command()`:
 
 1. **Named commands** — standard Click (dp, tasks, backlog, notes, tags, etc.)
 2. **Letter shortcut** — `b` → backlog, `m` → monthly
 3. **Signifiers** — `t`, `n`, `j`, `c` (or full words: `task`, `note`, `journal`, `calendar`)
-   - With text → **capture** (`bute t call dentist`)
-   - Without text → **view** (`bute t` → show Tasks / weekly focus)
-   - With only `@tag` → **filtered view** (`bute t @backend`)
+   - With text → **capture** (`bt t call dentist`)
+   - Without text → **view** (`bt t` → show Tasks / weekly focus)
+   - With only `@tag` → **filtered view** (`bt t @backend`)
 4. **Tag filter** — `@tagname` → cross-dimension filter (multi-tag: `@a @b -@c`)
 5. **Number-action** — `1 done`, `2 3 drop` → action dispatch
 
@@ -90,13 +90,13 @@ There is no built-in LLM. `bt chat` was removed in favor of BYOAI — the README
 
 **Capture** — signifier + text:
 ```
-bute t call dentist due:friday @backend    # single letter
-bute task call dentist due:friday @backend # full word
-bute t! fix prod bug                       # important modifier
-bute c dentist t:14.30 d:3.30              # calendar: Mar 30 at 2:30 PM
-bute c meeting t:9                         # calendar: today at 9:00 AM
-bute c conference d:4.15                   # calendar: Apr 15, all day
-bute n check OAuth docs d:4.10             # note: resurfaces in Focus Log Apr 10
+bt t call dentist due:friday @backend    # single letter
+bt task call dentist due:friday @backend # full word
+bt t! fix prod bug                       # important modifier
+bt c dentist t:14.30 d:3.30              # calendar: Mar 30 at 2:30 PM
+bt c meeting t:9                         # calendar: today at 9:00 AM
+bt c conference d:4.15                   # calendar: Apr 15, all day
+bt n check OAuth docs d:4.10             # note: resurfaces in Focus Log Apr 10
 ```
 
 **Date/time metadata:**
@@ -106,73 +106,73 @@ bute n check OAuth docs d:4.10             # note: resurfaces in Focus Log Apr 1
 
 **Views** — signifier alone, or named commands:
 ```
-bute t              # Tasks — this week's focus (@thisweek)
-bute t @backend     # filtered by tag
-bute t -a           # all including done/dropped
-bute b              # Task Backlog — all active tasks
-bute n / j / c      # notes / journals / calendar (grouped by date)
-bute -a             # Focus Log + hidden items (dropped, non-focus captures, past events)
-bute m              # monthly log (all entries for the month)
-bute m jan          # January's log (full or abbreviated name)
-bute m 2026-03      # March 2026
-bute m 2026         # all months of 2026
-bute                # Focus Log (or daily plan if not done today)
-bute @tagname       # cross-dimension tag filter
-bute @bt @ai        # entries with both tags (AND)
-bute @bt -@done     # entries with @bt but not @done
-bute -@habit        # all entries excluding @habit
-bute !              # all important entries
-bute t!             # important tasks (also: n!, j!, c!)
-bute find <keyword> # partial-word search in full body + tags (-t -n -j -c to filter)
-bute like <input>   # semantic similarity (bt like 3, bt like productivity)
+bt t              # Tasks — this week's focus (@thisweek)
+bt t @backend     # filtered by tag
+bt t -a           # all including done/dropped
+bt b              # Task Backlog — all active tasks
+bt n / j / c      # notes / journals / calendar (grouped by date)
+bt -a             # Focus Log + hidden items (dropped, non-focus captures, past events)
+bt m              # monthly log (all entries for the month)
+bt m jan          # January's log (full or abbreviated name)
+bt m 2026-03      # March 2026
+bt m 2026         # all months of 2026
+bt                # Focus Log (or daily plan if not done today)
+bt @tagname       # cross-dimension tag filter
+bt @bt @ai        # entries with both tags (AND)
+bt @bt -@done     # entries with @bt but not @done
+bt -@habit        # all entries excluding @habit
+bt !              # all important entries
+bt t!             # important tasks (also: n!, j!, c!)
+bt find <keyword> # partial-word search in full body + tags (-t -n -j -c to filter)
+bt like <input>   # semantic similarity (bt like 3, bt like productivity)
 bt b --json         # numbered entry views as JSON (n = display number); not stats/streak/actions/captures
 ```
 
 **Actions** — number + command:
 ```
-bute 1 done         # mark complete
-bute 2 3 drop       # consciously delete (space-separated)
-bute 1-4 done       # range — marks 1, 2, 3, 4 done
-bute 1-3 7 done     # mix range + bare numbers
-bute 4 delete       # move to .trash/ (recoverable)
-bute trash          # list trashed entries; bute trash empty -y to purge
-bute 2 restore      # restore entry 2 from the trash view
-bute 5 !            # toggle important
-bute 6 @tag         # add tag
-bute 6 clear @tag   # remove tag
-bute 6 clear !      # remove important
-bute 6 clear due    # clear due date
-bute 6 clear d      # clear scheduled date
-bute 6 clear t      # clear time
-bute 6 clear repeat # clear repeat
-bute 7 edit         # open in $EDITOR
-bute 3 show         # read entry in glow pager, q to quit (aliases: view, read)
-bute 3 later        # defer — remove from today's log
-bute undo           # undo last action
-bute 3 undo         # undo last action on entry 3
+bt 1 done         # mark complete
+bt 2 3 drop       # consciously delete (space-separated)
+bt 1-4 done       # range — marks 1, 2, 3, 4 done
+bt 1-3 7 done     # mix range + bare numbers
+bt 4 delete       # move to .trash/ (recoverable)
+bt trash          # list trashed entries; bt trash empty -y to purge
+bt 2 restore      # restore entry 2 from the trash view
+bt 5 !            # toggle important
+bt 6 @tag         # add tag
+bt 6 clear @tag   # remove tag
+bt 6 clear !      # remove important
+bt 6 clear due    # clear due date
+bt 6 clear d      # clear scheduled date
+bt 6 clear t      # clear time
+bt 6 clear repeat # clear repeat
+bt 7 edit         # open in $EDITOR
+bt 3 show         # read entry in glow pager, q to quit (aliases: view, read)
+bt 3 later        # defer — remove from today's log
+bt undo           # undo last action
+bt 3 undo         # undo last action on entry 3
 ```
 
 **Tags**:
 ```
-bute tags                           # list all tags with stage and count
+bt tags                           # list all tags with stage and count
 ```
 
 **Rituals**:
 ```
-bute                # entry point — weekly plan (on trigger day) → daily plan → Focus Log
-bute dp             # morning ritual — pick today's tasks
-bute wp             # weekly plan — select tasks for the week (auto-triggers on configured day)
-bute habit <name>   # track habits
-bute streak         # habit streaks and 30-day stats
+bt                # entry point — weekly plan (on trigger day) → daily plan → Focus Log
+bt dp             # morning ritual — pick today's tasks
+bt wp             # weekly plan — select tasks for the week (auto-triggers on configured day)
+bt habit <name>   # track habits
+bt streak         # habit streaks and 30-day stats
 ```
 
 **System**:
 ```
-bute stats          # personal analytics (week/month views, streaks)
-bute export         # zip backup of all data to cwd (-o path)
-bute rebuild        # rebuild search index from .md files
-bute init           # first-run setup (create config + data dirs)
-bute completion     # print the shell line that enables @tag tab completion
+bt stats          # personal analytics (week/month views, streaks)
+bt export         # zip backup of all data to cwd (-o path)
+bt rebuild        # rebuild search index from .md files
+bt init           # first-run setup (create config + data dirs)
+bt completion     # print the shell line that enables @tag tab completion
 ```
 
 ## Design Decisions
@@ -181,11 +181,11 @@ bute completion     # print the shell line that enables @tag tab completion
 - **Tags are plain labels** — organize entries and power cross-dimension filters. The `+collection` syntax was removed — tags absorbed collections. A `tag_stages` SQLite table from the removed AI analyze feature still exists; harmless, may be pruned later.
 - **Logs are derived** — no stored files. Focus Log (`bt`), monthly log (`bt m`) query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label). `bt -a` expands the Focus Log to include dropped tasks, non-focus captures from today, and past-timed events — replaces the retired `bt d`/`bt w`.
 - **`bt m` is event-driven** — each entry surfaces on every day any of its lifecycle events occurred (captured, focused, scheduled, completed, dropped, undropped). Events are stored as a YAML `events:` list in the entry's frontmatter, appended by every mutation site (capture, dp, wp, done, drop, later, backlog, schedule, mod, undo). Legacy entries without a stored `events` list use render-time synthesis from `created`, `scheduled_date`, `focus_date`, `completed_date`. This makes `bt m` a BuJo retrospective — you can relive each day of the month.
-- **`bute` with no args** = planning entry point. On the trigger day (default Sunday, configurable via `core.wp_day`), runs weekly plan then daily plan. Other days, runs daily plan only. If all done, shows Focus Log.
-- **Focus Log (`bt`)** — what matters today: tasks with `focus_date == today`, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bute b`) or Tasks (`bute t`). Curated and active-only — `bt -a` expands to dropped tasks, captures from today that lack focus, and past-timed events.
+- **`bt` with no args** = planning entry point. On the trigger day (default Sunday, configurable via `core.wp_day`), runs weekly plan then daily plan. Other days, runs daily plan only. If all done, shows Focus Log.
+- **Focus Log (`bt`)** — what matters today: tasks with `focus_date == today`, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bt b`) or Tasks (`bt t`). Curated and active-only — `bt -a` expands to dropped tasks, captures from today that lack focus, and past-timed events.
 - **Task views**: `bt t` (Tasks) shows tasks with `week_date == this Monday`. `bt b` (Backlog) shows all active tasks. The flow is: backlog → weekly plan → tasks → Focus Log.
 - **Focus state as dates, not tags** — `focus_date` and `week_date` are proper `Optional[date]` fields on `Entry`. Set by `bt dp` / `bt wp` / `bt focus` / capture. Cleared by `bt later` / `bt backlog`. Old dates expire naturally — no clearing ritual needed. Replaces the former `@today` / `@thisweek` system tags.
-- **`bute wp`** includes task dump phase — add tasks before selecting for the week.
+- **`bt wp`** includes task dump phase — add tasks before selecting for the week.
 - **Display**: tasks = flat list, notes/journals/calendar = grouped by date (using `scheduled_date` for calendar events).
 - **Scheduling is universal** — `d:` (scheduled_date) works on all entry types. Tasks: deadline. Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
 - **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.
