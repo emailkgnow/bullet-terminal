@@ -6,6 +6,7 @@ Markdown file store. Independent of storage.py; does not read .md files.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import shutil
@@ -259,13 +260,13 @@ def _migrate_index_file(config=None) -> None:
             if old_path.exists():
                 new_dir.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(old_path), str(new_path))
+                logger.info("Migrated index file to .index/bt.db")
                 break
 
     old_dir = data_dir / ".vectors"
     if old_dir.exists() and not any(old_dir.iterdir()):
-        old_dir.rmdir()
-
-    logger.info("Index file migrated to .index/bt.db")
+        with contextlib.suppress(OSError):  # another process may have removed it
+            old_dir.rmdir()
 
 
 def _auto_rebuild(config=None) -> None:

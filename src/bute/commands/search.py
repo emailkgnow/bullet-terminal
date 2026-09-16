@@ -10,7 +10,8 @@ console = Console()
 
 _INSTALL_MSG = (
     "  [yellow]Semantic search requires embeddings.[/yellow]\n"
-    "  Install with: [bold]uv tool install --from . --with fastembed --with sqlite-vec bullet-terminal --force[/bold]"
+    "  Install with: [bold]uv tool install 'bullet-terminal\\[embeddings] @ "
+    "git+https://github.com/emailkgnow/bullet-terminal' --force[/bold]"
 )
 
 

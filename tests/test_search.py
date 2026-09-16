@@ -123,3 +123,26 @@ class TestWithVectorDB:
         result = runner.invoke(main, ["like", "1"])
         assert result.exit_code == 0
         assert "source entry" not in result.output or "Like:" in result.output
+
+
+def test_install_hint_renders_the_installable_command():
+    """The hint a user without embeddings sees must be copy-pasteable.
+
+    Rich treats `[embeddings]` as markup and silently drops it, so the extra has
+    to be escaped or the printed command installs bt without semantic search.
+    """
+    import io
+
+    from rich.console import Console
+
+    from bute.commands.search import _INSTALL_MSG
+
+    buf = io.StringIO()
+    Console(file=buf, width=200, force_terminal=False).print(_INSTALL_MSG)
+    rendered = buf.getvalue()
+
+    assert "[embeddings]" in rendered
+    assert "git+https://github.com/emailkgnow/bullet-terminal" in rendered
+    # `--from .` only works inside a repo checkout; the user reading this installed
+    # from the git URL and has no checkout.
+    assert "--from ." not in rendered
