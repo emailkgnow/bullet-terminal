@@ -52,12 +52,26 @@ def tmp_data(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _never_migrate_the_real_config_dir(tmp_path, monkeypatch):
-    """Point the legacy-config lookup at a path that does not exist.
+def _isolate_the_real_config_dir(request, tmp_path_factory, monkeypatch):
+    """No test may read or write the real ~/.config/bt/.
 
-    load_config() copies ~/.config/bute/ → ~/.config/bt/ on first call. No test may
-    ever trigger that against the user's real home directory.
+    save_config() writes CONFIG_FILE unconditionally and `bt -j` touches
+    CONFIG_DIR/.no-journal, so a test reaching either without the tmp_config
+    fixture would write into the user's own config dir — where data_dir lives.
+    Redirect all three paths for every test; tests needing particular values
+    re-patch them in their own body, which wins.
+
+    The directory comes from tmp_path_factory rather than tmp_path so it never
+    appears in tests that assert on the contents of their own tmp_path. The tour
+    marker is pre-created so no test can drop into the first-run tour's REPL.
+
+    Opt out with @pytest.mark.real_config_paths for tests that assert on the
+    default constants themselves and never touch the filesystem.
     """
-    monkeypatch.setattr(
-        "bute.config.LEGACY_CONFIG_DIR", tmp_path / "no-legacy-config", raising=False
-    )
+    if "real_config_paths" in request.keywords:
+        return
+    config_dir = tmp_path_factory.mktemp("config")
+    (config_dir / ".tour_done").touch()
+    monkeypatch.setattr("bute.config.CONFIG_DIR", config_dir)
+    monkeypatch.setattr("bute.config.CONFIG_FILE", config_dir / "config.toml")
+    monkeypatch.setattr("bute.config.TOUR_DONE", config_dir / ".tour_done")

@@ -6,10 +6,8 @@ Markdown file store. Independent of storage.py; does not read .md files.
 
 from __future__ import annotations
 
-import contextlib
 import json
 import logging
-import shutil
 import sqlite3
 from pathlib import Path
 from typing import Optional
@@ -44,9 +42,6 @@ def get_connection(config=None) -> sqlite3.Connection:
     global _connection
     if _connection is not None:
         return _connection
-
-    if _db_path_override is None:
-        _migrate_index_file(config)
 
     path = _db_path(config)
     is_new_db = not path.exists()
@@ -243,30 +238,6 @@ def embed_missing_vectors(config=None) -> int:
         except Exception:
             logger.debug("embed_missing_vectors: upsert failed for %s", entry_id, exc_info=True)
     return embedded
-
-
-def _migrate_index_file(config=None) -> None:
-    """One-time move of older index files to .index/bt.db. Silent; never clobbers.
-
-    Handles both prior layouts: .index/bute.db (pre-rename) and .vectors/bute.db
-    (before the index moved out of .vectors/).
-    """
-    data_dir = get_data_dir(config)
-    new_dir = data_dir / ".index"
-    new_path = new_dir / "bt.db"
-
-    if not new_path.exists():
-        for old_path in (new_dir / "bute.db", data_dir / ".vectors" / "bute.db"):
-            if old_path.exists():
-                new_dir.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(old_path), str(new_path))
-                logger.info("Migrated index file to .index/bt.db")
-                break
-
-    old_dir = data_dir / ".vectors"
-    if old_dir.exists() and not any(old_dir.iterdir()):
-        with contextlib.suppress(OSError):  # another process may have removed it
-            old_dir.rmdir()
 
 
 def _auto_rebuild(config=None) -> None:

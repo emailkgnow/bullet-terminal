@@ -42,4 +42,5 @@ packages = ["src/bute"]
 testpaths = ["tests"]
 markers = [
     "slow: tests that load the embedding model (deselect with -m 'not slow')",
+    "real_config_paths: test reads the real config constants; skips the isolation fixture",
 ]
