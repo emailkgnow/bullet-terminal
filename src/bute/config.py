@@ -1,13 +1,15 @@
-"""Configuration management for bute."""
+"""Configuration management for bt."""
 
+import shutil
 from pathlib import Path
 
 import tomlkit
 
-CONFIG_DIR = Path.home() / ".config" / "bute"
+CONFIG_DIR = Path.home() / ".config" / "bt"
+LEGACY_CONFIG_DIR = Path.home() / ".config" / "bute"  # pre-rename installs
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 DATA_DIR_DEFAULT = Path.home() / "bullet-terminal"
-DEMO_DATA_DIR = Path.home() / "bute-demo"
+DEMO_DATA_DIR = Path.home() / "bt-demo"
 TOUR_DONE = CONFIG_DIR / ".tour_done"
 
 def get_config_path() -> Path:
@@ -22,8 +24,23 @@ def get_data_dir(config: tomlkit.TOMLDocument | None = None) -> Path:
     return DATA_DIR_DEFAULT
 
 
+def _migrate_legacy_config_dir() -> None:
+    """One-time *copy* of ~/.config/bute/ → ~/.config/bt/. Silent; never clobbers.
+
+    Copy, not move, deliberately: the legacy dir is left intact so that rolling the
+    code back to `pre-rename` needs no manual filesystem repair. config.toml is 15
+    lines — the duplicate costs nothing, and it holds the only setting that is
+    painful to lose (`data_dir`, which points at the Obsidian vault).
+    """
+    if CONFIG_DIR.exists() or not LEGACY_CONFIG_DIR.exists():
+        return
+    CONFIG_DIR.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(LEGACY_CONFIG_DIR, CONFIG_DIR)
+
+
 def load_config() -> tomlkit.TOMLDocument:
     """Load config from disk. Returns empty doc if file doesn't exist."""
+    _migrate_legacy_config_dir()
     if not CONFIG_FILE.exists():
         return tomlkit.document()
     return tomlkit.parse(CONFIG_FILE.read_text())
@@ -38,7 +55,7 @@ def save_config(doc: tomlkit.TOMLDocument) -> None:
 def default_config() -> tomlkit.TOMLDocument:
     """Generate a default config.toml with comments."""
     doc = tomlkit.document()
-    doc.add(tomlkit.comment("bute (BuTe) configuration"))
+    doc.add(tomlkit.comment("bt (Bullet Terminal) configuration"))
     doc.add(tomlkit.nl())
 
     core = tomlkit.table()

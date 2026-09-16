@@ -63,3 +63,52 @@ def test_init_command_creates_config_and_dirs(runner, tmp_config, tmp_data):
 
     data_dir = get_data_dir(loaded)
     assert (data_dir / "entries").is_dir()
+
+
+def test_config_dir_is_bt_not_bute():
+    from bute.config import CONFIG_DIR, DEMO_DATA_DIR
+
+    assert CONFIG_DIR.name == "bt"
+    assert DEMO_DATA_DIR.name == "bt-demo"
+
+
+def test_default_config_comment_never_says_bute():
+    import tomlkit
+
+    assert "bute" not in tomlkit.dumps(default_config()).lower()
+
+
+def test_load_config_migrates_legacy_bute_dir(tmp_path, monkeypatch):
+    """A pre-rename ~/.config/bute/ is moved to ~/.config/bt/ on first load."""
+    legacy = tmp_path / ".config" / "bute"
+    legacy.mkdir(parents=True)
+    (legacy / "config.toml").write_text('[core]\nwp_day = "monday"\n')
+    new_dir = tmp_path / ".config" / "bt"
+    monkeypatch.setattr("bute.config.LEGACY_CONFIG_DIR", legacy)
+    monkeypatch.setattr("bute.config.CONFIG_DIR", new_dir)
+    monkeypatch.setattr("bute.config.CONFIG_FILE", new_dir / "config.toml")
+
+    doc = load_config()
+
+    assert doc["core"]["wp_day"] == "monday"
+    assert (new_dir / "config.toml").exists()
+    # Copied, not moved: the legacy dir stays so `git reset --hard` is a full rollback.
+    assert (legacy / "config.toml").exists()
+
+
+def test_load_config_keeps_existing_bt_dir_over_legacy(tmp_path, monkeypatch):
+    """If both dirs exist, the new one wins and the legacy one is left alone."""
+    legacy = tmp_path / ".config" / "bute"
+    legacy.mkdir(parents=True)
+    (legacy / "config.toml").write_text('[core]\nwp_day = "monday"\n')
+    new_dir = tmp_path / ".config" / "bt"
+    new_dir.mkdir(parents=True)
+    (new_dir / "config.toml").write_text('[core]\nwp_day = "friday"\n')
+    monkeypatch.setattr("bute.config.LEGACY_CONFIG_DIR", legacy)
+    monkeypatch.setattr("bute.config.CONFIG_DIR", new_dir)
+    monkeypatch.setattr("bute.config.CONFIG_FILE", new_dir / "config.toml")
+
+    doc = load_config()
+
+    assert doc["core"]["wp_day"] == "friday"
+    assert legacy.exists()
