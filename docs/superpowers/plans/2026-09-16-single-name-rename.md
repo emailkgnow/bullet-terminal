@@ -103,7 +103,8 @@ def test_load_config_migrates_legacy_bute_dir(tmp_path, monkeypatch):
 
     assert doc["core"]["wp_day"] == "monday"
     assert (new_dir / "config.toml").exists()
-    assert not legacy.exists()
+    # Copied, not moved: the legacy dir stays so `git reset --hard` is a full rollback.
+    assert (legacy / "config.toml").exists()
 
 
 def test_load_config_keeps_existing_bt_dir_over_legacy(tmp_path, monkeypatch):
@@ -151,11 +152,17 @@ Replace `load_config` (currently lines 24–28):
 
 ```python
 def _migrate_legacy_config_dir() -> None:
-    """One-time move of ~/.config/bute/ → ~/.config/bt/. Silent; never clobbers."""
+    """One-time *copy* of ~/.config/bute/ → ~/.config/bt/. Silent; never clobbers.
+
+    Copy, not move, deliberately: the legacy dir is left intact so that rolling the
+    code back to `pre-rename` needs no manual filesystem repair. config.toml is 15
+    lines — the duplicate costs nothing, and it holds the only setting that is
+    painful to lose (`data_dir`, which points at the Obsidian vault).
+    """
     if CONFIG_DIR.exists() or not LEGACY_CONFIG_DIR.exists():
         return
     CONFIG_DIR.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(LEGACY_CONFIG_DIR), str(CONFIG_DIR))
+    shutil.copytree(LEGACY_CONFIG_DIR, CONFIG_DIR)
 
 
 def load_config() -> tomlkit.TOMLDocument:
@@ -212,7 +219,7 @@ Expected: all pass.
 
 Confirm the real config dir was not touched: `ls ~/.config/bute/ ~/.config/bt/ 2>&1`
 Expected: `~/.config/bute/` still holds `config.toml`, and `~/.config/bt/` does not
-exist yet. The real move happens in Task 4 Step 6, on the first run of the
+exist yet. The real copy happens in Task 4 Step 6, on the first run of the
 reinstalled tool — not during a test run.
 
 - [ ] **Step 7: Commit**
@@ -714,23 +721,29 @@ Report the six commit hashes and the outputs of Step 1 and Step 2 verbatim. Do n
 
 ## Rollback
 
-`git reset --hard pre-rename` undoes every code change, but **two of this plan's
-changes live outside the repo** and git cannot reach them. If you roll back after
-Task 1 or Task 2 has run against the real install, also run:
+`git reset --hard pre-rename` is the entire rollback. Neither on-disk change needs
+manual repair, by design:
+
+- **Config** — Task 1 *copies* `~/.config/bute/` → `~/.config/bt/` and leaves the
+  original in place. Code reset to `pre-rename` reads `~/.config/bute/` and finds it
+  exactly as it was. Delete the now-unused copy once you're confident:
+  `rm -rf ~/.config/bt`.
+- **Index** — Task 2 moves `.index/bute.db` → `.index/bt.db`. Code reset to
+  `pre-rename` finds no `bute.db`, creates an empty one, and `reconcile_index()`
+  repopulates it from the `.md` files on the next read. Self-healing, at the cost of
+  re-embedding 325 entries once. The orphaned `bt.db` (2.7 MB) can be deleted.
+
+Also swap the installed tool back:
 
 ```bash
-mv ~/.config/bt ~/.config/bute
-mv ~/Documents/Obsidian/Home/bullet-terminal/.index/bt.db \
-   ~/Documents/Obsidian/Home/bullet-terminal/.index/bute.db
 uv tool uninstall bullet-terminal
 uv tool install --from . --with fastembed --with sqlite-vec bute --force --reinstall
 ```
 
-Skipping the two `mv`s leaves a `bt` whose code looks for `~/.config/bute/` while the
-directory on disk is named `bt/` — it will silently start from an empty config.
-
-`.index/bt.db` is derived and can always be thrown away instead: delete it and run
-`bt rebuild` to re-derive the index from the 325 `.md` files. `config.toml` is the
-only irreplaceable file, and `~/.config/bute/config.toml.bak` already sits beside it.
+**Do not restore `~/.config/bute/config.toml.bak`.** It is stale — it carries
+`data_dir = "~/bullet-terminal"` instead of the real
+`~/Documents/Obsidian/Home/bullet-terminal`, so restoring it points bt at an empty
+directory and every entry appears to have vanished. The live `config.toml` is the
+only good copy, which is precisely why Task 1 copies rather than moves it.
 
 Entry data is never touched by this plan.

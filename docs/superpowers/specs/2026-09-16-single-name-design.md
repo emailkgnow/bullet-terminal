@@ -43,10 +43,18 @@ There is one real user today; both migrations exist so that reinstalling does no
 lose that user's config or force a full re-embed.
 
 1. **Config dir:** on `load_config()`, if `~/.config/bt/` does not exist and
-   `~/.config/bute/` does, move the whole directory. Nothing is printed.
+   `~/.config/bute/` does, **copy** the whole directory. Nothing is printed. Copy
+   rather than move so that reverting the code to the `pre-rename` tag is a complete
+   rollback with no manual filesystem repair — the legacy dir is still there for the
+   old code to read. `config.toml` is 15 lines; the duplicate is free, and it holds
+   the one setting that hurts to lose (`data_dir`, pointing at the Obsidian vault).
+   The stale `config.toml.bak` sitting beside it is *not* a usable fallback — it
+   still says `data_dir = "~/bullet-terminal"`.
 2. **Index file:** the existing `_migrate_from_vectors()` hook in `db.py` (runs
    once per process before the connection opens) is extended to also rename
-   `.index/bute.db` → `.index/bt.db`. It already handles `.vectors/bute.db`.
+   `.index/bute.db` → `.index/bt.db`. It already handles `.vectors/bute.db`. A move
+   is safe here because the index is derived: old code finding no `bute.db` simply
+   rebuilds it from the `.md` files via `reconcile_index()`.
 
 `~/bute-demo` gets no migration — demo data is throwaway and is deleted on every
 `bt --demo` toggle anyway.
