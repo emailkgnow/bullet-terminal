@@ -10,7 +10,7 @@ def _known_tags() -> list[str]:
         from bute.config import get_data_dir, load_config
         from bute.db import all_tags
         config = load_config()
-        if not (get_data_dir(config) / ".index" / "bute.db").exists():
+        if not (get_data_dir(config) / ".index" / "bt.db").exists():
             return []  # a fresh DB would auto-rebuild and print — never during completion
         return all_tags(config)
     except Exception:

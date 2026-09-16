@@ -95,7 +95,7 @@ bullet-terminal/
 │   ├── README.md         ← you are here
 {type_dirs}├── .trash/           deleted entries — ignore; restore with bt trash → bt <n> restore
 └── .index/
-    └── bute.db           SQLite index (FTS5 + vectors)
+    └── bt.db             SQLite index (FTS5 + vectors)
 ```
 
 ## Entry format
@@ -199,7 +199,7 @@ They live in `entries/task/` like other tasks — no separate storage. The
 
 ## SQLite index
 
-`.index/bute.db` is a derived index — it can be rebuilt from the `.md` files
+`.index/bt.db` is a derived index — it can be rebuilt from the `.md` files
 at any time via `bt rebuild`. It contains:
 - Metadata table for structured queries
 - FTS5 full-text search index

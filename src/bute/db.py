@@ -1,4 +1,4 @@
-"""SQLite structured index for bute entries.
+"""SQLite structured index for bt entries.
 
 Provides fast queries on type, status, tags, dates — complementing the
 Markdown file store. Independent of storage.py; does not read .md files.
@@ -29,13 +29,13 @@ _reconciled_this_process: bool = False  # Lazy reconciliation latch (per-process
 # ---------------------------------------------------------------------------
 
 def _db_path(config=None) -> Path:
-    """Return path to the SQLite index file: ~/bute/.index/bute.db"""
+    """Return path to the SQLite index file: <data_dir>/.index/bt.db"""
     if _db_path_override is not None:
         return _db_path_override
     data_dir = get_data_dir(config)
     index_dir = data_dir / ".index"
     index_dir.mkdir(parents=True, exist_ok=True)
-    return index_dir / "bute.db"
+    return index_dir / "bt.db"
 
 
 def get_connection(config=None) -> sqlite3.Connection:
@@ -45,7 +45,7 @@ def get_connection(config=None) -> sqlite3.Connection:
         return _connection
 
     if _db_path_override is None:
-        _migrate_from_vectors(config)
+        _migrate_index_file(config)
 
     path = _db_path(config)
     is_new_db = not path.exists()
@@ -244,24 +244,28 @@ def embed_missing_vectors(config=None) -> int:
     return embedded
 
 
-def _migrate_from_vectors(config=None) -> None:
-    """Move .vectors/bute.db to .index/bute.db if needed."""
+def _migrate_index_file(config=None) -> None:
+    """One-time move of older index files to .index/bt.db. Silent; never clobbers.
+
+    Handles both prior layouts: .index/bute.db (pre-rename) and .vectors/bute.db
+    (before the index moved out of .vectors/).
+    """
     data_dir = get_data_dir(config)
-    old_path = data_dir / ".vectors" / "bute.db"
     new_dir = data_dir / ".index"
-    new_path = new_dir / "bute.db"
+    new_path = new_dir / "bt.db"
 
-    if new_path.exists() or not old_path.exists():
-        return
-
-    new_dir.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(old_path), str(new_path))
+    if not new_path.exists():
+        for old_path in (new_dir / "bute.db", data_dir / ".vectors" / "bute.db"):
+            if old_path.exists():
+                new_dir.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(old_path), str(new_path))
+                break
 
     old_dir = data_dir / ".vectors"
     if old_dir.exists() and not any(old_dir.iterdir()):
         old_dir.rmdir()
 
-    logger.info("Migrated vector DB from .vectors/ to .index/")
+    logger.info("Index file migrated to .index/bt.db")
 
 
 def _auto_rebuild(config=None) -> None:

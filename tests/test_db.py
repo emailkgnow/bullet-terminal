@@ -30,7 +30,7 @@ def tmp_db(tmp_path, monkeypatch):
     """Redirect the DB to a temp directory and close after each test."""
     index_dir = tmp_path / ".index"
     index_dir.mkdir()
-    monkeypatch.setattr("bute.db._db_path_override", index_dir / "bute.db")
+    monkeypatch.setattr("bute.db._db_path_override", index_dir / "bt.db")
     yield
     close()
 
