@@ -65,7 +65,7 @@ git push origin main
 ### Task 1: Config dir `~/.config/bute/` → `~/.config/bt/` with legacy migration
 
 **Files:**
-- Modify: `src/bute/config.py:7-10` (constants), `src/bute/config.py:24-28` (`load_config`), `src/bute/config.py:41` (default comment)
+- Modify: `src/bute/config.py:3-11` (imports + constants), `src/bute/config.py:25-29` (`load_config`), `src/bute/config.py:1,41` (docstring + default comment)
 - Test: `tests/test_config.py`
 
 **Interfaces:**
@@ -132,7 +132,7 @@ Expected: 4 failed — `AttributeError: ... has no attribute 'LEGACY_CONFIG_DIR'
 
 - [ ] **Step 3: Implement**
 
-In `src/bute/config.py`, replace lines 3–10:
+In `src/bute/config.py`, replace lines 3–11 (through `TOUR_DONE`, which the block below re-declares — replacing only 3–10 duplicates it):
 
 ```python
 import shutil
@@ -148,7 +148,7 @@ DEMO_DATA_DIR = Path.home() / "bt-demo"
 TOUR_DONE = CONFIG_DIR / ".tour_done"
 ```
 
-Replace `load_config` (currently lines 24–28):
+Replace `load_config` (currently lines 25–29):
 
 ```python
 def _migrate_legacy_config_dir() -> None:
@@ -234,7 +234,7 @@ git commit -m "refactor(config): move config dir to ~/.config/bt with silent leg
 ### Task 2: Index file `.index/bute.db` → `.index/bt.db` with migration
 
 **Files:**
-- Modify: `src/bute/db.py:31-38` (`_db_path`), `src/bute/db.py:46-48` (call site in `get_connection`), `src/bute/db.py:247-262` (`_migrate_from_vectors` → `_migrate_index_file`)
+- Modify: `src/bute/db.py:31-38` (`_db_path`), `src/bute/db.py:48` (call site in `get_connection`), `src/bute/db.py:247-264` (`_migrate_from_vectors` → `_migrate_index_file`)
 - Modify: `src/bute/completion.py:13`
 - Modify: `src/bute/guide.py:98`, `src/bute/guide.py:202`
 - Modify: `tests/test_db.py:33`
@@ -319,7 +319,7 @@ def _db_path(config=None) -> Path:
 
 In `get_connection`, change the call at line 48 from `_migrate_from_vectors(config)` to `_migrate_index_file(config)`.
 
-Replace `_migrate_from_vectors` (lines 247–262) with:
+Replace `_migrate_from_vectors` (lines 247–264 — the range runs through its trailing `logger.info(...)` call, which the block below replaces; stopping at 262 strands that line inside the new function) with:
 
 ```python
 def _migrate_index_file(config=None) -> None:
@@ -342,7 +342,12 @@ def _migrate_index_file(config=None) -> None:
     old_dir = data_dir / ".vectors"
     if old_dir.exists() and not any(old_dir.iterdir()):
         old_dir.rmdir()
+
+    logger.info("Index file migrated to .index/bt.db")
 ```
+
+`logger.info` is not console output — `db.py` never configures a handler, so this
+stays silent as the spec requires. `logger` is already defined in the module.
 
 Change `src/bute/db.py:1` to `"""SQLite structured index for bt entries.`.
 
