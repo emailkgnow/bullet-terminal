@@ -228,6 +228,3 @@ bt completion     # print the shell line that enables @tag tab completion
 ### Design Guardrail
 - **Stay BuJo, not Notion.** As bt grows into a PKM, resist becoming a general-purpose notes app. Every feature should serve the BuJo methodology — signifiers, rapid logging, rituals, migration. The CLI constraint and opinionated simplicity are features, not limitations. If a feature requires explaining, it probably doesn't belong.
 
-## Full Design Doc
-
-`/Users/khalidal-ghamdi/Documents/Obsidian/Home/dwn - AI Life Management System Design.md`
