@@ -154,8 +154,16 @@ def _extra_meta_parts(entry: Entry) -> list[str]:
     return [f"{k}:{v}" for k, v in sorted(entry.extra_meta.items())]
 
 
-def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tuple[str, Text, Text, str]:
-    """Build the common columns for an entry row: (#, icon, body, meta)."""
+def _build_entry_row(
+    i: int,
+    entry: Entry,
+    hide_tags: set | None = None,
+    terms: list[str] | None = None,
+) -> tuple[str, Text, Text, str]:
+    """Build the common columns for an entry row: (#, icon, body, meta).
+
+    When `terms` is given, every word containing a search term is colored.
+    """
     style = TYPE_STYLE[entry.type]
 
     icon = Text()
@@ -174,6 +182,9 @@ def _build_entry_row(i: int, entry: Entry, hide_tags: set | None = None) -> tupl
         body.append(preview, style="dim")
     else:
         body.append(preview)
+
+    for start, end in _term_spans(preview, terms or []):
+        body.stylize(_MATCH_STYLE, start, end)
 
     meta_parts = []
     if entry.due:
@@ -237,35 +248,54 @@ def match_snippet(body: str, terms: list[str], width: int = _SNIPPET_WIDTH) -> s
     return None
 
 
-def _highlight_terms(text: str, terms: list[str]) -> str:
-    """Escape `text` for Rich and bold every occurrence of `terms`."""
+_MATCH_STYLE = "bold yellow"
+_SNIPPET_MATCH_STYLE = "not dim bold yellow"
+
+# A "word" for highlighting purposes: letters, digits, underscore, apostrophe
+# and hyphen, so `find dent` lights up the whole of "dentist" and `find oauth`
+# the whole of "OAuth-2".
+_WORD_RE = re.compile(r"[\w'-]+")
+
+
+def _term_spans(text: str, terms: list[str]) -> list[tuple[int, int]]:
+    """Return merged (start, end) spans of whole words matching any of `terms`.
+
+    A term matches a word when it appears anywhere inside it, so both `dent`
+    and `ntist` select the full word "dentist".
+    """
+    wanted = [t.lower() for t in terms if t]
+    if not wanted or not text:
+        return []
+
     spans: list[list[int]] = []
-    low = text.lower()
-    for term in terms:
-        term = term.lower()
-        if not term:
-            continue
-        start = 0
-        while (i := low.find(term, start)) != -1:
-            spans.append([i, i + len(term)])
-            start = i + len(term)
+    for m in _WORD_RE.finditer(text):
+        word = m.group().lower()
+        if any(t in word for t in wanted):
+            spans.append([m.start(), m.end()])
 
     if not spans:
-        return escape_markup(text)
+        return []
 
-    spans.sort()
     merged = [spans[0]]
     for span in spans[1:]:
         if span[0] <= merged[-1][1]:
             merged[-1][1] = max(merged[-1][1], span[1])
         else:
             merged.append(span)
+    return [(a, b) for a, b in merged]
+
+
+def _highlight_terms(text: str, terms: list[str], style: str = _MATCH_STYLE) -> str:
+    """Escape `text` for Rich and color every whole word matching `terms`."""
+    spans = _term_spans(text, terms)
+    if not spans:
+        return escape_markup(text)
 
     out = []
     prev = 0
-    for start, end in merged:
+    for start, end in spans:
         out.append(escape_markup(text[prev:start]))
-        out.append(f"[bold]{escape_markup(text[start:end])}[/bold]")
+        out.append(f"[{style}]{escape_markup(text[start:end])}[/{style}]")
         prev = end
     out.append(escape_markup(text[prev:]))
     return "".join(out)
@@ -312,13 +342,14 @@ def display_entry_list(
 
     for i, entry in enumerate(entries, 1):
         row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
-        table.add_row(*_build_entry_row(i, entry, hide_tags=hide_tags), style=row_style)
+        table.add_row(
+            *_build_entry_row(i, entry, hide_tags=hide_tags, terms=terms),
+            style=row_style,
+        )
         snippet = (snippets or {}).get(entry.id)
         if snippet:
-            table.add_row(
-                "", "", f"[dim]{_highlight_terms(snippet, terms or [])}[/dim]", "",
-                style=row_style,
-            )
+            highlighted = _highlight_terms(snippet, terms or [], _SNIPPET_MATCH_STYLE)
+            table.add_row("", "", f"[dim]{highlighted}[/dim]", "", style=row_style)
 
     console.print()
     console.print(Align.center(table))

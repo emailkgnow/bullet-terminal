@@ -213,3 +213,72 @@ def test_find_json_output_has_no_snippets(runner, tmp_config, tmp_data):
     payload = json.loads(result.output)
     assert set(payload) == {"view", "entries"}
     assert len(payload["entries"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# Match highlighting
+# ---------------------------------------------------------------------------
+
+def test_term_spans_cover_the_whole_word():
+    """A partial term selects the full word, not just the matched letters."""
+    from bute.display import _term_spans
+
+    text = "renew the passport"
+    assert [text[a:b] for a, b in _term_spans(text, ["passp"])] == ["passport"]
+    assert [text[a:b] for a, b in _term_spans(text, ["sspor"])] == ["passport"]
+
+
+def test_term_spans_merge_adjacent_matches():
+    from bute.display import _term_spans
+
+    text = "call the dentist today"
+    spans = _term_spans(text, ["dent", "today"])
+    assert [text[a:b] for a, b in spans] == ["dentist", "today"]
+
+
+def test_term_spans_empty_without_match():
+    from bute.display import _term_spans
+
+    assert _term_spans("nothing here", ["absent"]) == []
+    assert _term_spans("nothing here", []) == []
+
+
+def test_highlight_terms_colors_whole_word():
+    from bute.display import _highlight_terms
+
+    out = _highlight_terms("renew the passport", ["passp"])
+    assert "[bold yellow]passport[/bold yellow]" in out
+
+
+def test_highlight_terms_renders_literal_brackets():
+    """Markup-looking text in an entry stays literal after highlighting."""
+    from rich.console import Console
+    from bute.display import _highlight_terms
+
+    console = Console(file=None, width=60)
+    with console.capture() as cap:
+        console.print(_highlight_terms("a [bold] dentist", ["dent"]), highlight=False)
+    assert "[bold] dentist" in cap.get()
+
+
+def test_entry_row_styles_the_matching_word_in_the_title():
+    """The matching word in the entry's first line carries the match style."""
+    from bute.display import _MATCH_STYLE, _build_entry_row
+
+    entry = Entry.create(EntryType.NOTE, "call the dentist")
+    _, _, body, _ = _build_entry_row(1, entry, terms=["dent"])
+
+    styled = [
+        str(body)[span.start:span.end]
+        for span in body.spans
+        if span.style == _MATCH_STYLE
+    ]
+    assert styled == ["dentist"]
+
+
+def test_entry_row_without_terms_has_no_match_style():
+    from bute.display import _MATCH_STYLE, _build_entry_row
+
+    entry = Entry.create(EntryType.NOTE, "call the dentist")
+    _, _, body, _ = _build_entry_row(1, entry)
+    assert all(span.style != _MATCH_STYLE for span in body.spans)
