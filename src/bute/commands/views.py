@@ -1,4 +1,4 @@
-"""View commands for bute (tasks, backlog, notes, journals, calendar, tag filter)."""
+"""View commands for bt (tasks, backlog, notes, journals, calendar, tag filter)."""
 
 from datetime import date
 

@@ -1,4 +1,4 @@
-"""Input parsing for bute capture commands."""
+"""Input parsing for bt capture commands."""
 
 import re
 from dataclasses import dataclass, field

@@ -128,3 +128,17 @@ def test_random_journal_records_history(tmp_config, tmp_data, monkeypatch):
     _stub_journals(monkeypatch, 5)
     shown = _show_random_journal(None)
     assert get_journal_history() == [shown]
+
+
+def test_help_never_says_the_old_name(runner, tmp_config, tmp_data):
+    """The only public names are 'Bullet Terminal' and 'bt'."""
+    result = runner.invoke(main, ["--help"])
+    assert result.exit_code == 0
+    assert "bute" not in result.output.lower()
+    assert "ai-powered" not in result.output.lower()
+    assert "Bullet Terminal" in result.output
+    assert "Bullet-Terminal" not in result.output
+
+    from bute.cli import main as cli_main
+    assert "bute" not in (cli_main.__doc__ or "").lower()
+    assert "Bullet Terminal" in (cli_main.__doc__ or "")

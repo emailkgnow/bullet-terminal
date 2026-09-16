@@ -1,4 +1,4 @@
-"""Entry data models for bute."""
+"""Entry data models for bt."""
 
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -86,7 +86,7 @@ SYSTEM_TAGS = {"habit"}
 
 @dataclass
 class Entry:
-    """A single bute entry — task, note, journal, or calendar event."""
+    """A single bt entry — task, note, journal, or calendar event."""
 
     id: str
     type: EntryType

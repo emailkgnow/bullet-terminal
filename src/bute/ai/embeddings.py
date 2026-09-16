@@ -1,4 +1,4 @@
-"""Local ONNX embedding model for bute using fastembed."""
+"""Local ONNX embedding model for bt using fastembed."""
 
 from __future__ import annotations
 

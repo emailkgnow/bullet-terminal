@@ -1,4 +1,4 @@
-"""SQLite vector DB operations for bute using sqlite-vec."""
+"""SQLite vector DB operations for bt using sqlite-vec."""
 
 from __future__ import annotations
 

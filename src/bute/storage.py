@@ -1,4 +1,4 @@
-"""Markdown file I/O for bute entries."""
+"""Markdown file I/O for bt entries."""
 
 from datetime import date, datetime
 from pathlib import Path

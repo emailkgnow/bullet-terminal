@@ -1,4 +1,4 @@
-"""Search commands for bute — like, find, rebuild."""
+"""Search commands for bt — like, find, rebuild."""
 
 import click
 from rich.console import Console
@@ -10,7 +10,7 @@ console = Console()
 
 _INSTALL_MSG = (
     "  [yellow]Semantic search requires embeddings.[/yellow]\n"
-    "  Install with: [bold]uv pip install 'bute[embeddings]'[/bold]"
+    "  Install with: [bold]uv tool install --from . --with fastembed --with sqlite-vec bullet-terminal --force[/bold]"
 )
 
 

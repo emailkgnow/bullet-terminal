@@ -7,7 +7,7 @@ from bute.config import get_data_dir
 
 
 def _linelog_path(target_date: date, config=None) -> Path:
-    """Return path to ~/bute/linelog/YYYY-MM.md"""
+    """Return path to <data_dir>/linelog/YYYY-MM.md"""
     data_dir = get_data_dir(config)
     return data_dir / "linelog" / f"{target_date.strftime('%Y-%m')}.md"
 

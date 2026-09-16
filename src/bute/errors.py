@@ -1,10 +1,10 @@
-"""Error types for bute."""
+"""Error types for bt."""
 
 import click
 
 
 class DwnError(click.ClickException):
-    """Base error for bute."""
+    """Base error for bt."""
 
     def format_message(self):
         return self.message

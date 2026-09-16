@@ -1,4 +1,4 @@
-"""CLI entry point and custom command routing for bute."""
+"""CLI entry point and custom command routing for bt."""
 
 import re
 import sys
@@ -261,7 +261,7 @@ def _show_random_journal(config, offset: int = 0) -> str | None:
 
 
 def _print_help():
-    """Print the full bute help using Rich."""
+    """Print the full bt help using Rich."""
     from rich.align import Align
     from rich.console import Console
     from rich.table import Table
@@ -269,7 +269,7 @@ def _print_help():
 
     console = Console()
     console.print()
-    console.print(Align.center(Text.from_markup("[bold]bt[/bold] (Bullet-Terminal) — life management CLI")))
+    console.print(Align.center(Text.from_markup("[bold]bt[/bold] (Bullet Terminal) — life management CLI")))
 
     # --- Capture ---
     t = Table(title="Capture — type what's on your mind", title_style="bold cyan",
@@ -418,7 +418,7 @@ def _run_interactive(ctx):
 @click.option("--json", "as_json", is_flag=True, help="Emit views as JSON (for scripts and agents)")
 @click.pass_context
 def main(ctx, interactive, demo, toggle_journal, show_all, as_json):
-    """bt (BuTe) — AI-powered life management CLI based on Bullet Journal."""
+    """bt (Bullet Terminal) — life management CLI based on Bullet Journal."""
     ctx.ensure_object(dict)
 
     from bute.display import set_json_mode

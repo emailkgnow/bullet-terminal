@@ -1,4 +1,4 @@
-"""Rich terminal display for bute."""
+"""Rich terminal display for bt."""
 
 import json as _json
 
