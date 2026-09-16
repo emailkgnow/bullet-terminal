@@ -1,5 +1,5 @@
 [project]
-name = "bute"
+name = "bullet-terminal"
 version = "0.1.0"
 description = "A CLI life management system based on the Bullet Journal methodology"
 readme = "README.md"
