@@ -197,7 +197,87 @@ def _display_sort_key(e: Entry) -> tuple[bool, bool]:
     return (is_resolved, not e.important)
 
 
-def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | None = None) -> None:
+_SNIPPET_WIDTH = 72
+_SNIPPET_LEAD = 24
+
+
+def match_snippet(body: str, terms: list[str], width: int = _SNIPPET_WIDTH) -> str | None:
+    """Return the line of `body` where a search term hit, or None.
+
+    Returns None when the match is already visible in the first line (which the
+    list view shows as the entry's title) or when no term matches at all. Long
+    lines are windowed around the match with ellipses.
+    """
+    terms = [t.lower() for t in terms if t]
+    if not terms or not body:
+        return None
+
+    lines = body.splitlines()
+    if not lines:
+        return None
+
+    if any(t in lines[0].lower() for t in terms):
+        return None
+
+    for line in lines[1:]:
+        low = line.lower()
+        hits = [low.find(t) for t in terms if t in low]
+        if not hits:
+            continue
+        pos = min(hits)
+        start = max(0, pos - _SNIPPET_LEAD)
+        end = start + width
+        snippet = line[start:end].strip()
+        if start > 0:
+            snippet = "…" + snippet
+        if end < len(line):
+            snippet = snippet + "…"
+        return snippet
+
+    return None
+
+
+def _highlight_terms(text: str, terms: list[str]) -> str:
+    """Escape `text` for Rich and bold every occurrence of `terms`."""
+    spans: list[list[int]] = []
+    low = text.lower()
+    for term in terms:
+        term = term.lower()
+        if not term:
+            continue
+        start = 0
+        while (i := low.find(term, start)) != -1:
+            spans.append([i, i + len(term)])
+            start = i + len(term)
+
+    if not spans:
+        return escape_markup(text)
+
+    spans.sort()
+    merged = [spans[0]]
+    for span in spans[1:]:
+        if span[0] <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], span[1])
+        else:
+            merged.append(span)
+
+    out = []
+    prev = 0
+    for start, end in merged:
+        out.append(escape_markup(text[prev:start]))
+        out.append(f"[bold]{escape_markup(text[start:end])}[/bold]")
+        prev = end
+    out.append(escape_markup(text[prev:]))
+    return "".join(out)
+
+
+def display_entry_list(
+    entries: list[Entry],
+    title: str = "",
+    hide_tags: set | None = None,
+    snippets: dict[str, str] | None = None,
+    terms: list[str] | None = None,
+) -> None:
     """Render a numbered list of entries as a Rich Table."""
     if not entries:
         if json_mode():
@@ -233,6 +313,12 @@ def display_entry_list(entries: list[Entry], title: str = "", hide_tags: set | N
     for i, entry in enumerate(entries, 1):
         row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
         table.add_row(*_build_entry_row(i, entry, hide_tags=hide_tags), style=row_style)
+        snippet = (snippets or {}).get(entry.id)
+        if snippet:
+            table.add_row(
+                "", "", f"[dim]{_highlight_terms(snippet, terms or [])}[/dim]", "",
+                style=row_style,
+            )
 
     console.print()
     console.print(Align.center(table))

@@ -33,7 +33,7 @@ bt dp             # daily plan ritual (pick today's tasks)
 bt wp             # weekly plan ritual (pick this week's)
 bt m              # monthly log — retrospective, one row per day
 bt @home          # cross-dimension filter
-bt find OAuth     # keyword search
+bt find OAuth     # keyword search (partial words match: bt find auth)
 bt like 3         # semantic: entries similar to entry #3
 
 bt 1 done         # mark entry #1 complete
@@ -207,7 +207,7 @@ Full help: `bt -h`.
 | `bt t` / `bt b` | weekly Tasks / full Backlog |
 | `bt m` / `bt m jan` / `bt m 2026` | Monthly Log (event-driven daily retrospective) |
 | `bt @tag` | filter across all types; `@a @b` = AND, `-@c` = NOT |
-| `bt find <q>` | keyword + tag search (FTS5) |
+| `bt find <q>` | keyword + tag search over full note bodies; matches partial words (prefix via FTS5, then a substring fallback) and shows the matching line |
 | `bt <view> --json` | numbered entry views as JSON (`bt`, `bt b`/`t`/`n`/`j`/`c`, `bt @tag`, `bt due`, `bt tags`, `bt find`, `bt like`) — same numbers as the table, so `bt 3 done` works from a script |
 | `bt like <q>` | semantic search (local embeddings, no API key) |
 | `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `edit`, `later`, `focus`, `restore`) |

@@ -75,3 +75,141 @@ def test_find_deduplicates_body_and_tag(runner, tmp_config, tmp_data):
     assert result.exit_code == 0
     # Should appear once, not twice
     assert result.output.count("fix backend api") == 1
+
+
+# ---------------------------------------------------------------------------
+# Partial-word matching — prefix (tier 1) then substring fallback (tier 2)
+# ---------------------------------------------------------------------------
+
+def test_find_matches_word_prefix(runner, tmp_config, tmp_data):
+    """bt find dent should match 'dentist' — prefix, no trailing * needed."""
+    save_entry(Entry.create(EntryType.TASK, "call the dentist tomorrow"))
+    save_entry(Entry.create(EntryType.NOTE, "buy groceries"))
+
+    result = runner.invoke(main, ["find", "dent"])
+    assert result.exit_code == 0
+    assert "dentist" in result.output
+    assert "groceries" not in result.output
+
+
+def test_find_matches_mid_word_fragment(runner, tmp_config, tmp_data):
+    """bt find ntist should match 'dentist' via the substring fallback."""
+    save_entry(Entry.create(EntryType.TASK, "call the dentist tomorrow"))
+    save_entry(Entry.create(EntryType.NOTE, "buy groceries"))
+
+    result = runner.invoke(main, ["find", "ntist"])
+    assert result.exit_code == 0
+    assert "dentist" in result.output
+    assert "groceries" not in result.output
+
+
+def test_find_prefers_prefix_matches_over_substring(runner, tmp_config, tmp_data):
+    """When the prefix tier finds results, the substring tier stays out of it."""
+    save_entry(Entry.create(EntryType.NOTE, "catalog of books"))
+    save_entry(Entry.create(EntryType.NOTE, "plan the vacation"))
+
+    result = runner.invoke(main, ["find", "cat"])
+    assert result.exit_code == 0
+    assert "catalog" in result.output
+    assert "vacation" not in result.output
+
+
+def test_find_multi_word_requires_all_fragments(runner, tmp_config, tmp_data):
+    """Every token must match — 'oauth doc' finds the entry with both."""
+    save_entry(Entry.create(EntryType.NOTE, "review the OAuth documentation"))
+    save_entry(Entry.create(EntryType.NOTE, "OAuth token lifetime"))
+
+    result = runner.invoke(main, ["find", "oauth", "doc"])
+    assert result.exit_code == 0
+    assert "documentation" in result.output
+    assert "token lifetime" not in result.output
+
+
+def test_find_matches_tag_fragment(runner, tmp_config, tmp_data):
+    """bt find health should match the @healthcare tag."""
+    save_entry(Entry.create(EntryType.TASK, "renew the policy", tags=["healthcare"]))
+    save_entry(Entry.create(EntryType.TASK, "unrelated errand", tags=["chores"]))
+
+    result = runner.invoke(main, ["find", "health"])
+    assert result.exit_code == 0
+    assert "renew the policy" in result.output
+    assert "unrelated errand" not in result.output
+
+
+def test_find_survives_fts_operator_characters(runner, tmp_config, tmp_data):
+    """Queries containing FTS5 syntax characters must not raise."""
+    save_entry(Entry.create(EntryType.NOTE, "learning c++ templates"))
+
+    for query in ["c++", 'he said "hi', "foo OR", "a-b", "*"]:
+        result = runner.invoke(main, ["find", query])
+        assert result.exit_code == 0, f"{query!r} raised: {result.exception!r}"
+
+
+def test_find_substring_respects_type_filter(runner, tmp_config, tmp_data):
+    """The substring fallback honours -t/-n/-j/-c like the prefix tier does."""
+    save_entry(Entry.create(EntryType.TASK, "book the dentist"))
+    save_entry(Entry.create(EntryType.NOTE, "dentist office hours"))
+
+    result = runner.invoke(main, ["find", "-t", "ntist"])
+    assert result.exit_code == 0
+    assert "book the" in result.output
+    assert "office hours" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# Match snippets
+# ---------------------------------------------------------------------------
+
+def test_match_snippet_returns_line_containing_match():
+    from bute.display import match_snippet
+
+    body = "Weekly planning notes\n\nremember to renew the passport\n\nother stuff"
+    snippet = match_snippet(body, ["passp"])
+    assert snippet is not None
+    assert "passport" in snippet
+
+
+def test_match_snippet_skipped_when_match_is_in_first_line():
+    from bute.display import match_snippet
+
+    body = "renew the passport\n\nother stuff"
+    assert match_snippet(body, ["passp"]) is None
+
+
+def test_match_snippet_windows_long_lines():
+    from bute.display import match_snippet
+
+    body = "title line\n" + ("padding words " * 30) + "needle " + ("more words " * 30)
+    snippet = match_snippet(body, ["needle"])
+    assert snippet is not None
+    assert "needle" in snippet
+    assert len(snippet) < 120
+
+
+def test_match_snippet_returns_none_without_match():
+    from bute.display import match_snippet
+
+    assert match_snippet("title\nbody text", ["absent"]) is None
+
+
+def test_find_shows_snippet_for_deep_match(runner, tmp_config, tmp_data):
+    """A match buried in a long note surfaces its surrounding line."""
+    body = "Weekly planning notes\n\nremember to renew the passport before travel"
+    save_entry(Entry.create(EntryType.NOTE, body))
+
+    result = runner.invoke(main, ["find", "passp"])
+    assert result.exit_code == 0
+    assert "passport" in result.output
+
+
+def test_find_json_output_has_no_snippets(runner, tmp_config, tmp_data):
+    """--json keeps its {view, entries} shape; snippets are display-only."""
+    import json
+
+    save_entry(Entry.create(EntryType.NOTE, "title\n\nthe dentist visit"))
+
+    result = runner.invoke(main, ["find", "--json", "dent"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert set(payload) == {"view", "entries"}
+    assert len(payload["entries"]) == 1

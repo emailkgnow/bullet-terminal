@@ -123,7 +123,7 @@ bute @bt -@done     # entries with @bt but not @done
 bute -@habit        # all entries excluding @habit
 bute !              # all important entries
 bute t!             # important tasks (also: n!, j!, c!)
-bute find <keyword> # keyword search in body + tags (-t -n -j -c to filter)
+bute find <keyword> # partial-word search in full body + tags (-t -n -j -c to filter)
 bute like <input>   # semantic similarity (bt like 3, bt like productivity)
 bt b --json         # numbered entry views as JSON (n = display number); not stats/streak/actions/captures
 ```
@@ -213,7 +213,7 @@ bute completion     # print the shell line that enables @tag tab completion
 - `bt overdue` — shortcut for past-due tasks only. Quick "what am I behind on" accountability view.
 - `bt move <n> due:friday` — update metadata fields without replacing body. Like `mod` but for due dates, tags, times.
 - ~~`bt stats`~~ ✓ Done — personal analytics with week/month views, streaks, done/dropped ratio.
-- ~~`bt find <keyword>`~~ ✓ Done — FTS5 body search + tag search, deduped. Flags: `-t` (tasks), `-n` (notes), `-j` (journals), `-c` (calendar). No flag = search all types.
+- ~~`bt find <keyword>`~~ ✓ Done — three tiers: FTS5 prefix match on full bodies (`find dent` → "dentist") plus exact tag match, then a substring fallback over bodies and tags (`find ntist` → "dentist") when the first tier is empty. Results show the matching line as a dim snippet when the hit isn't in the entry's first line. Query tokens are quoted before hitting FTS5, so user text is never parsed as FTS syntax. Flags: `-t` (tasks), `-n` (notes), `-j` (journals), `-c` (calendar). No flag = search all types.
 - ~~`bt export`~~ ✓ Done — exports entries as `bullet-terminal-markdown-YYYY-MM-DD.zip` with README. `-o <path>` for custom output. Counter suffix for same-day duplicates.
 
 ### Onboarding

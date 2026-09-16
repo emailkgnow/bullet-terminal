@@ -124,40 +124,54 @@ def like_cmd(ctx, tokens, limit):
 @click.option("--limit", default=50, help="Max results.")
 @click.pass_context
 def find_cmd(ctx, query, type_filter, limit):
-    """Find entries by keyword in body text and tags."""
-    from bute.db import query_entries, search_text
+    """Find entries by keyword in body text and tags. Matches partial words."""
+    import sqlite3
+
+    from bute.db import build_prefix_query, query_entries, search_substring, search_text
+    from bute.display import match_snippet
     from bute.storage import entry_path_from_id, load_entry
 
     config = ctx.obj.get("config")
     query_text = " ".join(query)
+    terms = query_text.split()
 
     # Reconcile externally-added entries so FTS5 sees them.
     from bute.db import reconcile_index
     reconcile_index(config)
 
-    # FTS5 body search
-    body_results = search_text(query_text, type=type_filter, limit=limit, config=config)
-    # Tag search — match entries where any tag contains the query
+    def _load(results):
+        """Turn (entry_id, created) rows into Entry objects, deduped, order kept."""
+        entries = []
+        for entry_id, _ in results:
+            if entry_id in seen:
+                continue
+            seen.add(entry_id)
+            path = entry_path_from_id(entry_id, config)
+            if path:
+                entries.append(load_entry(path))
+        return entries
+
+    seen: set[str] = set()
+
+    # Tier 1 — FTS5 prefix match on bodies ("dent" finds "dentist"), plus exact tags.
+    body_results = []
+    prefix_query = build_prefix_query(query_text)
+    if prefix_query:
+        try:
+            body_results = search_text(prefix_query, type=type_filter, limit=limit, config=config)
+        except sqlite3.OperationalError:
+            body_results = []  # Unparseable query — the substring tier still applies.
+
     tag_kwargs = {"tag": query_text.lower()}
     if type_filter:
         tag_kwargs["type"] = type_filter
     tag_results = query_entries(config=config, **tag_kwargs)
 
-    # Deduplicate, body matches first
-    seen = set()
-    entries = []
-    for entry_id, _ in body_results:
-        if entry_id not in seen:
-            seen.add(entry_id)
-            path = entry_path_from_id(entry_id, config)
-            if path:
-                entries.append(load_entry(path))
-    for entry_id, _ in tag_results:
-        if entry_id not in seen:
-            seen.add(entry_id)
-            path = entry_path_from_id(entry_id, config)
-            if path:
-                entries.append(load_entry(path))
+    entries = _load(body_results) + _load(tag_results)
+
+    # Tier 2 — substring scan, so "ntist" finds "dentist". Only when tier 1 is empty.
+    if not entries:
+        entries = _load(search_substring(terms, type=type_filter, limit=limit, config=config))
 
     entries = entries[:limit]
 
@@ -169,8 +183,16 @@ def find_cmd(ctx, query, type_filter, limit):
             console.print(f'  [dim]No entries found for "{query_text}".[/dim]')
         return
 
+    snippets = {}
+    for entry in entries:
+        snippet = match_snippet(entry.body, terms)
+        if snippet:
+            snippets[entry.id] = snippet
+
     from bute.display import display_entry_list
-    display_entry_list(entries, f'Find: "{query_text}"')
+    display_entry_list(
+        entries, f'Find: "{query_text}"', snippets=snippets, terms=terms
+    )
     save_state("find", [e.id for e in entries], config)
 
 

@@ -602,6 +602,69 @@ def search_text(
     return [(row[0], row[1]) for row in rows]
 
 
+def build_prefix_query(text: str) -> str | None:
+    """Turn user text into an FTS5 prefix query: 'oauth doc' -> '"oauth"* "doc"*'.
+
+    Each token is quoted so FTS5 operators typed by the user (OR, *, -, quotes)
+    are treated as literal text instead of syntax. Tokens with no alphanumeric
+    character are dropped; returns None when nothing searchable remains.
+    """
+    tokens = []
+    for raw in text.split():
+        token = raw.replace('"', "")
+        if any(ch.isalnum() for ch in token):
+            tokens.append(f'"{token}"*')
+    return " ".join(tokens) if tokens else None
+
+
+def _like_pattern(token: str) -> str:
+    """Wrap a token as a LIKE pattern, escaping LIKE wildcards with a backslash."""
+    escaped = token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def search_substring(
+    tokens: list[str],
+    type: str | None = None,
+    limit: int = 50,
+    config=None,
+) -> list[tuple[str, str]]:
+    """Substring search over bodies and tags — matches fragments inside words.
+
+    Every token must appear somewhere in the body or the tags. Used as the
+    fallback tier when FTS5's token-based matching finds nothing.
+
+    Returns (entry_id, created) tuples, newest first.
+    """
+    tokens = [t for t in tokens if t]
+    if not tokens:
+        return []
+
+    db = get_connection(config)
+
+    conditions = []
+    params: list = []
+    for token in tokens:
+        conditions.append("(body LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\')")
+        pattern = _like_pattern(token)
+        params.extend([pattern, pattern])
+
+    if type is not None:
+        conditions.append("type = ?")
+        params.append(type)
+
+    params.append(limit)
+    sql = f"""
+        SELECT entry_id, created
+        FROM entries
+        WHERE {" AND ".join(conditions)}
+        ORDER BY created DESC
+        LIMIT ?
+    """
+    rows = db.execute(sql, params).fetchall()
+    return [(row[0], row[1]) for row in rows]
+
+
 def clear_all(config=None) -> None:
     """Delete all entries from the index (entries_fts then entries)."""
     db = get_connection(config)
