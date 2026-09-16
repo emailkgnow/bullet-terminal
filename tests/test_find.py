@@ -176,6 +176,24 @@ def test_match_snippet_skipped_when_match_is_in_first_line():
     assert match_snippet(body, ["passp"]) is None
 
 
+def test_match_snippet_when_match_is_past_the_first_sentence():
+    """The title shows only the first sentence, so a later match needs a snippet."""
+    from bute.display import match_snippet
+
+    body = "i'm feeling a bit down. we fought about ten days ago."
+    snippet = match_snippet(body, ["ten"])
+    assert snippet is not None
+    assert "ten days ago" in snippet
+
+
+def test_match_snippet_when_match_is_past_the_title_truncation():
+    """A long unpunctuated first line is truncated in the title; later hits need a snippet."""
+    from bute.display import match_snippet
+
+    body = "padding words " * 8 + "needle at the end"
+    assert match_snippet(body, ["needle"]) is not None
+
+
 def test_match_snippet_windows_long_lines():
     from bute.display import match_snippet
 

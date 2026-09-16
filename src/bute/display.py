@@ -215,9 +215,10 @@ _SNIPPET_LEAD = 24
 def match_snippet(body: str, terms: list[str], width: int = _SNIPPET_WIDTH) -> str | None:
     """Return the line of `body` where a search term hit, or None.
 
-    Returns None when the match is already visible in the first line (which the
-    list view shows as the entry's title) or when no term matches at all. Long
-    lines are windowed around the match with ellipses.
+    Returns None when the match is already visible in the title the list view
+    renders — which is `_preview()`, i.e. the first *sentence*, not the whole
+    first line — or when no term matches at all. Long lines are windowed around
+    the match with ellipses.
     """
     terms = [t.lower() for t in terms if t]
     if not terms or not body:
@@ -227,10 +228,11 @@ def match_snippet(body: str, terms: list[str], width: int = _SNIPPET_WIDTH) -> s
     if not lines:
         return None
 
-    if any(t in lines[0].lower() for t in terms):
+    title = _preview(body).lower()
+    if any(t in title for t in terms):
         return None
 
-    for line in lines[1:]:
+    for line in lines:
         low = line.lower()
         hits = [low.find(t) for t in terms if t in low]
         if not hits:
