@@ -150,8 +150,18 @@ def _preview(text: str) -> str:
 
 
 def _extra_meta_parts(entry: Entry) -> list[str]:
-    """Render custom key:value frontmatter as 'key:value' strings, sorted by key."""
-    return [f"{k}:{v}" for k, v in sorted(entry.extra_meta.items())]
+    """Render custom key:value frontmatter as 'key:value' strings, sorted by key.
+
+    Keys starting with "_" are private to whoever wrote them — bookkeeping an
+    external sync script needs (a Google Calendar event id, say) but the user
+    never wants to read. They round-trip through save and still appear in
+    --json, they just stay out of human-facing views.
+    """
+    return [
+        f"{k}:{v}"
+        for k, v in sorted(entry.extra_meta.items())
+        if not k.startswith("_")
+    ]
 
 
 def _build_entry_row(

@@ -95,7 +95,9 @@ All metadata lives in YAML frontmatter. Body text is the rest of the file.
 | `events` | list[dict] | no | lifecycle event log; see below |
 | `completions` | list[ISO date] | no | for repeating tasks, dates when completed |
 
-Any other frontmatter key is preserved as `extra_meta` — round-trips through reads/writes but doesn't affect behavior.
+Any other frontmatter key is preserved as `extra_meta` — round-trips through reads/writes but doesn't affect behavior. bt shows these keys in the meta column of list views.
+
+**Private keys.** A key starting with `_` is bookkeeping that belongs to whoever wrote it — a sync script's remote event id, an agent's checksum. bt preserves it on every read and write and still emits it under `extra` in `--json`, but never renders it in `bt c`, `bt t`, `bt <n> show`, or any other human-facing view. Use it for anything you need to find your own entries again but the user should never have to read.
 
 ### Example: a minimal task
 

@@ -142,3 +142,51 @@ def test_show_entry_safe_with_rich_markup_in_extra_meta(runner, tmp_config, tmp_
     assert result.exit_code == 0, result.output
     # Literal value should appear in the output
     assert "key:[/]" in result.output
+
+
+def test_list_view_hides_underscore_prefixed_extra_meta(runner, tmp_config, tmp_data):
+    """Underscore-prefixed keys are private to the external writer — never displayed."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+    save_entry(Entry.create(
+        EntryType.CALENDAR, "visit mom",
+        scheduled_time="14:30",
+        extra_meta={"_gcal_id": "A5E6A2D6-6AEE-405A-BE38-4E661B92A068:2026-09-29"},
+    ))
+    result = runner.invoke(main, ["c"])
+    assert result.exit_code == 0, result.output
+    assert "visit mom" in result.output
+    assert "gcal_id" not in result.output
+    assert "2:30 PM" in result.output
+
+
+def test_show_entry_hides_underscore_prefixed_extra_meta(runner, tmp_config, tmp_data):
+    """bt <n> show also omits private keys."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+    from bute.state import save_state
+    entry = Entry.create(
+        EntryType.CALENDAR, "visit mom",
+        extra_meta={"_gcal_id": "abc123", "project": "alpha"},
+    )
+    save_entry(entry)
+    save_state("calendar", [entry.id])
+    result = runner.invoke(main, ["1", "show"])
+    assert "_gcal_id" not in result.output
+    assert "abc123" not in result.output
+
+
+def test_underscore_extra_meta_survives_save_round_trip(runner, tmp_config, tmp_data):
+    """Hidden does not mean dropped — gcal-sync must still find its dedup key."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry, load_entry
+    entry = Entry.create(EntryType.CALENDAR, "visit mom", extra_meta={"_gcal_id": "abc123"})
+    path = save_entry(entry)
+    assert load_entry(path).extra_meta["_gcal_id"] == "abc123"
+
+
+def test_capture_confirmation_hides_underscore_prefixed_extra_meta(runner, tmp_config, tmp_data):
+    from bute.display import confirm_capture
+    from bute.models import Entry, EntryType
+    entry = Entry.create(EntryType.CALENDAR, "visit mom", extra_meta={"_gcal_id": "abc123"})
+    confirm_capture(entry)

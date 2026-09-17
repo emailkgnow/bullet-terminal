@@ -116,8 +116,10 @@ due: '2026-04-10'                              # optional, tasks only, ISO date
 date: '2026-04-05'                             # optional, any type — resurface date
 time: '14:30'                                  # optional, HH:MM 24h format
 repeat: daily                                  # optional, recurrence pattern
-extra_meta:                                    # optional, arbitrary key:value pairs
-  priority: high
+priority: high                                 # optional, any extra key is kept as-is
+_gcal_id: uid:2026-04-05                       # keys starting with _ are private:
+                                               #   kept on disk and in --json, but
+                                               #   never shown in bt's own views
 ---
 
 The entry body goes here. Plain text or markdown.
