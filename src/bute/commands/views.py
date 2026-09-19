@@ -79,27 +79,46 @@ def _dimension_command(name, entry_type, label, group_by_date=False):
 @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
 @click.pass_context
 def tasks_cmd(ctx, tag, show_all):
-    """Show this week's focus tasks (@thisweek). -a for done/dropped."""
+    """Show every task, grouped by date. bt w for this week's active tasks."""
     config = ctx.obj.get("config")
 
     if tag and tag.startswith("@"):
         tag = tag[1:]
 
-    if show_all:
-        kwargs = {"type": "task", "status": None}
-        if tag:
-            kwargs["tag"] = tag
-        entries = query_and_load(config, **{k: v for k, v in kwargs.items() if v is not None})
-        entries = [e for e in entries if not e.is_recurring()]
-        title = f"All Tasks" + (f" @{tag}" if tag else "")
-    else:
-        entries = get_weekly_active_tasks(config)
-        if tag:
-            entries = [e for e in entries if tag in e.tags]
-        title = "Task Log" + (f" @{tag}" if tag else "")
+    # No status filter — the task dimension in full, mirroring bt n/j/c.
+    # `-a` is therefore inert here, as it already is on the other dimensions.
+    kwargs = {"type": "task"}
+    if tag:
+        kwargs["tag"] = tag
+    entries = query_and_load(config, **kwargs)
+    # Exclude recurring tasks — they have their own view (bt streak)
+    entries = [e for e in entries if not e.is_recurring()]
+
+    title = "Tasks" + (f" @{tag}" if tag else "")
+
+    display_entry_list_grouped(entries, title)
+    save_state("tasks", [e.id for e in entries], config)
+
+
+@click.command("week")
+@click.argument("tag", required=False, default=None, shell_complete=complete_tags)
+@click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
+@click.pass_context
+def week_cmd(ctx, tag, show_all):
+    """Show active tasks selected for this week. Optional @tag to filter."""
+    config = ctx.obj.get("config")
+
+    if tag and tag.startswith("@"):
+        tag = tag[1:]
+
+    entries = get_weekly_active_tasks(config)
+    if tag:
+        entries = [e for e in entries if tag in e.tags]
+
+    title = "This Week" + (f" @{tag}" if tag else "")
 
     display_entry_list(entries, title)
-    save_state("tasks", [e.id for e in entries], config)
+    save_state("week", [e.id for e in entries], config)
 
 
 @click.command("backlog")

@@ -42,7 +42,7 @@ def test_signifier_view_with_json_is_a_view_not_capture(runner, tmp_config, tmp_
     result = runner.invoke(main, ["t", "--json"])
     assert result.exit_code == 0, result.output
     data = _parse(result.output)
-    assert data["view"] == "Task Log"
+    assert data["view"] == "Tasks"
     entries_dir = tmp_data / "entries"
     assert not entries_dir.exists() or list(entries_dir.rglob("*.md")) == []
 

@@ -27,7 +27,8 @@ bt j rough morning, couldn't focus   # capture a journal
 bt c standup t:9                     # capture a calendar event
 
 bt                # Focus Log — what matters today
-bt t              # this week's tasks
+bt t              # every task, grouped by date
+bt w              # this week's tasks
 bt b              # backlog (all active tasks)
 bt dp             # daily plan ritual (pick today's tasks)
 bt wp             # weekly plan ritual (pick this week's)
@@ -206,7 +207,8 @@ Full help: `bt -h`.
 |---|---|
 | `bt t <text>` | capture a task (also `n`, `j`, `c` for note/journal/calendar) |
 | `bt` | Focus Log — today's focused tasks, due today, today's events/notes/journals |
-| `bt t` / `bt b` | weekly Tasks / full Backlog |
+| `bt t` | every task, grouped by date (like `bt n`/`j`/`c`) |
+| `bt w` / `bt b` | this week's active tasks / full Backlog |
 | `bt m` / `bt m jan` / `bt m 2026` | Monthly Log (event-driven daily retrospective) |
 | `bt @tag` | filter across all types; `@a @b` = AND, `-@c` = NOT |
 | `bt find <q>` | keyword + tag search over full note bodies; matches partial words (prefix via FTS5, then a substring fallback) and shows the matching line |

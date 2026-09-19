@@ -103,11 +103,12 @@ class DwnGroup(click.Group):
         if cmd is not None:
             return cmd.name, cmd, rest
 
-        # 2. Single letter shortcuts
-        if first == "b":
-            cmd = self.get_command(ctx, "backlog")
-            if cmd is not None:
-                return "backlog", cmd, rest
+        # 2. Single letter shortcuts — scope letters, not signifiers
+        for letter, view in (("b", "backlog"), ("w", "week")):
+            if first == letter:
+                cmd = self.get_command(ctx, view)
+                if cmd is not None:
+                    return view, cmd, rest
 
         # 3. Signifier (short: t, /t | word: task, note, journal, calendar)
         is_short = SIGNIFIER_PATTERN.match(first)
@@ -300,7 +301,8 @@ def _print_help():
     t.add_column("Notes", style="dim")
     t.add_row("bt", "Focus Log", "wp → dp → Focus Log flow")
     t.add_row("bt -a", "Focus Log + hidden items", "dropped, non-focus captures, past events")
-    t.add_row("bt t", "Tasks — this week's focus", "-a for done/dropped")
+    t.add_row("bt t", "Tasks — every task ever", "Grouped by date")
+    t.add_row("bt w", "This Week — active tasks picked by bt wp", "")
     t.add_row("bt b", "Task Backlog — all active tasks", "")
     t.add_row("bt n", "Notes", "Grouped by date")
     t.add_row("bt j", "Journals", "Grouped by date")
@@ -318,7 +320,7 @@ def _print_help():
     console.print(t)
     console.print()
     console.print("    [dim]Also:[/dim] [bold]bt task[/bold] / [bold]bt note[/bold] / [bold]bt journal[/bold] / [bold]bt calendar[/bold] — full words work everywhere [cyan]t[/cyan]/[yellow]n[/yellow]/[magenta]j[/magenta]/[green]c[/green] do")
-    console.print("    [dim]Also:[/dim] [bold]bt backlog[/bold] — long form of [bold]b[/bold]")
+    console.print("    [dim]Also:[/dim] [bold]bt backlog[/bold] / [bold]bt week[/bold] — long forms of [bold]b[/bold] / [bold]w[/bold]")
 
     # --- Actions ---
     t = Table(title="Actions — act on numbered entries from last view", title_style="bold cyan",
@@ -561,6 +563,7 @@ from bute.commands.views import (  # noqa: E402
     tag_filter_cmd,
     tags_cmd,
     tasks_cmd,
+    week_cmd,
 )
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
@@ -582,6 +585,7 @@ main.add_command(action_cmd)
 main.add_command(undo_cmd)
 main.add_command(tasks_cmd)
 main.add_command(backlog_cmd)
+main.add_command(week_cmd)
 main.add_command(notes_cmd)
 main.add_command(journals_cmd)
 main.add_command(calendar_cmd)

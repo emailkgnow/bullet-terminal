@@ -190,3 +190,118 @@ def test_capture_confirmation_hides_underscore_prefixed_extra_meta(runner, tmp_c
     from bute.models import Entry, EntryType
     entry = Entry.create(EntryType.CALENDAR, "visit mom", extra_meta={"_gcal_id": "abc123"})
     confirm_capture(entry)
+
+
+# --- bt t = every task, grouped by date; bt w = this week's active tasks ---
+
+
+def test_tasks_view_includes_done_and_dropped(runner, tmp_config, tmp_data):
+    """bt t applies no status filter — the true parallel to bt n/j/c."""
+    from bute.models import Entry, EntryType, TaskStatus
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "still open"))
+
+    done = Entry.create(EntryType.TASK, "finished")
+    done.status = TaskStatus.DONE
+    save_entry(done)
+
+    dropped = Entry.create(EntryType.TASK, "abandoned")
+    dropped.status = TaskStatus.DROPPED
+    save_entry(dropped)
+
+    result = runner.invoke(main, ["t"])
+    assert result.exit_code == 0, result.output
+    assert "still open" in result.output
+    assert "finished" in result.output
+    assert "abandoned" in result.output
+
+
+def test_tasks_view_is_grouped_by_date(runner, tmp_config, populated_data):
+    """Grouped rendering gives bt t the Date column that bt n/j/c have."""
+    result = runner.invoke(main, ["t"])
+    assert result.exit_code == 0, result.output
+    assert "Date" in result.output
+
+
+def test_tasks_view_excludes_recurring_tasks(runner, tmp_config, tmp_data):
+    """Recurring tasks keep their own view (bt streak), even now that bt t is unfiltered."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "call dentist"))
+    save_entry(Entry.create(EntryType.TASK, "meditate", repeat="daily"))
+
+    result = runner.invoke(main, ["t"])
+    assert result.exit_code == 0, result.output
+    assert "call dentist" in result.output
+    assert "meditate" not in result.output
+
+
+def test_tasks_view_json_title(runner, tmp_config, tmp_data):
+    import json as _json
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "alpha"))
+    result = runner.invoke(main, ["t", "--json"])
+    assert result.exit_code == 0, result.output
+    assert _json.loads(result.output.strip().splitlines()[-1])["view"] == "Tasks"
+
+
+def test_week_view_shows_this_weeks_active_tasks(runner, tmp_config, tmp_data):
+    from bute.models import Entry, EntryType
+    from bute.ritual_ops import week_anchor
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "planned this week", week_date=week_anchor()))
+    save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
+
+    result = runner.invoke(main, ["w"])
+    assert result.exit_code == 0, result.output
+    assert "planned this week" in result.output
+    assert "someday maybe" not in result.output
+
+
+def test_week_view_excludes_done(runner, tmp_config, tmp_data):
+    from bute.models import Entry, EntryType, TaskStatus
+    from bute.ritual_ops import week_anchor
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "still open", week_date=week_anchor()))
+
+    done = Entry.create(EntryType.TASK, "finished", week_date=week_anchor())
+    done.status = TaskStatus.DONE
+    save_entry(done)
+
+    result = runner.invoke(main, ["w"])
+    assert result.exit_code == 0, result.output
+    assert "still open" in result.output
+    assert "finished" not in result.output
+
+
+def test_week_view_full_word(runner, tmp_config, populated_data):
+    result = runner.invoke(main, ["week"])
+    assert result.exit_code == 0, result.output
+    assert "call dentist" in result.output
+
+
+def test_week_view_tag_filter(runner, tmp_config, populated_data):
+    result = runner.invoke(main, ["w", "@backend"])
+    assert result.exit_code == 0, result.output
+    assert "fix bug" in result.output
+    assert "call dentist" not in result.output
+
+
+def test_week_writes_state(runner, tmp_config, populated_data):
+    runner.invoke(main, ["w"])
+    state = json.loads(state_path().read_text())
+    assert state["view"] == "week"
+    assert len(state["entries"]) > 0
+
+
+def test_week_capture_is_not_hijacked(runner, tmp_config, tmp_data):
+    """'w' is a view letter only — bt w with text must not silently capture."""
+    result = runner.invoke(main, ["w", "buy", "milk"])
+    entries_dir = tmp_data / "entries"
+    assert not entries_dir.exists() or list(entries_dir.rglob("*.md")) == []
