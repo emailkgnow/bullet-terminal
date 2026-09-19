@@ -200,10 +200,21 @@ def handle_show(entry: Entry, args: list[str], config) -> None:
     gets the file path directly and the entry's fields stay visible. leaf is a
     TUI by default — scroll with j/k, search with /, quit with q — so reading an
     entry is a real session rather than a dump into scrollback.
+
+    leaf ignores $EDITOR (its own order is --editor > $LEAF_EDITOR > its config
+    file > nano), so bt passes $EDITOR through explicitly — ctrl+e inside the
+    viewer then opens the same editor as `bt <n> edit`. Any edit made there is
+    re-indexed when leaf exits.
     """
     path = entry_path_from_id(entry.id, config)
     if path is not None and shutil.which("leaf"):
-        subprocess.call(["leaf", str(path)])
+        argv = ["leaf"]
+        editor = os.environ.get("EDITOR")
+        if editor:
+            argv += ["--editor", editor]
+        argv.append(str(path))
+        subprocess.call(argv)
+        _reindex_entry(path, config)
         return
     display_entry_full(entry)
 

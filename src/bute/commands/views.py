@@ -111,11 +111,19 @@ def week_cmd(ctx, tag, show_all):
     if tag and tag.startswith("@"):
         tag = tag[1:]
 
-    entries = get_weekly_active_tasks(config)
+    entries = get_weekly_active_tasks(config, fallback=False)
     if tag:
         entries = [e for e in entries if tag in e.tags]
 
     title = "This Week" + (f" @{tag}" if tag else "")
+
+    if not entries and not json_mode():
+        console.print(
+            "  [dim]Nothing planned for this week. "
+            "Run [bold]bt wp[/bold] to pick tasks, or [bold]bt b[/bold] for the backlog.[/dim]"
+        )
+        save_state("week", [], config)
+        return
 
     display_entry_list(entries, title)
     save_state("week", [e.id for e in entries], config)

@@ -280,24 +280,39 @@ def test_week_view_excludes_done(runner, tmp_config, tmp_data):
     assert "finished" not in result.output
 
 
-def test_week_view_full_word(runner, tmp_config, populated_data):
+def _planned_week(*bodies_and_tags):
+    """Save active tasks selected for the current week. Returns nothing."""
+    from bute.models import Entry, EntryType
+    from bute.ritual_ops import week_anchor
+    from bute.storage import save_entry
+
+    for body, tags in bodies_and_tags:
+        save_entry(
+            Entry.create(EntryType.TASK, body, tags=list(tags), week_date=week_anchor())
+        )
+
+
+def test_week_view_full_word(runner, tmp_config, tmp_data):
+    _planned_week(("call dentist", []))
     result = runner.invoke(main, ["week"])
     assert result.exit_code == 0, result.output
     assert "call dentist" in result.output
 
 
-def test_week_view_tag_filter(runner, tmp_config, populated_data):
+def test_week_view_tag_filter(runner, tmp_config, tmp_data):
+    _planned_week(("fix bug", ["backend"]), ("call dentist", []))
     result = runner.invoke(main, ["w", "@backend"])
     assert result.exit_code == 0, result.output
     assert "fix bug" in result.output
     assert "call dentist" not in result.output
 
 
-def test_week_writes_state(runner, tmp_config, populated_data):
+def test_week_writes_state(runner, tmp_config, tmp_data):
+    _planned_week(("call dentist", []))
     runner.invoke(main, ["w"])
     state = json.loads(state_path().read_text())
     assert state["view"] == "week"
-    assert len(state["entries"]) > 0
+    assert len(state["entries"]) == 1
 
 
 def test_week_capture_is_not_hijacked(runner, tmp_config, tmp_data):
@@ -305,3 +320,64 @@ def test_week_capture_is_not_hijacked(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["w", "buy", "milk"])
     entries_dir = tmp_data / "entries"
     assert not entries_dir.exists() or list(entries_dir.rglob("*.md")) == []
+
+
+def test_week_view_does_not_fall_back_to_backlog(runner, tmp_config, tmp_data):
+    """An empty week is empty — bt w must not silently become bt b."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
+
+    result = runner.invoke(main, ["w"])
+    assert result.exit_code == 0, result.output
+    assert "someday maybe" not in result.output
+
+
+def test_week_view_ignores_recurring_when_deciding_emptiness(runner, tmp_config, tmp_data):
+    """Recurring tasks carry week_date but are filtered out — they must not mask an empty week."""
+    from bute.models import Entry, EntryType
+    from bute.ritual_ops import week_anchor
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "exercise", repeat="daily", week_date=week_anchor()))
+    save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
+
+    result = runner.invoke(main, ["w"])
+    assert result.exit_code == 0, result.output
+    assert "someday maybe" not in result.output
+    assert "exercise" not in result.output
+
+
+def test_week_view_empty_points_at_wp(runner, tmp_config, tmp_data):
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
+
+    result = runner.invoke(main, ["w"])
+    assert "bt wp" in result.output
+
+
+def test_week_view_empty_still_emits_json(runner, tmp_config, tmp_data):
+    import json as _json
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
+
+    result = runner.invoke(main, ["w", "--json"])
+    assert result.exit_code == 0, result.output
+    data = _json.loads(result.output.strip().splitlines()[-1])
+    assert data["entries"] == []
+
+
+def test_dp_pool_still_falls_back_to_backlog(tmp_config, tmp_data):
+    """bt dp offers the backlog when the week is unplanned — that fallback must survive."""
+    from bute.models import Entry, EntryType
+    from bute.ritual_ops import get_weekly_active_tasks
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
+
+    assert {e.body for e in get_weekly_active_tasks(None)} == {"someday maybe"}

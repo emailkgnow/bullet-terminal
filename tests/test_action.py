@@ -559,6 +559,7 @@ def fake_leaf(monkeypatch):
     )
     calls = []
     monkeypatch.setattr(action_mod.subprocess, "call", lambda argv, *a, **kw: calls.append(argv) or 0)
+    monkeypatch.delenv("EDITOR", raising=False)
     return calls
 
 
@@ -571,6 +572,30 @@ def test_show_renders_via_leaf_when_installed(runner, tmp_config, tmp_data, fake
     result = runner.invoke(main, ["1", "show"])
     assert result.exit_code == 0
     assert len(fake_leaf) == 1
+    assert fake_leaf[0] == ["leaf", str(entry_path_from_id(entry.id))]
+
+
+def test_show_passes_editor_to_leaf(runner, tmp_config, tmp_data, fake_leaf, monkeypatch):
+    """leaf ignores $EDITOR, so bt hands it over — ctrl+e opens the user's editor."""
+    monkeypatch.setenv("EDITOR", "nvim")
+    entry = Entry.create(EntryType.NOTE, "body text")
+    save_entry(entry)
+    save_state("notes", [entry.id])
+
+    result = runner.invoke(main, ["1", "show"])
+    assert result.exit_code == 0
+    assert fake_leaf[0] == ["leaf", "--editor", "nvim", str(entry_path_from_id(entry.id))]
+
+
+def test_show_omits_editor_flag_when_unset(runner, tmp_config, tmp_data, fake_leaf, monkeypatch):
+    """No $EDITOR — leaf keeps its own editor resolution (LEAF_EDITOR, config, nano)."""
+    monkeypatch.delenv("EDITOR", raising=False)
+    entry = Entry.create(EntryType.NOTE, "body text")
+    save_entry(entry)
+    save_state("notes", [entry.id])
+
+    result = runner.invoke(main, ["1", "show"])
+    assert result.exit_code == 0
     assert fake_leaf[0] == ["leaf", str(entry_path_from_id(entry.id))]
 
 

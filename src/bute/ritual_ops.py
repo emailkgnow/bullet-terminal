@@ -208,22 +208,26 @@ def get_all_active_tasks(config=None) -> list[Entry]:
     return query_and_load(config, type="task", status="active")
 
 
-def get_weekly_active_tasks(config=None) -> list[Entry]:
+def get_weekly_active_tasks(config=None, fallback: bool = True) -> list[Entry]:
     """Active tasks selected for this week (week_date == this week's anchor day).
 
-    Falls back to all active tasks if none have week_date set
-    (e.g. user hasn't run bt wp yet). Excludes recurring tasks — they have
-    their own view (bt streak).
+    Excludes recurring tasks — they have their own view (bt streak). Note that
+    recurring tasks do carry week_date, so the exclusion happens before the
+    emptiness check: a week holding only habits is an unplanned week.
+
+    With `fallback` (the default), an unplanned week yields all active tasks.
+    That is what `bt dp` wants — an empty weekly selection should still offer
+    the backlog to pick from. `bt w` passes `fallback=False`, because a view
+    that quietly turns into `bt b` is indistinguishable from `bt b`.
     """
     from bute.storage import query_and_load
     weekly = query_and_load(
         config, type="task", status="active", week_date=week_anchor(config=config).isoformat()
     )
     weekly = [e for e in weekly if not e.is_recurring()]
-    if weekly:
+    if weekly or not fallback:
         return weekly
-    fallback = get_all_active_tasks(config)
-    return [e for e in fallback if not e.is_recurring()]
+    return [e for e in get_all_active_tasks(config) if not e.is_recurring()]
 
 
 def process_dump_line(line: str, config=None) -> Entry | None:
