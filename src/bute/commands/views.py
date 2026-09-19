@@ -94,7 +94,7 @@ def tasks_cmd(ctx, tag, show_all):
     # Exclude recurring tasks — they have their own view (bt streak)
     entries = [e for e in entries if not e.is_recurring()]
 
-    title = "Tasks" + (f" @{tag}" if tag else "")
+    title = "Tasks — All" + (f" @{tag}" if tag else "")
 
     display_entry_list_grouped(entries, title)
     save_state("tasks", [e.id for e in entries], config)
@@ -115,7 +115,7 @@ def week_cmd(ctx, tag, show_all):
     if tag:
         entries = [e for e in entries if tag in e.tags]
 
-    title = "This Week" + (f" @{tag}" if tag else "")
+    title = "Tasks — Weekly Log" + (f" @{tag}" if tag else "")
 
     if not entries and not json_mode():
         console.print(
@@ -149,11 +149,11 @@ def backlog_cmd(ctx, tag, show_all):
     # Exclude recurring tasks — they have their own view (bt streak)
     entries = [e for e in entries if not e.is_recurring()]
 
-    title_parts = ["Task Backlog"]
+    title_parts = ["Tasks — Backlog"]
     if tag:
         title_parts.append(f"@{tag}")
     if show_all:
-        title_parts[0] = "All Tasks (Backlog)"
+        title_parts[0] = "Tasks — Backlog (all)"
     title = " ".join(title_parts)
 
     display_entry_list(entries, title)

@@ -18,7 +18,7 @@ def test_backlog_json_flag_after_command(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["b", "--json"])
     assert result.exit_code == 0, result.output
     data = _parse(result.output)
-    assert data["view"] == "Task Backlog"
+    assert data["view"] == "Tasks — Backlog"
     assert len(data["entries"]) == 1
     e = data["entries"][0]
     assert e["n"] == 1
@@ -42,7 +42,7 @@ def test_signifier_view_with_json_is_a_view_not_capture(runner, tmp_config, tmp_
     result = runner.invoke(main, ["t", "--json"])
     assert result.exit_code == 0, result.output
     data = _parse(result.output)
-    assert data["view"] == "Tasks"
+    assert data["view"] == "Tasks — All"
     entries_dir = tmp_data / "entries"
     assert not entries_dir.exists() or list(entries_dir.rglob("*.md")) == []
 
@@ -69,7 +69,7 @@ def test_grouped_view_json(runner, tmp_config, tmp_data):
 def test_empty_view_json(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["b", "--json"])
     assert result.exit_code == 0, result.output
-    assert _parse(result.output) == {"view": "Task Backlog", "entries": []}
+    assert _parse(result.output) == {"view": "Tasks — Backlog", "entries": []}
 
 
 def test_focus_log_json_skips_habits_and_whisper(runner, tmp_config, tmp_data):

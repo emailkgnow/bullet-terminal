@@ -106,10 +106,10 @@ bt n check OAuth docs d:4.10             # note: resurfaces in Focus Log Apr 10
 
 **Views** — signifier alone, or named commands:
 ```
-bt t              # Tasks — every task, grouped by date (no status filter)
+bt t              # Tasks — All: every task, grouped by date (no status filter)
 bt t @backend     # filtered by tag
-bt w              # This Week — active tasks with week_date == this week
-bt b              # Task Backlog — all active tasks
+bt w              # Tasks — Weekly Log: active tasks with week_date == this week
+bt b              # Tasks — Backlog: all active tasks
 bt n / j / c      # notes / journals / calendar (grouped by date)
 bt -a             # Focus Log + hidden items (dropped, non-focus captures, past events)
 bt m              # monthly log (all entries for the month)
@@ -183,7 +183,8 @@ bt completion     # print the shell line that enables @tag tab completion
 - **`bt m` is event-driven** — each entry surfaces on every day any of its lifecycle events occurred (captured, focused, scheduled, completed, dropped, undropped). Events are stored as a YAML `events:` list in the entry's frontmatter, appended by every mutation site (capture, dp, wp, done, drop, later, backlog, schedule, mod, undo). Legacy entries without a stored `events` list use render-time synthesis from `created`, `scheduled_date`, `focus_date`, `completed_date`. This makes `bt m` a BuJo retrospective — you can relive each day of the month.
 - **`bt` with no args** = planning entry point. On the trigger day (default Sunday, configurable via `core.wp_day`), runs weekly plan then daily plan. Other days, runs daily plan only. If all done, shows Focus Log.
 - **Focus Log (`bt`)** — what matters today: tasks with `focus_date == today`, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bt b`) or Tasks (`bt t`). Curated and active-only — `bt -a` expands to dropped tasks, captures from today that lack focus, and past-timed events.
-- **Task views**: `bt t` (Tasks) shows *every* task grouped by date, with no status filter — the exact parallel of `bt n`/`j`/`c`, which never filtered either. `bt w` (This Week) shows active tasks with `week_date == this week's anchor`. `bt b` (Backlog) shows all active tasks. The flow is: backlog → weekly plan → this week → Focus Log. Recurring tasks are excluded from `bt t`/`bt w`/`bt b` — they live in `bt streak`.
+- **Task view titles share a root** — `Tasks — All` / `Tasks — Backlog` / `Tasks — Weekly Log`, em dash, so the three views read as one dimension at three zoom levels and rank correctly by size. `Notes`/`Journals`/`Calendar` stay bare nouns; tasks alone need the qualifier because they alone have three views.
+- **Task views**: `bt t` (Tasks — All) shows *every* task grouped by date, with no status filter — the exact parallel of `bt n`/`j`/`c`, which never filtered either. `bt w` (Tasks — Weekly Log) shows active tasks with `week_date == this week's anchor`. `bt b` (Tasks — Backlog) shows all active tasks. The flow is: backlog → weekly plan → this week → Focus Log. Recurring tasks are excluded from `bt t`/`bt w`/`bt b` — they live in `bt streak`.
 - **`-a` is inert on dimension views** — `bt t`/`bt n`/`bt j`/`bt c` show everything by default, so the flag adds nothing there (it was already a no-op on `n`/`j`/`c`). It is kept registered so the shortcut parser and muscle memory keep working, and still does real work on `bt` (Focus Log + hidden) and `bt b` (adds done/dropped).
 - **Letter shortcuts are scopes, not signifiers** — `t`/`n`/`j`/`c` are dimensions routed through `SHORT_TO_VIEW`; `b` and `w` are time/status scopes with their own branch in `resolve_command()`, so `bt w buy milk` is an error rather than a capture.
 - **Focus state as dates, not tags** — `focus_date` and `week_date` are proper `Optional[date]` fields on `Entry`. Set by `bt dp` / `bt wp` / `bt focus` / capture. Cleared by `bt later` / `bt backlog`. Old dates expire naturally — no clearing ritual needed. Replaces the former `@today` / `@thisweek` system tags.

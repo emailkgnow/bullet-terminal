@@ -246,7 +246,7 @@ def test_tasks_view_json_title(runner, tmp_config, tmp_data):
     save_entry(Entry.create(EntryType.TASK, "alpha"))
     result = runner.invoke(main, ["t", "--json"])
     assert result.exit_code == 0, result.output
-    assert _json.loads(result.output.strip().splitlines()[-1])["view"] == "Tasks"
+    assert _json.loads(result.output.strip().splitlines()[-1])["view"] == "Tasks — All"
 
 
 def test_week_view_shows_this_weeks_active_tasks(runner, tmp_config, tmp_data):
