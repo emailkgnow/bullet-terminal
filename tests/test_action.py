@@ -499,7 +499,7 @@ def test_action_later_clears_focus_date(runner, tmp_config, tmp_data):
     assert reloaded.focus_date is None
 
 
-def test_show_renders_markdown_body(runner, tmp_config, tmp_data, no_glow):
+def test_show_renders_markdown_body(runner, tmp_config, tmp_data, no_leaf):
     """bt <n> show renders the body as formatted markdown without raw symbols."""
     body = "# My Heading\n\nSome **bold** text and a list:\n\n- one\n- two\n"
     entry = Entry.create(EntryType.NOTE, body, tags=["retirement"])
@@ -521,7 +521,7 @@ def test_show_renders_markdown_body(runner, tmp_config, tmp_data, no_glow):
     assert "# My Heading" not in result.output
 
 
-def test_read_aliases_show(runner, tmp_config, tmp_data, no_glow):
+def test_read_aliases_show(runner, tmp_config, tmp_data, no_leaf):
     """`read` is an alias for `show`."""
     entry = Entry.create(EntryType.NOTE, "# Hi\n\nbody text")
     save_entry(entry)
@@ -533,52 +533,49 @@ def test_read_aliases_show(runner, tmp_config, tmp_data, no_glow):
     assert "body text" in result.output
 
 
-# --- glow-backed show tests ---
+# --- leaf-backed show tests ---
 
 @pytest.fixture
-def no_glow(monkeypatch):
-    """Force the Rich fallback path by making glow undiscoverable."""
+def no_leaf(monkeypatch):
+    """Force the Rich fallback path by making leaf undiscoverable."""
     import shutil
     real_which = shutil.which
     monkeypatch.setattr(
         shutil, "which",
-        lambda cmd, *a, **kw: None if cmd == "glow" else real_which(cmd, *a, **kw),
+        lambda cmd, *a, **kw: None if cmd == "leaf" else real_which(cmd, *a, **kw),
     )
 
 
 @pytest.fixture
-def fake_glow(monkeypatch):
-    """Pretend glow is installed and capture the argv it would be called with."""
+def fake_leaf(monkeypatch):
+    """Pretend leaf is installed and capture the argv it would be called with."""
     import shutil
-    import subprocess as sp
     from bute.commands import action as action_mod
 
     real_which = shutil.which
     monkeypatch.setattr(
         shutil, "which",
-        lambda cmd, *a, **kw: "/opt/homebrew/bin/glow" if cmd == "glow" else real_which(cmd, *a, **kw),
+        lambda cmd, *a, **kw: "/opt/homebrew/bin/leaf" if cmd == "leaf" else real_which(cmd, *a, **kw),
     )
     calls = []
     monkeypatch.setattr(action_mod.subprocess, "call", lambda argv, *a, **kw: calls.append(argv) or 0)
     return calls
 
 
-def test_show_renders_via_glow_when_installed(runner, tmp_config, tmp_data, fake_glow):
-    """bt <n> show hands the entry's .md file to glow when glow is on PATH."""
+def test_show_renders_via_leaf_when_installed(runner, tmp_config, tmp_data, fake_leaf):
+    """bt <n> show hands the entry's .md file to leaf when leaf is on PATH."""
     entry = Entry.create(EntryType.NOTE, "# Heading\n\nbody text")
     save_entry(entry)
     save_state("notes", [entry.id])
 
     result = runner.invoke(main, ["1", "show"])
     assert result.exit_code == 0
-    assert len(fake_glow) == 1
-    argv = fake_glow[0]
-    assert argv[0] == "glow"
-    assert argv[-1] == str(entry_path_from_id(entry.id))
+    assert len(fake_leaf) == 1
+    assert fake_leaf[0] == ["leaf", str(entry_path_from_id(entry.id))]
 
 
-def test_show_falls_back_to_rich_when_glow_missing(runner, tmp_config, tmp_data, no_glow):
-    """Without glow, bt <n> show keeps the Rich rendering with its metadata header."""
+def test_show_falls_back_to_rich_when_leaf_missing(runner, tmp_config, tmp_data, no_leaf):
+    """Without leaf, bt <n> show keeps the Rich rendering with its metadata header."""
     entry = Entry.create(EntryType.NOTE, "# Heading\n\nbody text", tags=["retirement"])
     save_entry(entry)
     save_state("notes", [entry.id])
@@ -591,18 +588,21 @@ def test_show_falls_back_to_rich_when_glow_missing(runner, tmp_config, tmp_data,
     assert "# Heading" not in result.output
 
 
-def test_show_pages_long_body(runner, tmp_config, tmp_data, fake_glow):
-    """handle_show always passes -p — reading an entry is always an interactive glow session."""
+def test_show_hands_leaf_the_raw_file_so_frontmatter_shows(runner, tmp_config, tmp_data, fake_leaf):
+    """leaf gets the .md path untouched — it renders the frontmatter as a metadata table."""
     entry = Entry.create(EntryType.NOTE, "\n".join(f"line {i}" for i in range(60)))
     save_entry(entry)
     save_state("notes", [entry.id])
 
     result = runner.invoke(main, ["1", "show"])
     assert result.exit_code == 0
-    assert "-p" in fake_glow[0]
+    path = entry_path_from_id(entry.id)
+    assert fake_leaf[0] == ["leaf", str(path)]
+    # The file bt points leaf at still carries its YAML frontmatter.
+    assert path.read_text().startswith("---\n")
 
 
-def test_view_aliases_show(runner, tmp_config, tmp_data, fake_glow):
+def test_view_aliases_show(runner, tmp_config, tmp_data, fake_leaf):
     """`view` is an alias for `show`."""
     entry = Entry.create(EntryType.NOTE, "# Hi\n\nbody text")
     save_entry(entry)
@@ -610,5 +610,5 @@ def test_view_aliases_show(runner, tmp_config, tmp_data, fake_glow):
 
     result = runner.invoke(main, ["1", "view"])
     assert result.exit_code == 0
-    assert len(fake_glow) == 1
-    assert fake_glow[0][0] == "glow"
+    assert len(fake_leaf) == 1
+    assert fake_leaf[0][0] == "leaf"

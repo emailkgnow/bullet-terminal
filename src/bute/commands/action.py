@@ -194,15 +194,16 @@ def handle_edit(entry: Entry, args: list[str], config) -> None:
 
 
 def handle_show(entry: Entry, args: list[str], config) -> None:
-    """Render the entry as markdown — via glow when installed, Rich otherwise.
+    """Render the entry as markdown — via leaf when installed, Rich otherwise.
 
-    glow strips the YAML frontmatter itself, so it gets the file path directly.
-    Always opens glow's pager (-p) so reading is a real glow session — scroll,
-    search with /, quit with q — rather than a dump into scrollback.
+    leaf renders the YAML frontmatter as a metadata table above the body, so it
+    gets the file path directly and the entry's fields stay visible. leaf is a
+    TUI by default — scroll with j/k, search with /, quit with q — so reading an
+    entry is a real session rather than a dump into scrollback.
     """
     path = entry_path_from_id(entry.id, config)
-    if path is not None and shutil.which("glow"):
-        subprocess.call(["glow", "-p", str(path)])
+    if path is not None and shutil.which("leaf"):
+        subprocess.call(["leaf", str(path)])
         return
     display_entry_full(entry)
 

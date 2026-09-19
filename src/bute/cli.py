@@ -331,7 +331,7 @@ def _print_help():
     t.add_row("bt <n> !", "Toggle important flag", "bt 1 !")
     t.add_row("bt <n> later", "Defer to Task log (stays in this week)", "bt 3 later")
     t.add_row("bt <n> backlog", "Send to Backlog (remove all focus)", "bt 3 backlog")
-    t.add_row("bt <n> show", "Read entry in glow (q to quit), else Rich", "bt 1 view")
+    t.add_row("bt <n> show", "Read entry in leaf (q to quit), else Rich", "bt 1 view")
     t.add_row("bt <n> open", "Open in $EDITOR", "bt 1 open")
     t.add_row("bt <n> mod <text>", "Replace entry text", "bt 1 mod new text here")
     t.add_row("bt <n> @tag", "Add a tag", "bt 1-3 @backend")

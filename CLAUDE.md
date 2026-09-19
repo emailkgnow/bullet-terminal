@@ -146,7 +146,7 @@ bt 6 clear d      # clear scheduled date
 bt 6 clear t      # clear time
 bt 6 clear repeat # clear repeat
 bt 7 edit         # open in $EDITOR
-bt 3 show         # read entry in glow pager, q to quit (aliases: view, read)
+bt 3 show         # read entry in leaf viewer, q to quit (aliases: view, read)
 bt 3 later        # defer — remove from today's log
 bt undo           # undo last action
 bt 3 undo         # undo last action on entry 3

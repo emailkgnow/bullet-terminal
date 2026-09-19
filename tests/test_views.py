@@ -124,12 +124,12 @@ def test_show_entry_safe_with_rich_markup_in_extra_meta(runner, tmp_config, tmp_
     from bute.state import save_state
     from bute.cli import main
 
-    # Mock shutil.which to disable glow, forcing Rich fallback
+    # Mock shutil.which to disable leaf, forcing Rich fallback
     import shutil
     real_which = shutil.which
     monkeypatch.setattr(
         shutil, "which",
-        lambda cmd, *a, **kw: None if cmd == "glow" else real_which(cmd, *a, **kw),
+        lambda cmd, *a, **kw: None if cmd == "leaf" else real_which(cmd, *a, **kw),
     )
 
     # Create entry and save it
