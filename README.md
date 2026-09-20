@@ -210,7 +210,8 @@ Full help: `bt -h`.
 | `bt t` | every task, grouped by date (like `bt n`/`j`/`c`) |
 | `bt w` / `bt b` | this week's active tasks / full Backlog |
 | `bt m` / `bt m jan` / `bt m 2026` | Monthly Log (event-driven daily retrospective) |
-| `bt @tag` | filter across all types; `@a @b` = AND, `-@c` = NOT |
+| `bt @tag` | filter across all types; `@a @b` = AND, `-@c` = NOT (matching is case-insensitive) |
+| `@@tag` | double duty tag at capture — keeps the word in the sentence *and* tags it: `bt j lunch with @@Elham` stores "lunch with Elham" tagged `elham` |
 | `bt find <q>` | keyword + tag search over full note bodies; matches partial words (prefix via FTS5, then a substring fallback) and shows the matching line |
 | `bt <view> --json` | numbered entry views as JSON (`bt`, `bt b`/`t`/`n`/`j`/`c`, `bt @tag`, `bt due`, `bt tags`, `bt find`, `bt like`) — same numbers as the table, so `bt 3 done` works from a script |
 | `bt like <q>` | semantic search (local embeddings, no API key) |

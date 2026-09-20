@@ -97,6 +97,7 @@ bt c dentist t:14.30 d:3.30              # calendar: Mar 30 at 2:30 PM
 bt c meeting t:9                         # calendar: today at 9:00 AM
 bt c conference d:4.15                   # calendar: Apr 15, all day
 bt n check OAuth docs d:4.10             # note: resurfaces in Focus Log Apr 10
+bt j lunch with @@Elham                  # double duty tag: body keeps "Elham", tags @elham
 ```
 
 **Date/time metadata:**
@@ -232,3 +233,5 @@ bt completion     # print the shell line that enables @tag tab completion
 ### Design Guardrail
 - **Stay BuJo, not Notion.** As bt grows into a PKM, resist becoming a general-purpose notes app. Every feature should serve the BuJo methodology — signifiers, rapid logging, rituals, migration. The CLI constraint and opinionated simplicity are features, not limitations. If a feature requires explaining, it probably doesn't belong.
 
+- **Double duty tags (`@@`)** — `@tag` files the entry and removes the word from the body (unchanged). `@@tag` keeps the word in the body *as typed* and records the lowercased tag: `bt j lunch with @@Elham` → body "lunch with Elham", tag `elham`. Only `@@` is scanned inside tokens, so it survives quoting and glued punctuation while single `@` keeps whole-token matching — that's what protects literal text like `@server.tool()` and quoted `@backend` in notes about bt.
+- **Tags are always lowercase** — normalized at creation (parser, `bt <n> @tag`, filters) *and* on every read in `storage._normalize_tags()`, so files written directly by external agents (BYOAI) can't split a tag into `Elham`/`elham`. Filtering is therefore case-insensitive: `bt @Elham` finds `elham`.

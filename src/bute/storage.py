@@ -43,19 +43,21 @@ def save_entry(entry: Entry, config=None) -> Path:
 
 
 def _normalize_tags(raw: list) -> list[str]:
-    """Coerce each tag to a plain string.
+    """Coerce each tag to a lowercase plain string.
 
     Handles malformed frontmatter where a tag entry is a dict
-    (e.g. ``- vacation: true``) instead of a bare scalar.
+    (e.g. ``- vacation: true``) instead of a bare scalar. Lowercasing here
+    covers files written directly by external agents (BYOAI), so a tag can
+    never split into ``Elham``/``elham`` variants.
     """
     result: list[str] = []
     for item in raw:
         if isinstance(item, str):
-            result.append(item)
+            result.append(item.lower())
         elif isinstance(item, dict):
-            result.extend(str(k) for k in item)
+            result.extend(str(k).lower() for k in item)
         else:
-            result.append(str(item))
+            result.append(str(item).lower())
     return result
 
 

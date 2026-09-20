@@ -219,7 +219,8 @@ def tag_filter_cmd(ctx, tags, exclude, show_all):
     """Show entries filtered by tags. Multiple @tags = AND. -@tag = exclude."""
     config = ctx.obj.get("config")
 
-    include_tags = [t for t in tags if t != "--all"]
+    include_tags = [t.lower() for t in tags if t != "--all"]
+    exclude = [t.lower() for t in exclude]
 
     if include_tags:
         # Start with first tag, then intersect

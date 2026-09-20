@@ -220,7 +220,8 @@ def handle_show(entry: Entry, args: list[str], config) -> None:
 
 
 def handle_add_tag(entry: Entry, tag: str, config) -> None:
-    """Add a tag to an entry (no duplicates)."""
+    """Add a tag to an entry (no duplicates, always lowercase)."""
+    tag = tag.lower()
     if tag not in entry.tags:
         record_undo(entry.id, "@tag", {"tag": tag}, config)
         entry.tags.append(tag)
@@ -596,7 +597,7 @@ def action_cmd(ctx, tokens):
         field = args[0]
         # Tag removal: bt 1 clear @backend  or  bt 1 clear backend
         if field.startswith("@") or field not in CLEAR_FIELDS:
-            tag = field.lstrip("@")
+            tag = field.lstrip("@").lower()
             for entry_id in entry_ids:
                 path = entry_path_from_id(entry_id, config)
                 if path is None:

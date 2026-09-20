@@ -290,7 +290,8 @@ def _print_help():
     console.print(t)
     console.print()
     console.print("    [dim]Also:[/dim] bt task, bt note, bt journal, bt calendar")
-    console.print("    [dim]Modifiers:[/dim] [bold red]![/bold red] important  [bold]@tag[/bold]  [bold]d:[/bold]date  [bold]t:[/bold]time  [bold]due:[/bold]deadline  [bold]r:[/bold]<daily|weekly|monthly|yearly>")
+    console.print("    [dim]Modifiers:[/dim] [bold red]![/bold red] important  [bold]@tag[/bold]  [bold]@@tag[/bold]  [bold]d:[/bold]date  [bold]t:[/bold]time  [bold]due:[/bold]deadline  [bold]r:[/bold]<daily|weekly|monthly|yearly>")
+    console.print("    [dim]Double duty tags:[/dim] [bold]@tag[/bold] files the entry and drops the word; [bold]@@tag[/bold] keeps the word in the sentence and tags it — [bold]bt j lunch with @@Elham[/bold] → \"lunch with Elham\" [dim]@elham[/dim]")
     console.print("    [dim]Tip:[/dim] dates like [bold]d:4.7[/bold], [bold]d:friday[/bold], [bold]d:next-friday[/bold] auto-resolve to the future. For past dates, use ISO: [bold]d:2026-03-15[/bold]")
 
     # --- Views ---

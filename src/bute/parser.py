@@ -16,6 +16,10 @@ WORD_SIGNIFIER_RE = re.compile(r"^(task|note|journal|calendar)(!?)$")
 # Key must start with a letter — prevents "1:1" from being parsed as key:value
 KV_RE = re.compile(r"^([a-zA-Z]\w*):(.+)$")
 TAG_RE = re.compile(r"^@([a-zA-Z0-9_-]+)$")
+# Double-duty tag: @@word keeps the word in the body AND records it as a tag.
+# Scanned inside tokens (so it survives quoting and glued punctuation); the
+# preceding-character guard keeps emails and @@@ runs from matching.
+DOUBLE_TAG_RE = re.compile(r"(?<![A-Za-z0-9_@])@@([a-zA-Z0-9_-]+)")
 
 # Month name abbreviations for date parsing
 MONTH_ABBR = {
@@ -61,6 +65,13 @@ class ParsedInput:
         return " ".join(self.body_words)
 
 
+def _add_tag(tags: list[str], name: str) -> None:
+    """Append a tag, normalized to lowercase, skipping duplicates."""
+    name = name.lower()
+    if name not in tags:
+        tags.append(name)
+
+
 def parse_capture_tokens(tokens: tuple[str, ...] | list[str]) -> ParsedInput:
     """Parse capture input tokens into structured data.
 
@@ -100,7 +111,7 @@ def parse_capture_tokens(tokens: tuple[str, ...] | list[str]) -> ParsedInput:
     for token in tokens[1:]:
         tag_match = TAG_RE.match(token)
         if tag_match:
-            tags.append(tag_match.group(1))
+            _add_tag(tags, tag_match.group(1))
             continue
 
         kv_match = KV_RE.match(token)
@@ -109,6 +120,11 @@ def parse_capture_tokens(tokens: tuple[str, ...] | list[str]) -> ParsedInput:
             value = kv_match.group(2)
             metadata[key] = value
             continue
+
+        if DOUBLE_TAG_RE.search(token):
+            for name in DOUBLE_TAG_RE.findall(token):
+                _add_tag(tags, name)
+            token = DOUBLE_TAG_RE.sub(r"\1", token)
 
         body_words.append(token)
 

@@ -2,10 +2,14 @@
 
 
 def _parse_tag_tokens(tokens: tuple[str, ...]) -> tuple[list[str], list[str]]:
-    """Parse @tag and -@tag tokens into (include_tags, exclude_tags)."""
+    """Parse @tag and -@tag tokens into (include_tags, exclude_tags).
+
+    Tag names are lowercased to match how they are stored.
+    """
     include = []
     exclude = []
     for t in tokens:
+        t = t.lower()
         if t.startswith("-@") and len(t) > 2:
             exclude.append(t[2:])
         elif t.startswith("@") and len(t) > 1:
