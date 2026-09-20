@@ -16,7 +16,9 @@ from bute.parser import (
     SIGNIFIER_RE,
     WORD_SIGNIFIER_RE,
     parse_capture_tokens,
+    check_removed_meta_keys,
     resolve_date,
+    resolve_repeat,
     resolve_time,
 )
 from bute.storage import load_entry, save_entry
@@ -59,8 +61,8 @@ def capture_cmd(ctx, later, backlog, tokens):
     # Extract and resolve known metadata keys
     meta = dict(parsed.metadata)
     try:
-        # Support both t: and time:
-        raw_time = meta.pop("t", None) or meta.pop("time", None)
+        check_removed_meta_keys(meta)
+        raw_time = meta.pop("time", None)
         # due: can be a date (due:friday) or a time (due:3pm → today at 3pm)
         raw_due = meta.pop("due", None)
         if raw_due is not None:
@@ -72,15 +74,15 @@ def capture_cmd(ctx, later, backlog, tokens):
                 due = resolve_date(raw_due)
         else:
             due = None
-        # Support both d: and date:
-        raw_date = meta.pop("d", None) or meta.pop("date", None)
+        raw_date = meta.pop("date", None)
         scheduled_date = resolve_date(raw_date) if raw_date else None
         scheduled_time = resolve_time(raw_time) if raw_time else None
+        raw_repeat = meta.pop("repeat", None)
+        repeat = resolve_repeat(raw_repeat) if raw_repeat is not None else None
     except ValueError as e:
         click.echo(str(e))
         ctx.exit(1)
         return
-    repeat = meta.pop("r", None) or meta.pop("repeat", None)
 
     entry = Entry.create(
         entry_type=entry_type,

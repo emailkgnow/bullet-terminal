@@ -262,7 +262,7 @@ def test_clear_scheduled_date(runner, tmp_config, tmp_data):
     save_entry(entry)
     save_state("ls", [entry.id])
 
-    result = runner.invoke(main, ["1", "clear", "d"])
+    result = runner.invoke(main, ["1", "clear", "date"])
     assert result.exit_code == 0
 
     loaded = load_entry(entry_path_from_id(entry.id))
@@ -274,7 +274,7 @@ def test_clear_time(runner, tmp_config, tmp_data):
     save_entry(entry)
     save_state("ls", [entry.id])
 
-    result = runner.invoke(main, ["1", "clear", "t"])
+    result = runner.invoke(main, ["1", "clear", "time"])
     assert result.exit_code == 0
 
     loaded = load_entry(entry_path_from_id(entry.id))

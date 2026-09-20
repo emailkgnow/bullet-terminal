@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from bute.errors import InvalidSignifierError
+from bute.models import REPEAT_VALUES
 
 SIGNIFIER_RE = re.compile(r"^/?([tnjc])(!?)$")
 
@@ -31,8 +32,12 @@ MONTH_DAY_RE = re.compile(
     r"^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[- ]?(\d{1,2})$",
     re.IGNORECASE,
 )
-SLASH_DATE_RE = re.compile(r"^(\d{1,2})/(\d{1,2})$")
 NEXT_DAY_RE = re.compile(r"^next[- .]?([a-z]+)$", re.IGNORECASE)
+
+# Short metadata keys removed in favour of full words — one spelling per
+# concept, matching the frontmatter key each one writes. Kept here so a user
+# typing the old spelling gets a pointer instead of silent extra_meta.
+REMOVED_META_KEYS = {"d": "date", "t": "time", "r": "repeat"}
 
 DAY_NAMES = [
     "monday", "tuesday", "wednesday", "thursday",
@@ -143,9 +148,7 @@ def resolve_time(value: str) -> str:
     Supports:
     - H or HH (hour only): "9" → "09:00", "14" → "14:00"
     - H.MM or HH.MM (dot separator): "9.30" → "09:30", "14.15" → "14:15"
-    - Legacy HHMM (4 digits): "1430" → "14:30"
-    - Legacy HH:MM: "14:30" → "14:30"
-    - Legacy am/pm: "3pm" → "15:00"
+    - am/pm: "3pm" → "15:00", "2.20pm" → "14:20"
     """
     value = value.strip().lower()
 
@@ -161,27 +164,12 @@ def resolve_time(value: str) -> str:
     if re.match(r"^\d{1,2}$", value) and int(value) < 24:
         return f"{int(value):02d}:00"
 
-    # Legacy: 4-digit HHMM
-    if re.match(r"^\d{4}$", value):
-        h, m = int(value[:2]), int(value[2:])
-        if h > 23 or m > 59:
-            raise ValueError(f"Invalid time: {value}")
-        return f"{h:02d}:{m:02d}"
-
-    # Legacy: HH:MM
-    if re.match(r"^\d{1,2}:\d{2}$", value):
-        h, m = value.split(":")
-        h, m = int(h), int(m)
-        if h > 23 or m > 59:
-            raise ValueError(f"Invalid time: {value}")
-        return f"{h:02d}:{m:02d}"
-
-    # Legacy: "3pm", "3:30pm", "2.20pm", "11am", "12:30am"
-    legacy = re.match(r"^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)$", value)
-    if legacy:
-        h = int(legacy.group(1))
-        m = int(legacy.group(2) or 0)
-        period = legacy.group(3)
+    # "3pm", "3:30pm", "2.20pm", "11am", "12:30am"
+    ampm = re.match(r"^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)$", value)
+    if ampm:
+        h = int(ampm.group(1))
+        m = int(ampm.group(2) or 0)
+        period = ampm.group(3)
         if h < 1 or h > 12:
             raise ValueError(f"Invalid time: {value}")
         if m > 59:
@@ -219,8 +207,6 @@ def resolve_date(value: str, reference: date | None = None) -> date:
     - "today", "tomorrow"
     - Day names: "monday", "friday"
     - Month+day: "mar3", "jan15"
-    - Legacy MMDD (4 digits): "0330" → Mar 30
-    - Legacy slash: "3/29"
     - ISO format: "2026-03-29"
     """
     ref = reference or date.today()
@@ -292,38 +278,31 @@ def resolve_date(value: str, reference: date | None = None) -> date:
                 raise ValueError(f"Invalid date: {value}")
         return candidate
 
-    # Legacy: 4-digit MMDD
-    if re.match(r"^\d{4}$", low):
-        month, day = int(low[:2]), int(low[2:])
-        try:
-            candidate = date(ref.year, month, day)
-        except ValueError:
-            raise ValueError(f"Invalid date: {value}")
-        if candidate < ref:
-            try:
-                candidate = date(ref.year + 1, month, day)
-            except ValueError:
-                raise ValueError(f"Invalid date: {value}")
-        return candidate
-
-    # Legacy: slash format "3/29"
-    slash_match = SLASH_DATE_RE.match(low)
-    if slash_match:
-        month = int(slash_match.group(1))
-        day = int(slash_match.group(2))
-        try:
-            candidate = date(ref.year, month, day)
-        except ValueError:
-            raise ValueError(f"Invalid date: {value}")
-        if candidate < ref:
-            try:
-                candidate = date(ref.year + 1, month, day)
-            except ValueError:
-                raise ValueError(f"Invalid date: {value}")
-        return candidate
-
     # ISO format fallback
     try:
         return date.fromisoformat(value)
     except ValueError:
         raise ValueError(f"Invalid date: {value}")
+
+
+def resolve_repeat(value: str) -> str:
+    """Validate a recurrence rule, returning it lowercased.
+
+    Only the four rules ``Entry.recurs_on`` understands are accepted — an
+    unrecognised rule used to save fine and then silently never fire.
+    """
+    low = str(value).lower().strip()
+    if low not in REPEAT_VALUES:
+        allowed = " | ".join(sorted(REPEAT_VALUES))
+        raise ValueError(f"Invalid repeat: {value}. Use: {allowed}")
+    return low
+
+
+def check_removed_meta_keys(meta: dict) -> None:
+    """Raise if a removed short key (d:/t:/r:) was used, naming its replacement."""
+    for short, full in REMOVED_META_KEYS.items():
+        if short in meta:
+            raise ValueError(
+                f"'{short}:' was removed — use '{full}:' instead "
+                f"(e.g. {full}:{meta[short] or 'friday'})."
+            )

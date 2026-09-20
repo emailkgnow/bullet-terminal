@@ -93,17 +93,22 @@ There is no built-in LLM. `bt chat` was removed in favor of BYOAI — the README
 bt t call dentist due:friday @backend    # single letter
 bt task call dentist due:friday @backend # full word
 bt t! fix prod bug                       # important modifier
-bt c dentist t:14.30 d:3.30              # calendar: Mar 30 at 2:30 PM
-bt c meeting t:9                         # calendar: today at 9:00 AM
-bt c conference d:4.15                   # calendar: Apr 15, all day
-bt n check OAuth docs d:4.10             # note: resurfaces in Focus Log Apr 10
+bt c dentist time:14.30 date:3.30        # calendar: Mar 30 at 2:30 PM
+bt c meeting time:9                      # calendar: today at 9:00 AM
+bt c conference date:4.15                # calendar: Apr 15, all day
+bt n check OAuth docs date:4.10          # note: resurfaces in Focus Log Apr 10
+bt t meditate repeat:daily               # recurring task (habit)
 bt j lunch with @@Elham                  # double duty tag: body keeps "Elham", tags @elham
 ```
 
 **Date/time metadata:**
-- `d:` — date. Formats: `d:4.7` (MM.DD), `d:today`, `d:tomorrow`, `d:friday`, `d:next-friday` (week after the upcoming Friday), `d:mar15`. Legacy `d:0407` still works.
-- `t:` — time in 24h. Formats: `t:9` (9:00), `t:14.15` (2:15 PM). Legacy `t:1430` still works.
-- `due:` — deadline for tasks (supports same formats as `d:`)
+Four keys, one spelling each — the typed word *is* the frontmatter key it writes.
+- `date:` — scheduled / resurface date. Formats: `date:4.7` (MM.DD), `date:today`, `date:tomorrow`, `date:friday`, `date:next-friday` (week after the upcoming Friday), `date:mar15`, `date:2026-11-03` (ISO).
+- `time:` — Formats: `time:9` (9:00), `time:14.15` (2:15 PM), `time:3pm`, `time:2.20pm`.
+- `due:` — deadline for tasks (same date formats as `date:`)
+- `repeat:` — `daily` | `weekly` | `monthly` | `yearly`; anything else is rejected at capture.
+
+Everything except ISO resolves *forward*: `date:4.7` typed in September means next April. Use ISO for a past date.
 
 **Views** — signifier alone, or named commands:
 ```
@@ -143,8 +148,8 @@ bt 6 @tag         # add tag
 bt 6 clear @tag   # remove tag
 bt 6 clear !      # remove important
 bt 6 clear due    # clear due date
-bt 6 clear d      # clear scheduled date
-bt 6 clear t      # clear time
+bt 6 clear date   # clear scheduled date
+bt 6 clear time   # clear time
 bt 6 clear repeat # clear repeat
 bt 7 edit         # open in $EDITOR
 bt 3 show         # read entry in leaf viewer, q to quit (aliases: view, read)
@@ -179,11 +184,13 @@ bt completion     # print the shell line that enables @tag tab completion
 ## Design Decisions
 
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. Daily plan handles yesterday's unfinished items.
+- **Double duty tags (`@@`)** — `@tag` files the entry and removes the word from the body (unchanged). `@@tag` keeps the word in the body *as typed* and records the lowercased tag: `bt j lunch with @@Elham` → body "lunch with Elham", tag `elham`. Only `@@` is scanned inside tokens, so it survives quoting and glued punctuation while single `@` keeps whole-token matching — that's what protects literal text like `@server.tool()` and quoted `@backend` in notes about bt.
+- **Tags are always lowercase** — normalized at creation (parser, `bt <n> @tag`, filters) *and* on every read in `storage._normalize_tags()`, so files written directly by external agents (BYOAI) can't split a tag into `Elham`/`elham`. Filtering is therefore case-insensitive: `bt @Elham` finds `elham`.
 - **Tags are plain labels** — organize entries and power cross-dimension filters. The `+collection` syntax was removed — tags absorbed collections. A `tag_stages` SQLite table from the removed AI analyze feature still exists; harmless, may be pruned later.
 - **Logs are derived** — no stored files. Focus Log (`bt`), monthly log (`bt m`) query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label). `bt -a` expands the Focus Log to include dropped tasks, non-focus captures from today, and past-timed events — replaces the retired `bt d` and the old per-day/per-week logs.
 - **`bt m` is event-driven** — each entry surfaces on every day any of its lifecycle events occurred (captured, focused, scheduled, completed, dropped, undropped). Events are stored as a YAML `events:` list in the entry's frontmatter, appended by every mutation site (capture, dp, wp, done, drop, later, backlog, schedule, mod, undo). Legacy entries without a stored `events` list use render-time synthesis from `created`, `scheduled_date`, `focus_date`, `completed_date`. This makes `bt m` a BuJo retrospective — you can relive each day of the month.
 - **`bt` with no args** = planning entry point. On the trigger day (default Sunday, configurable via `core.wp_day`), runs weekly plan then daily plan. Other days, runs daily plan only. If all done, shows Focus Log.
-- **Focus Log (`bt`)** — what matters today: tasks with `focus_date == today`, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `d:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bt b`) or Tasks (`bt t`). Curated and active-only — `bt -a` expands to dropped tasks, captures from today that lack focus, and past-timed events.
+- **Focus Log (`bt`)** — what matters today: tasks with `focus_date == today`, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `date:` (scheduled_date) matching today also surfaces. Other tasks stay in Backlog (`bt b`) or Tasks (`bt t`). Curated and active-only — `bt -a` expands to dropped tasks, captures from today that lack focus, and past-timed events.
 - **Task view titles share a root** — `Tasks — All` / `Tasks — Backlog` / `Tasks — Weekly Log`, em dash, so the three views read as one dimension at three zoom levels and rank correctly by size. `Notes`/`Journals`/`Calendar` stay bare nouns; tasks alone need the qualifier because they alone have three views.
 - **Task views**: `bt t` (Tasks — All) shows *every* task grouped by date, with no status filter — the exact parallel of `bt n`/`j`/`c`, which never filtered either. `bt w` (Tasks — Weekly Log) shows active tasks with `week_date == this week's anchor`. `bt b` (Tasks — Backlog) shows all active tasks. The flow is: backlog → weekly plan → this week → Focus Log. Recurring tasks are excluded from `bt t`/`bt w`/`bt b` — they live in `bt streak`.
 - **`-a` is inert on dimension views** — `bt t`/`bt n`/`bt j`/`bt c` show everything by default, so the flag adds nothing there (it was already a no-op on `n`/`j`/`c`). It is kept registered so the shortcut parser and muscle memory keep working, and still does real work on `bt` (Focus Log + hidden) and `bt b` (adds done/dropped).
@@ -191,10 +198,11 @@ bt completion     # print the shell line that enables @tag tab completion
 - **Focus state as dates, not tags** — `focus_date` and `week_date` are proper `Optional[date]` fields on `Entry`. Set by `bt dp` / `bt wp` / `bt focus` / capture. Cleared by `bt later` / `bt backlog`. Old dates expire naturally — no clearing ritual needed. Replaces the former `@today` / `@thisweek` system tags.
 - **`bt wp`** includes task dump phase — add tasks before selecting for the week.
 - **Display**: `bt t` and notes/journals/calendar = grouped by date with a Date column (`display_entry_list_grouped`, keyed on `scheduled_date` else `created`); the curated task views `bt w` and `bt b` stay flat lists, since a short list needs no date spine.
-- **Scheduling is universal** — `d:` (scheduled_date) works on all entry types. Tasks: deadline. Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
+- **Scheduling is universal** — `date:` (scheduled_date) works on all entry types. Tasks: deadline. Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
 - **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.
-- **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Preferred input: `t:9`, `t:14.30`. Legacy formats (`t:1430`, `3pm`) still accepted.
-- **Date format**: preferred input: `d:4.7`, `d:mar15`, `d:tomorrow`, `d:friday`. Legacy `d:0407` still accepted.
+- **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Input: `time:9`, `time:14.30`, `time:3pm`. `HH:MM` is the *stored* form and is deliberately not input — `storage._normalize_time` parses it directly rather than through `resolve_time`, falling back to the input grammar only for BYOAI files.
+- **Date format**: input: `date:4.7`, `date:mar15`, `date:tomorrow`, `date:friday`, ISO. All but ISO resolve forward.
+- **One spelling per key** — `d:`/`t:`/`r:` and the legacy numeric formats (`0407`, `3/29`, `1430`, `14:30`) were removed together. Rationale: on 161 real tasks only 6 carried any date metadata (the dp/wp/Focus Log flow does the prioritising), and 72% of all usage was on calendar entries, so the full words cost ~137 keystrokes across 25 weeks of real use. Typing a removed key raises a pointer to its replacement (`parser.REMOVED_META_KEYS`) rather than silently landing in `extra_meta` or being misread as a tag.
 - **API key**: resolved from config value, `keychain:<service>`, or auto-lookup in macOS Keychain.
 - **No built-in AI** — `bt chat` and the LLM layer were removed in favor of "bring your own AI." External agents (Claude Desktop + filesystem MCP, Claude Code, scripts) read/write `.md` files directly in `~/bullet-terminal/entries/`. bt's README is the schema contract; `db.reconcile_index()` picks up external writes on the next read. Local semantic search via `bt like` stays — it uses fastembed + sqlite-vec, no network.
 
@@ -233,5 +241,3 @@ bt completion     # print the shell line that enables @tag tab completion
 ### Design Guardrail
 - **Stay BuJo, not Notion.** As bt grows into a PKM, resist becoming a general-purpose notes app. Every feature should serve the BuJo methodology — signifiers, rapid logging, rituals, migration. The CLI constraint and opinionated simplicity are features, not limitations. If a feature requires explaining, it probably doesn't belong.
 
-- **Double duty tags (`@@`)** — `@tag` files the entry and removes the word from the body (unchanged). `@@tag` keeps the word in the body *as typed* and records the lowercased tag: `bt j lunch with @@Elham` → body "lunch with Elham", tag `elham`. Only `@@` is scanned inside tokens, so it survives quoting and glued punctuation while single `@` keeps whole-token matching — that's what protects literal text like `@server.tool()` and quoted `@backend` in notes about bt.
-- **Tags are always lowercase** — normalized at creation (parser, `bt <n> @tag`, filters) *and* on every read in `storage._normalize_tags()`, so files written directly by external agents (BYOAI) can't split a tag into `Elham`/`elham`. Filtering is therefore case-insensitive: `bt @Elham` finds `elham`.

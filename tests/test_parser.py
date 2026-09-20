@@ -137,14 +137,6 @@ class TestResolveDate:
         ref = date(2026, 3, 23)
         assert resolve_date("mar-29", ref) == date(2026, 3, 29)
 
-    def test_slash_format(self):
-        ref = date(2026, 3, 23)
-        assert resolve_date("3/29", ref) == date(2026, 3, 29)
-
-    def test_slash_format_past_rolls(self):
-        ref = date(2026, 3, 23)
-        assert resolve_date("1/15", ref) == date(2027, 1, 15)
-
     def test_iso_format(self):
         assert resolve_date("2026-04-15") == date(2026, 4, 15)
 

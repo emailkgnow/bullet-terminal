@@ -12,6 +12,7 @@ from bute.completion import complete_tags
 from bute.display import display_action_confirmation, display_entry_full
 from bute.errors import DwnError, InvalidActionError
 from bute.models import Entry, EntryType, TaskStatus
+from bute.parser import REMOVED_META_KEYS
 from bute.state import pop_undo, record_undo, resolve_numbers
 from bute.storage import entry_path_from_id, load_entry, update_entry
 
@@ -279,8 +280,10 @@ def handle_backlog(entry: Entry, args: list[str], config) -> None:
     update_entry(entry, config)
 
 
-# Metadata keys that map to entry fields
-META_KEYS = {"due", "d", "date", "t", "time"}
+# Metadata keys that map to entry fields. The removed short keys are listed
+# too, so `bt 1 d:friday` routes here and gets a pointer instead of being
+# misread as a tag name by the clear/tag branch.
+META_KEYS = {"due", "date", "time", "repeat"} | set(REMOVED_META_KEYS)
 
 
 def _is_meta_token(token: str) -> bool:
@@ -301,8 +304,15 @@ def _parse_meta_tokens(tokens: list[str]) -> dict[str, str]:
 
 
 def handle_set_meta(entry: Entry, meta: dict[str, str], config) -> None:
-    """Update due date, scheduled date, or time on an entry."""
-    from bute.parser import resolve_date, resolve_time
+    """Update due date, scheduled date, time, or repeat on an entry."""
+    from bute.parser import (
+        check_removed_meta_keys,
+        resolve_date,
+        resolve_repeat,
+        resolve_time,
+    )
+
+    check_removed_meta_keys(meta)
 
     prev = {}
     labels = []
@@ -317,27 +327,38 @@ def handle_set_meta(entry: Entry, meta: dict[str, str], config) -> None:
             entry.due = resolve_date(meta["due"])
             labels.append(f"due:{entry.due}")
 
-    # d: or date: (empty clears)
-    raw_date = meta.get("d", meta.get("date"))
+    # date: (empty clears)
+    raw_date = meta.get("date")
     if raw_date is not None:
         prev["scheduled_date"] = entry.scheduled_date.isoformat() if entry.scheduled_date else None
         if not raw_date or raw_date.lower() == "none":
             entry.scheduled_date = None
-            labels.append("d:cleared")
+            labels.append("date:cleared")
         else:
             entry.scheduled_date = resolve_date(raw_date)
-            labels.append(f"d:{entry.scheduled_date}")
+            labels.append(f"date:{entry.scheduled_date}")
 
-    # t: or time: (empty clears)
-    raw_time = meta.get("t", meta.get("time"))
+    # time: (empty clears)
+    raw_time = meta.get("time")
     if raw_time is not None:
         prev["scheduled_time"] = entry.scheduled_time
         if not raw_time or raw_time.lower() == "none":
             entry.scheduled_time = None
-            labels.append("t:cleared")
+            labels.append("time:cleared")
         else:
             entry.scheduled_time = resolve_time(raw_time)
-            labels.append(f"t:{entry.scheduled_time}")
+            labels.append(f"time:{entry.scheduled_time}")
+
+    # repeat: (empty clears)
+    raw_repeat = meta.get("repeat")
+    if raw_repeat is not None:
+        prev["repeat"] = entry.repeat
+        if not raw_repeat or raw_repeat.lower() == "none":
+            entry.repeat = None
+            labels.append("repeat:cleared")
+        else:
+            entry.repeat = resolve_repeat(raw_repeat)
+            labels.append(f"repeat:{entry.repeat}")
 
     record_undo(entry.id, "meta", prev, config)
     update_entry(entry, config)
@@ -355,11 +376,16 @@ def handle_remove_tag(entry: Entry, tag: str, config) -> None:
 
 
 # Clearable fields and their entry attribute names
-CLEAR_FIELDS = {"due", "d", "t", "time", "date", "repeat", "!"}
+CLEAR_FIELDS = {"due", "date", "time", "repeat", "!"} | set(REMOVED_META_KEYS)
 
 
 def handle_clear(entry: Entry, field: str, config) -> str:
     """Clear a metadata field. Returns label for confirmation."""
+    if field in REMOVED_META_KEYS:
+        full = REMOVED_META_KEYS[field]
+        raise InvalidActionError(
+            f"'{field}' was removed — use 'clear {full}' instead."
+        )
     if field == "!" or field == "important":
         if not entry.important:
             Console().print("  [dim]Not marked important[/dim]")
@@ -376,22 +402,22 @@ def handle_clear(entry: Entry, field: str, config) -> str:
         entry.due = None
         update_entry(entry, config)
         return "clear due"
-    elif field in ("d", "date"):
+    elif field == "date":
         if entry.scheduled_date is None:
             Console().print("  [dim]No scheduled date set[/dim]")
             return ""
         record_undo(entry.id, "clear", {"scheduled_date": entry.scheduled_date.isoformat()}, config)
         entry.scheduled_date = None
         update_entry(entry, config)
-        return "clear d"
-    elif field in ("t", "time"):
+        return "clear date"
+    elif field == "time":
         if entry.scheduled_time is None:
             Console().print("  [dim]No time set[/dim]")
             return ""
         record_undo(entry.id, "clear", {"scheduled_time": entry.scheduled_time}, config)
         entry.scheduled_time = None
         update_entry(entry, config)
-        return "clear t"
+        return "clear time"
     elif field == "repeat":
         if entry.repeat is None:
             Console().print("  [dim]No repeat set[/dim]")
@@ -401,7 +427,7 @@ def handle_clear(entry: Entry, field: str, config) -> str:
         update_entry(entry, config)
         return "clear repeat"
     else:
-        raise InvalidActionError(f"Cannot clear '{field}'. Clearable: @tag, !, due, d, t, repeat")
+        raise InvalidActionError(f"Cannot clear '{field}'. Clearable: @tag, !, due, date, time, repeat")
 
 
 def apply_undo(record: dict, config) -> None:
@@ -592,7 +618,7 @@ def action_cmd(ctx, tokens):
     if action == "clear":
         if not args:
             raise InvalidActionError(
-                "clear requires a field. Usage: bt 1 clear @tag | ! | due | d | t | repeat"
+                "clear requires a field. Usage: bt 1 clear @tag | ! | due | date | time | repeat"
             )
         field = args[0]
         # Tag removal: bt 1 clear @backend  or  bt 1 clear backend
@@ -619,7 +645,7 @@ def action_cmd(ctx, tokens):
                 display_action_confirmation(entry, label)
         return
 
-    # Handle metadata updates: bt 3 due:friday, bt 3 d:tomorrow t:14.30
+    # Handle metadata updates: bt 3 due:friday, bt 3 date:tomorrow time:14.30
     if _is_meta_token(action):
         all_meta_tokens = [action] + [a for a in args if _is_meta_token(a)]
         meta = _parse_meta_tokens(all_meta_tokens)

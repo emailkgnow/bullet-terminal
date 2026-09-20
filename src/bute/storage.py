@@ -1,5 +1,6 @@
 """Markdown file I/O for bt entries."""
 
+import re
 from datetime import date, datetime
 from pathlib import Path
 
@@ -195,11 +196,24 @@ def entry_path_from_id(entry_id: str, config=None) -> Path | None:
 
 
 def _normalize_time(value) -> str | None:
-    """Normalize stored time to HH:MM format."""
+    """Normalize a stored time to HH:MM.
+
+    The canonical stored form is HH:MM, which is deliberately *not* part of the
+    CLI input grammar — so it is parsed here directly rather than through
+    resolve_time(). Anything else falls back to the input grammar, which is how
+    a file hand-written by an external agent (BYOAI) with ``time: 3pm`` still
+    loads.
+    """
     if value is None:
         return None
+    raw = str(value).strip()
+    stored = re.match(r"^(\d{1,2}):(\d{2})$", raw)
+    if stored:
+        h, m = int(stored.group(1)), int(stored.group(2))
+        if h < 24 and m < 60:
+            return f"{h:02d}:{m:02d}"
     from bute.parser import resolve_time
-    return resolve_time(str(value))
+    return resolve_time(raw)
 
 
 def _parse_status(value) -> TaskStatus | None:

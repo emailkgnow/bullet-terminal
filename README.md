@@ -24,7 +24,7 @@ uv tool install 'bullet-terminal[embeddings] @ git+https://github.com/emailkgnow
 bt t call dentist due:friday @home   # capture a task
 bt n OAuth2 tokens expire in 30 days # capture a note
 bt j rough morning, couldn't focus   # capture a journal
-bt c standup t:9                     # capture a calendar event
+bt c standup time:9                  # capture a calendar event
 
 bt                # Focus Log — what matters today
 bt t              # every task, grouped by date
@@ -88,11 +88,11 @@ All metadata lives in YAML frontmatter. Body text is the rest of the file.
 | `due` | ISO date | no | `'2026-04-20'` — tasks only, surfaces in Focus Log when overdue/today |
 | `date` | ISO date | no | scheduled date; entry surfaces in Focus Log on that day |
 | `time` | string | no | `HH:MM` 24h, for timed calendar events |
-| `repeat` | string | no | `daily` \| `weekly` \| `monthly` |
+| `repeat` | string | no | `daily` \| `weekly` \| `monthly` \| `yearly` — any other value is rejected |
 | `focus_date` | ISO date | no | set by `bt dp`; day this task is pulled into Focus Log |
 | `week_date` | ISO date | no | Monday of the week this task is in focus for |
 | `completed_date` | ISO date | no | when a task became `done` or `dropped` |
-| `tags` | list[string] | no | e.g. `['home', 'urgent']` — no `@` prefix in YAML |
+| `tags` | list[string] | no | e.g. `['home', 'urgent']` — no `@` prefix in YAML, always lowercase |
 | `events` | list[dict] | no | lifecycle event log; see below |
 | `completions` | list[ISO date] | no | for repeating tasks, dates when completed |
 
@@ -198,6 +198,30 @@ path.write_text(f"---\n{yaml.safe_dump(frontmatter)}---\n\n{body}\n")
 Run `bt` after, and the task appears in Focus Log immediately — no rebuild needed.
 
 ---
+
+## Capture metadata
+
+Four keys, one spelling each — the word you type is the frontmatter key it writes.
+
+| Key | Writes | Applies to | Accepted values |
+|---|---|---|---|
+| `due:` | `due` | tasks | a date (below) |
+| `date:` | `date` | all types | a date (below) |
+| `time:` | `time` | all types | `9`, `14.30`, `3pm`, `2.20pm` |
+| `repeat:` | `repeat` | tasks | `daily` \| `weekly` \| `monthly` \| `yearly` |
+
+Dates accept `today`, `tomorrow`, a weekday (`friday`), `next-friday`, month.day
+(`12.25`), month name + day (`mar15`), or ISO (`2026-11-03`). Everything except
+ISO resolves *forward* — `date:4.7` typed in September means next April, never
+the one just past. Use ISO when you mean a date in the past.
+
+```bash
+bt t file taxes due:friday
+bt c dentist date:12.25 time:14.30
+bt t meditate repeat:daily
+bt 1 date:tomorrow time:9      # set on an existing entry
+bt 1 clear time                # remove it
+```
 
 ## Commands
 

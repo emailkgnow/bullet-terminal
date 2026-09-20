@@ -7,6 +7,9 @@ from typing import Optional
 
 from ulid import ULID
 
+# The only recurrence rules recurs_on() understands.
+REPEAT_VALUES = frozenset({"daily", "weekly", "monthly", "yearly"})
+
 
 def compact_date_runs(dates: list[str]) -> list[str]:
     """Run-length-encode a list of ISO dates into ranges.

@@ -27,7 +27,7 @@ def streak_cmd(ctx):
     if not habits:
         console.print(
             "  [dim]No recurring tasks. Add one:[/dim] "
-            "[bold]bt t <text> r:daily[/bold]"
+            "[bold]bt t <text> repeat:daily[/bold]"
         )
         return
 

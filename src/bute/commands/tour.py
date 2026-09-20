@@ -66,7 +66,7 @@ def _show_outro() -> None:
         "[dim]Capture:[/dim]\n"
         "  [dim]task[/dim]            [bold]bt t call mom[/bold]\n"
         "  [dim]note[/dim]            [bold]bt n idea[/bold]\n"
-        "  [dim]calendar event[/dim]  [bold]bt c lunch t:12pm[/bold]\n"
+        "  [dim]calendar event[/dim]  [bold]bt c lunch time:12pm[/bold]\n"
         "  [dim]journal entry[/dim]   [bold]bt j feeling motivated today[/bold]"
     )
     _console.print(Panel(outro, border_style="green", padding=(1, 2)))
