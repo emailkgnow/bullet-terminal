@@ -290,9 +290,10 @@ def _print_help():
     console.print(t)
     console.print()
     console.print("    [dim]Also:[/dim] bt task, bt note, bt journal, bt calendar")
-    console.print("    [dim]Modifiers:[/dim] [bold red]![/bold red] important  [bold]@tag[/bold]  [bold]@@tag[/bold]  [bold]date:[/bold]<date>  [bold]time:[/bold]<time>  [bold]due:[/bold]<deadline>  [bold]repeat:[/bold]<daily|weekly|monthly|yearly>")
+    console.print("    [dim]Modifiers:[/dim] [bold red]![/bold red] important  [bold]@tag[/bold]  [bold]@@tag[/bold]  [bold]date:[/bold]<date>  [bold]time:[/bold]<HH:MM>  [bold]due:[/bold]<date>  [bold]repeat:[/bold]<daily|weekly|monthly|yearly>")
     console.print("    [dim]Double duty tags:[/dim] [bold]@tag[/bold] files the entry and drops the word; [bold]@@tag[/bold] keeps the word in the sentence and tags it — [bold]bt j lunch with @@Elham[/bold] → \"lunch with Elham\" [dim]@elham[/dim]")
-    console.print("    [dim]Tip:[/dim] dates are [bold]today[/bold], [bold]friday[/bold], [bold]jan-23[/bold], [bold]01-23[/bold] or [bold]2026-01-23[/bold]; all but full ISO resolve forward, so use ISO for a past date. Times are [bold]HH:MM[/bold] (24h) or [bold]HH:MMam/pm[/bold]")
+    console.print("    [dim]Dates:[/dim] [bold]today[/bold] · [bold]tomorrow[/bold] · [bold]friday[/bold]/[bold]fri[/bold] · [bold]jan-23[/bold] · [bold]01-23[/bold] · [bold]2026-01-23[/bold]  [dim]— hyphens only; all but full ISO resolve forward, so use ISO for a past date[/dim]")
+    console.print("    [dim]Times:[/dim] [bold]14:30[/bold] · [bold]9:00[/bold] · [bold]2:20pm[/bold] · [bold]9:00AM[/bold]  [dim]— HH:MM, 24-hour unless am/pm; minutes always required[/dim]")
 
     # --- Views ---
     t = Table(title="Views — same letters, no text = view", title_style="bold cyan",
