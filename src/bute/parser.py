@@ -28,11 +28,10 @@ MONTH_ABBR = {
     "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
 }
 
-MONTH_DAY_RE = re.compile(
-    r"^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[- ]?(\d{1,2})$",
-    re.IGNORECASE,
-)
-NEXT_DAY_RE = re.compile(r"^next[- .]?([a-z]+)$", re.IGNORECASE)
+_MONTHS = "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec"
+# The hyphen is the only date separator: jan-23, 01-23, 2026-01-23.
+MONTH_DAY_RE = re.compile(rf"^({_MONTHS})-(\d{{1,2}})$", re.IGNORECASE)
+MONTH_NUM_RE = re.compile(r"^(\d{1,2})-(\d{1,2})$")
 
 # Short metadata keys removed in favour of full words — one spelling per
 # concept, matching the frontmatter key each one writes. Kept here so a user
@@ -49,9 +48,11 @@ DAY_ABBR = {
     "fri": "friday", "sat": "saturday", "sun": "sunday",
 }
 
-DATE_ALIASES = {
-    "tom": "tomorrow", "tmr": "tomorrow", "tmrw": "tomorrow",
+# Spellings that were accepted once and now point at their replacement, so a
+# typed habit fails loudly instead of resolving to something else or nothing.
+RETIRED_DATE_WORDS = {
     "tod": "today",
+    "tom": "tomorrow", "tmr": "tomorrow", "tmrw": "tomorrow",
 }
 
 
@@ -142,46 +143,65 @@ def parse_capture_tokens(tokens: tuple[str, ...] | list[str]) -> ParsedInput:
     )
 
 
+TIME_RE = re.compile(r"^(\d{1,2}):(\d{2})\s*(am|pm)?$", re.IGNORECASE)
+
+
+def _time_hint(raw: str) -> str:
+    """Build an error that names the replacement for a retired time spelling."""
+    low = raw.strip().lower()
+    bare = re.match(r"^(\d{1,2})$", low)
+    if bare:
+        return f"Invalid time: {raw}. Minutes are required — use {bare.group(1)}:00."
+    bare_suffix = re.match(r"^(\d{1,2})\s*(am|pm)$", low)
+    if bare_suffix:
+        h, period = bare_suffix.groups()
+        return f"Invalid time: {raw}. Minutes are required — use {h}:00{period}."
+    dot = re.match(r"^(\d{1,2})\.(\d{2})\s*(am|pm)?$", low)
+    if dot:
+        h, m, period = dot.group(1), dot.group(2), dot.group(3) or ""
+        return f"Invalid time: {raw}. Use ':' not '.' — {h}:{m}{period}."
+    four = re.match(r"^(\d{2})(\d{2})$", low)
+    if four:
+        return f"Invalid time: {raw}. Use HH:MM — {four.group(1)}:{four.group(2)}."
+    return f"Invalid time: {raw}. Use HH:MM (24-hour), or HH:MM with am/pm."
+
+
 def resolve_time(value: str) -> str:
-    """Resolve time input to normalized HH:MM 24h format.
+    """Resolve a time to the stored HH:MM 24-hour form.
 
-    Supports:
-    - H or HH (hour only): "9" → "09:00", "14" → "14:00"
-    - H.MM or HH.MM (dot separator): "9.30" → "09:30", "14.15" → "14:15"
-    - am/pm: "3pm" → "15:00", "2.20pm" → "14:20"
+    HH:MM is read as 24-hour unless an am/pm suffix is given, and minutes are
+    always required:
+
+        "14:30" → "14:30"    "9:00" → "09:00"
+        "9:00pm" → "21:00"   "2:20PM" → "14:20"
+
+    Input is case-insensitive. The hour must be 0-23 without a suffix and 1-12
+    with one, so "13:00pm" is an error rather than a guess.
     """
-    value = value.strip().lower()
+    raw = value.strip()
+    match = TIME_RE.match(raw)
+    if not match:
+        raise ValueError(_time_hint(raw))
 
-    # Dot separator: H.MM or HH.MM
-    dot_match = re.match(r"^(\d{1,2})\.(\d{2})$", value)
-    if dot_match:
-        h, m = int(dot_match.group(1)), int(dot_match.group(2))
-        if h > 23 or m > 59:
-            raise ValueError(f"Invalid time: {value}")
-        return f"{h:02d}:{m:02d}"
+    hour, minute = int(match.group(1)), int(match.group(2))
+    period = (match.group(3) or "").lower()
 
-    # Hour only: "9", "14"
-    if re.match(r"^\d{1,2}$", value) and int(value) < 24:
-        return f"{int(value):02d}:00"
+    if minute > 59:
+        raise ValueError(f"Invalid time: {raw}. Minutes must be 00-59.")
 
-    # "3pm", "3:30pm", "2.20pm", "11am", "12:30am"
-    ampm = re.match(r"^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)$", value)
-    if ampm:
-        h = int(ampm.group(1))
-        m = int(ampm.group(2) or 0)
-        period = ampm.group(3)
-        if h < 1 or h > 12:
-            raise ValueError(f"Invalid time: {value}")
-        if m > 59:
-            raise ValueError(f"Invalid time: {value}")
-        if period == "pm" and h != 12:
-            h += 12
-        elif period == "am" and h == 12:
-            h = 0
-        return f"{h:02d}:{m:02d}"
+    if period:
+        if not 1 <= hour <= 12:
+            raise ValueError(
+                f"Invalid time: {raw}. With {period}, the hour must be 1-12."
+            )
+        if period == "pm" and hour != 12:
+            hour += 12
+        elif period == "am" and hour == 12:
+            hour = 0
+    elif hour > 23:
+        raise ValueError(f"Invalid time: {raw}. Hours must be 00-23.")
 
-    # No format matched — input is invalid
-    raise ValueError(f"Invalid time: {value}")
+    return f"{hour:02d}:{minute:02d}"
 
 
 def format_time_display(time_24: str) -> str:
@@ -199,90 +219,97 @@ def format_time_display(time_24: str) -> str:
         return time_24
 
 
-def resolve_date(value: str, reference: date | None = None) -> date:
-    """Resolve a date string to a date object.
+def _next_occurrence(ref: date, month: int, day: int, raw: str) -> date:
+    """The next month/day on or after ref, rolling into next year if it's past."""
+    for year in (ref.year, ref.year + 1):
+        try:
+            candidate = date(year, month, day)
+        except ValueError:
+            raise ValueError(f"Invalid date: {raw}. No such day.")
+        if candidate >= ref:
+            return candidate
+    raise ValueError(f"Invalid date: {raw}.")
 
-    Supports:
-    - MM.DD (dot separator): "01.03" → Jan 3, "12.25" → Dec 25
-    - "today", "tomorrow"
-    - Day names: "monday", "friday"
-    - Month+day: "mar3", "jan15"
-    - ISO format: "2026-03-29"
+
+def _date_hint(raw: str) -> str:
+    """Build an error that names the replacement for a retired date spelling."""
+    low = raw.strip().lower()
+    if low in RETIRED_DATE_WORDS:
+        return f"Invalid date: {raw}. Use '{RETIRED_DATE_WORDS[low]}'."
+    if re.match(r"^next[- .]?[a-z]+$", low):
+        return (
+            f"Invalid date: {raw}. 'next-<day>' was removed because English "
+            "disagrees about what it means — use a weekday, jan-23, or 2026-01-23."
+        )
+    dot = re.match(r"^(\d{1,2})\.(\d{1,2})$", low)
+    if dot:
+        m, d = int(dot.group(1)), int(dot.group(2))
+        return f"Invalid date: {raw}. Use '-' not '.' — {m:02d}-{d:02d}."
+    slash = re.match(r"^(\d{1,2})/(\d{1,2})$", low)
+    if slash:
+        m, d = int(slash.group(1)), int(slash.group(2))
+        return f"Invalid date: {raw}. Use '-' not '/' — {m:02d}-{d:02d}."
+    four = re.match(r"^(\d{2})(\d{2})$", low)
+    if four:
+        return f"Invalid date: {raw}. Use MM-DD — {four.group(1)}-{four.group(2)}."
+    glued = re.match(rf"^({_MONTHS})[ ]?(\d{{1,2}})$", low)
+    if glued:
+        return (
+            f"Invalid date: {raw}. The hyphen is required — "
+            f"use {glued.group(1)}-{int(glued.group(2)):02d}."
+        )
+    return (
+        f"Invalid date: {raw}. Use today, tomorrow, a weekday, "
+        "jan-23, 01-23, or 2026-01-23."
+    )
+
+
+def resolve_date(value: str, reference: date | None = None) -> date:
+    """Resolve a date string to a date.
+
+    Four forms, all case-insensitive, with the hyphen as the only separator:
+
+        today, tomorrow                relative words
+        friday / fri                   the next such weekday
+        jan-23  /  01-23               the next such month/day, rolling a year
+        2026-01-23                     full ISO — exact, never rolls
+
+    Everything but full ISO resolves forward, so a month/day that has already
+    passed this year means next year's. Use ISO to name a date in the past.
     """
     ref = reference or date.today()
-    low = value.lower().strip()
-
-    # Expand aliases and abbreviations
-    if low in DATE_ALIASES:
-        low = DATE_ALIASES[low]
-    if low in DAY_ABBR:
-        low = DAY_ABBR[low]
-
-    # Dot separator: MM.DD
-    dot_match = re.match(r"^(\d{1,2})\.(\d{1,2})$", low)
-    if dot_match:
-        month, day = int(dot_match.group(1)), int(dot_match.group(2))
-        try:
-            candidate = date(ref.year, month, day)
-        except ValueError:
-            raise ValueError(f"Invalid date: {value}")
-        if candidate < ref:
-            try:
-                candidate = date(ref.year + 1, month, day)
-            except ValueError:
-                raise ValueError(f"Invalid date: {value}")
-        return candidate
+    low = value.strip().lower()
 
     if low == "today":
         return ref
-
     if low == "tomorrow":
         return ref + timedelta(days=1)
 
-    # Day of week
-    if low in DAY_NAMES:
-        target = DAY_NAMES.index(low)
-        current = ref.weekday()
-        delta = (target - current) % 7
-        if delta == 0:
-            delta = 7  # next week's occurrence
-        return ref + timedelta(days=delta)
+    # Weekday, full or three-letter — always the *next* such day, never today
+    day_name = DAY_ABBR.get(low, low)
+    if day_name in DAY_NAMES:
+        delta = (DAY_NAMES.index(day_name) - ref.weekday()) % 7
+        return ref + timedelta(days=delta or 7)
 
-    # "next <day>" — the <day> in the week after the upcoming one
-    next_match = NEXT_DAY_RE.match(low)
-    if next_match:
-        day_part = next_match.group(1).lower()
-        if day_part in DAY_ABBR:
-            day_part = DAY_ABBR[day_part]
-        if day_part in DAY_NAMES:
-            target = DAY_NAMES.index(day_part)
-            current = ref.weekday()
-            delta = (target - current) % 7
-            if delta == 0:
-                delta = 7
-            return ref + timedelta(days=delta + 7)
-
-    # Month+day: "mar29", "mar-29", "mar 29"
+    # jan-23
     month_match = MONTH_DAY_RE.match(low)
     if month_match:
         month = MONTH_ABBR[month_match.group(1).lower()]
-        day = int(month_match.group(2))
-        try:
-            candidate = date(ref.year, month, day)
-        except ValueError:
-            raise ValueError(f"Invalid date: {value}")
-        if candidate < ref:
-            try:
-                candidate = date(ref.year + 1, month, day)
-            except ValueError:
-                raise ValueError(f"Invalid date: {value}")
-        return candidate
+        return _next_occurrence(ref, month, int(month_match.group(2)), value)
 
-    # ISO format fallback
+    # 01-23 — the ISO tail, same month-day order as full ISO
+    num_match = MONTH_NUM_RE.match(low)
+    if num_match:
+        month, day = int(num_match.group(1)), int(num_match.group(2))
+        if not 1 <= month <= 12:
+            raise ValueError(f"Invalid date: {value}. Month must be 01-12.")
+        return _next_occurrence(ref, month, day, value)
+
+    # Full ISO
     try:
-        return date.fromisoformat(value)
+        return date.fromisoformat(low)
     except ValueError:
-        raise ValueError(f"Invalid date: {value}")
+        raise ValueError(_date_hint(value))
 
 
 def resolve_repeat(value: str) -> str:

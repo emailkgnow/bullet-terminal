@@ -283,7 +283,7 @@ def _print_help():
     t.add_row("[cyan]bt t -b|--backlog[/cyan] <text>", "Backlog task (no focus tags)", "bt t --backlog someday idea")
     t.add_row("[yellow]bt n[/yellow] <text>", "Note / idea", "bt n OAuth2 tokens expire in 30 days")
     t.add_row("[magenta]bt j[/magenta] <text>", "Journal", "bt j rough morning, couldn't focus")
-    t.add_row("[green]bt c[/green] <text>", "Calendar event", "bt c standup time:9")
+    t.add_row("[green]bt c[/green] <text>", "Calendar event", "bt c standup time:9:00")
     t.add_row("[cyan]bt t[/cyan] <text> [bold]repeat:[/bold]<freq>", "Recurring task (habit)", "bt t meditate repeat:daily")
     t.add_row("bt t/n/j/c open", "Open $EDITOR for long-form capture", "bt j open")
     console.print()
@@ -292,7 +292,7 @@ def _print_help():
     console.print("    [dim]Also:[/dim] bt task, bt note, bt journal, bt calendar")
     console.print("    [dim]Modifiers:[/dim] [bold red]![/bold red] important  [bold]@tag[/bold]  [bold]@@tag[/bold]  [bold]date:[/bold]<date>  [bold]time:[/bold]<time>  [bold]due:[/bold]<deadline>  [bold]repeat:[/bold]<daily|weekly|monthly|yearly>")
     console.print("    [dim]Double duty tags:[/dim] [bold]@tag[/bold] files the entry and drops the word; [bold]@@tag[/bold] keeps the word in the sentence and tags it — [bold]bt j lunch with @@Elham[/bold] → \"lunch with Elham\" [dim]@elham[/dim]")
-    console.print("    [dim]Tip:[/dim] dates like [bold]date:4.7[/bold], [bold]date:friday[/bold], [bold]date:next-friday[/bold] auto-resolve to the future. For past dates, use ISO: [bold]date:2026-03-15[/bold]")
+    console.print("    [dim]Tip:[/dim] dates are [bold]today[/bold], [bold]friday[/bold], [bold]jan-23[/bold], [bold]01-23[/bold] or [bold]2026-01-23[/bold]; all but full ISO resolve forward, so use ISO for a past date. Times are [bold]HH:MM[/bold] (24h) or [bold]HH:MMam/pm[/bold]")
 
     # --- Views ---
     t = Table(title="Views — same letters, no text = view", title_style="bold cyan",
@@ -340,7 +340,7 @@ def _print_help():
     t.add_row("bt <n> @tag", "Add a tag", "bt 1-3 @backend")
     t.add_row("bt <n> due:<date>", "Set due date", "bt 1 due:friday")
     t.add_row("bt <n> date:<date>", "Set scheduled date", "bt 1 date:tomorrow")
-    t.add_row("bt <n> time:<time>", "Set time", "bt 1 time:14.30")
+    t.add_row("bt <n> time:<time>", "Set time", "bt 1 time:14:30")
     t.add_row("bt <n> repeat:<freq>", "Set recurrence", "bt 1 repeat:weekly")
     t.add_row("bt <n> clear <field>", "Remove @tag ! due date time repeat", "bt 1 clear @backend")
     t.add_row("bt <n> delete", "Move to trash (bt trash to see, restore to recover)", "bt 1 delete")

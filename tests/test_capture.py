@@ -39,7 +39,7 @@ def test_capture_journal(runner, tmp_config, tmp_data):
 
 
 def test_capture_calendar(runner, tmp_config, tmp_data):
-    result = runner.invoke(main, ["/c", "meeting", "time:2pm"])
+    result = runner.invoke(main, ["/c", "meeting", "time:2:00pm"])
     assert result.exit_code == 0
     entries = list(tmp_data.rglob("*.md"))
     content = entries[0].read_text()
@@ -68,8 +68,8 @@ def test_capture_multiple_tags(runner, tmp_config, tmp_data):
 
 
 def test_capture_due_time_sets_today(runner, tmp_config, tmp_data):
-    """due:3pm should set due=today and time=15:00."""
-    result = runner.invoke(main, ["/t!", "take", "ozempic", "due:3pm"])
+    """due:3:00pm should set due=today and time=15:00."""
+    result = runner.invoke(main, ["/t!", "take", "ozempic", "due:3:00pm"])
     assert result.exit_code == 0
     entries = list(tmp_data.rglob("*.md"))
     content = entries[0].read_text()

@@ -93,22 +93,22 @@ There is no built-in LLM. `bt chat` was removed in favor of BYOAI — the README
 bt t call dentist due:friday @backend    # single letter
 bt task call dentist due:friday @backend # full word
 bt t! fix prod bug                       # important modifier
-bt c dentist time:14.30 date:3.30        # calendar: Mar 30 at 2:30 PM
-bt c meeting time:9                      # calendar: today at 9:00 AM
-bt c conference date:4.15                # calendar: Apr 15, all day
-bt n check OAuth docs date:4.10          # note: resurfaces in Focus Log Apr 10
+bt c dentist time:14:30 date:03-30       # calendar: Mar 30 at 2:30 PM
+bt c meeting time:9:00                   # calendar: today at 9:00 AM
+bt c conference date:apr-15              # calendar: Apr 15, all day
+bt n check OAuth docs date:04-10         # note: resurfaces in Focus Log Apr 10
 bt t meditate repeat:daily               # recurring task (habit)
 bt j lunch with @@Elham                  # double duty tag: body keeps "Elham", tags @elham
 ```
 
 **Date/time metadata:**
 Four keys, one spelling each — the typed word *is* the frontmatter key it writes.
-- `date:` — scheduled / resurface date. Formats: `date:4.7` (MM.DD), `date:today`, `date:tomorrow`, `date:friday`, `date:next-friday` (week after the upcoming Friday), `date:mar15`, `date:2026-11-03` (ISO).
-- `time:` — Formats: `time:9` (9:00), `time:14.15` (2:15 PM), `time:3pm`, `time:2.20pm`.
-- `due:` — deadline for tasks (same date formats as `date:`)
+- `date:` — scheduled / resurface date. Five forms, hyphen-separated, case-insensitive: `today`, `tomorrow`, a weekday (`friday`/`fri`), `jan-23`, `01-23`, `2026-01-23`.
+- `time:` — `HH:MM`, read as 24-hour unless an `am`/`pm` suffix is given. Minutes are always required: `time:9:00`, `time:14:30`, `time:2:20pm`.
+- `due:` — deadline for tasks (same date forms as `date:`)
 - `repeat:` — `daily` | `weekly` | `monthly` | `yearly`; anything else is rejected at capture.
 
-Everything except ISO resolves *forward*: `date:4.7` typed in September means next April. Use ISO for a past date.
+Everything except full ISO resolves *forward*: `01-23` typed in September means next January. Use full ISO for a past date.
 
 **Views** — signifier alone, or named commands:
 ```
@@ -200,9 +200,10 @@ bt completion     # print the shell line that enables @tag tab completion
 - **Display**: `bt t` and notes/journals/calendar = grouped by date with a Date column (`display_entry_list_grouped`, keyed on `scheduled_date` else `created`); the curated task views `bt w` and `bt b` stay flat lists, since a short list needs no date spine.
 - **Scheduling is universal** — `date:` (scheduled_date) works on all entry types. Tasks: deadline. Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
 - **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.
-- **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Input: `time:9`, `time:14.30`, `time:3pm`. `HH:MM` is the *stored* form and is deliberately not input — `storage._normalize_time` parses it directly rather than through `resolve_time`, falling back to the input grammar only for BYOAI files.
-- **Date format**: input: `date:4.7`, `date:mar15`, `date:tomorrow`, `date:friday`, ISO. All but ISO resolve forward.
-- **One spelling per key** — `d:`/`t:`/`r:` and the legacy numeric formats (`0407`, `3/29`, `1430`, `14:30`) were removed together. Rationale: on 161 real tasks only 6 carried any date metadata (the dp/wp/Focus Log flow does the prioritising), and 72% of all usage was on calendar entries, so the full words cost ~137 keystrokes across 25 weeks of real use. Typing a removed key raises a pointer to its replacement (`parser.REMOVED_META_KEYS`) rather than silently landing in `extra_meta` or being misread as a tag.
+- **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Input is `HH:MM`, 24-hour unless suffixed `am`/`pm`; minutes are always required, so `time:9` is an error pointing at `time:9:00`. There is exactly one way to write any given time.
+- **Date format**: five forms — `today`, `tomorrow`, weekday, `jan-23`, `01-23`, `2026-01-23`. The hyphen is the only separator and the dot is not a date character at all, which is what keeps `01-23` from colliding with a time. `01-23` is full ISO with the year dropped, so the month-day order is ISO's, not an American convention.
+- **Reading is looser than typing** — `storage._normalize_time` does *not* call `resolve_time`. The input grammar is opinionated and has changed twice; files on disk are forever. It reads the canonical `'HH:MM'`, the retired spellings (`3pm`, `14.30`, `1430`), and the integer YAML produces from an *unquoted* `time: 14:30` (sexagesimal, 870). Anything unreadable returns `None` instead of raising, so one bad field can't hide an entry from every view.
+- **One spelling per key, one spelling per value** — `d:`/`t:`/`r:` and the legacy numeric formats (`0407`, `3/29`, `1430`) went first; then the value grammar itself was cut to one form each (dot dates, `next-<day>`, glued `jan15`, bare hours, dot times, and the `tod`/`tom`/`tmr`/`tmrw` aliases). Rationale: on 161 real tasks only 6 carried any date metadata (the dp/wp/Focus Log flow does the prioritising), and 72% of all usage was on calendar entries, so the full words cost ~137 keystrokes across 25 weeks of real use. Typing a removed key raises a pointer to its replacement (`parser.REMOVED_META_KEYS`) rather than silently landing in `extra_meta` or being misread as a tag.
 - **API key**: resolved from config value, `keychain:<service>`, or auto-lookup in macOS Keychain.
 - **No built-in AI** — `bt chat` and the LLM layer were removed in favor of "bring your own AI." External agents (Claude Desktop + filesystem MCP, Claude Code, scripts) read/write `.md` files directly in `~/bullet-terminal/entries/`. bt's README is the schema contract; `db.reconcile_index()` picks up external writes on the next read. Local semantic search via `bt like` stays — it uses fastembed + sqlite-vec, no network.
 

@@ -114,7 +114,7 @@ tags:                                          # optional, list of strings
 - backend
 due: '2026-04-10'                              # optional, tasks only, ISO date
 date: '2026-04-05'                             # optional, any type — resurface date
-time: '14:30'                                  # optional, HH:MM 24h format
+time: '14:30'                                  # optional, HH:MM 24h (always 24h on disk)
 repeat: daily                                  # optional: daily|weekly|monthly|yearly
 priority: high                                 # optional, any extra key is kept as-is
 _gcal_id: uid:2026-04-05                       # keys starting with _ are private:

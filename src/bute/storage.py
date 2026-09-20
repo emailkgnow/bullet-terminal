@@ -1,7 +1,7 @@
 """Markdown file I/O for bt entries."""
 
 import re
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 
 import frontmatter
@@ -195,25 +195,62 @@ def entry_path_from_id(entry_id: str, config=None) -> Path | None:
     return None
 
 
-def _normalize_time(value) -> str | None:
-    """Normalize a stored time to HH:MM.
+_READ_TIME_RE = re.compile(r"^(\d{1,2})[:.]?(\d{2})\s*(am|pm)?$", re.IGNORECASE)
+_READ_HOUR_RE = re.compile(r"^(\d{1,2})\s*(am|pm)?$", re.IGNORECASE)
 
-    The canonical stored form is HH:MM, which is deliberately *not* part of the
-    CLI input grammar — so it is parsed here directly rather than through
-    resolve_time(). Anything else falls back to the input grammar, which is how
-    a file hand-written by an external agent (BYOAI) with ``time: 3pm`` still
-    loads.
+
+def _normalize_time(value) -> str | None:
+    """Read a stored time into the canonical HH:MM, tolerantly.
+
+    Reading is deliberately looser than the CLI input grammar and does not
+    call resolve_time(): the input grammar is opinionated and changes, while
+    files on disk are forever, and a file must never become unreadable because
+    the CLI tightened. bt always writes a quoted ``'HH:MM'``; everything else
+    here exists for files written by hand or by an external agent (BYOAI).
+
+    Two cases are worth naming:
+      - an *unquoted* ``time: 14:30`` is sexagesimal in YAML 1.1, so it
+        arrives as the integer 870 and is converted back;
+      - retired input spellings (``3pm``, ``14.30``, ``1430``) still read.
+
+    Anything unrecognisable returns None rather than raising, so one bad field
+    cannot hide the whole entry from every view.
     """
     if value is None:
         return None
+
+    # YAML sexagesimal: unquoted "14:30" parses as 14*60+30
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        if 0 <= value < 24 * 60:
+            return f"{value // 60:02d}:{value % 60:02d}"
+        return None
+    if isinstance(value, time):
+        return f"{value.hour:02d}:{value.minute:02d}"
+
     raw = str(value).strip()
-    stored = re.match(r"^(\d{1,2}):(\d{2})$", raw)
-    if stored:
-        h, m = int(stored.group(1)), int(stored.group(2))
-        if h < 24 and m < 60:
-            return f"{h:02d}:{m:02d}"
-    from bute.parser import resolve_time
-    return resolve_time(raw)
+    match = _READ_TIME_RE.match(raw) or _READ_HOUR_RE.match(raw)
+    if not match:
+        return None
+
+    groups = match.groups()
+    hour = int(groups[0])
+    minute = int(groups[1]) if len(groups) == 3 and groups[1] else 0
+    period = (groups[-1] or "").lower()
+
+    if minute > 59:
+        return None
+    if period:
+        if not 1 <= hour <= 12:
+            return None
+        if period == "pm" and hour != 12:
+            hour += 12
+        elif period == "am" and hour == 12:
+            hour = 0
+    elif hour > 23:
+        return None
+    return f"{hour:02d}:{minute:02d}"
 
 
 def _parse_status(value) -> TaskStatus | None:

@@ -207,21 +207,43 @@ Four keys, one spelling each — the word you type is the frontmatter key it wri
 |---|---|---|---|
 | `due:` | `due` | tasks | a date (below) |
 | `date:` | `date` | all types | a date (below) |
-| `time:` | `time` | all types | `9`, `14.30`, `3pm`, `2.20pm` |
+| `time:` | `time` | all types | `HH:MM`, optionally with `am`/`pm` |
 | `repeat:` | `repeat` | tasks | `daily` \| `weekly` \| `monthly` \| `yearly` |
 
-Dates accept `today`, `tomorrow`, a weekday (`friday`), `next-friday`, month.day
-(`12.25`), month name + day (`mar15`), or ISO (`2026-11-03`). Everything except
-ISO resolves *forward* — `date:4.7` typed in September means next April, never
-the one just past. Use ISO when you mean a date in the past.
+**Dates** — the hyphen is the only separator, and everything is case-insensitive:
+
+| Form | Example | Means |
+|---|---|---|
+| relative word | `today`, `tomorrow` | today / tomorrow |
+| weekday | `friday`, `fri` | the *next* Friday, never today |
+| month + day | `jan-23` | the next 23 January |
+| ISO tail | `01-23` | same thing, written as ISO without the year |
+| full ISO | `2026-01-23` | exactly that date |
+
+All but full ISO resolve **forward**: `01-23` typed in September means next
+January, never the one just past. Use full ISO for a date in the past.
+
+**Times** — `HH:MM`, read as 24-hour unless you add a suffix. Minutes are
+always required, so there is exactly one way to write any given time:
+
+```
+time:09:00   → 09:00      time:14:30   → 14:30
+time:9:00am  → 09:00      time:2:20pm  → 14:20
+```
 
 ```bash
 bt t file taxes due:friday
-bt c dentist date:12.25 time:14.30
+bt c dentist date:12-25 time:14:30
 bt t meditate repeat:daily
-bt 1 date:tomorrow time:9      # set on an existing entry
-bt 1 clear time                # remove it
+bt 1 date:tomorrow time:9:00     # set on an existing entry
+bt 1 clear time                  # remove it
 ```
+
+Reading is deliberately looser than typing. bt writes a quoted `'HH:MM'`, but
+a file you or an agent writes by hand may use `3pm`, `14.30` or `1430` and
+will still load — including an *unquoted* `time: 14:30`, which YAML turns into
+the integer `870`. A time bt cannot read at all is dropped rather than raised,
+so one bad field never hides the entry.
 
 ## Commands
 
