@@ -163,6 +163,11 @@ def important_cmd(ctx, entry_type, scope_week, scope_backlog, show_all):
     """Show important entries. Optional type filter (task, note, journal, calendar)."""
     config = ctx.obj.get("config")
 
+    if scope_week and scope_backlog:
+        console.print("  [red]Pick one scope: -w (this week) or -b (backlog).[/red]")
+        ctx.exit(1)
+        return
+
     type_map = {
         "task": EntryType.TASK, "t": EntryType.TASK,
         "note": EntryType.NOTE, "n": EntryType.NOTE,

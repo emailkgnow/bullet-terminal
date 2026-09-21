@@ -407,3 +407,9 @@ def test_important_non_task_types_ignore_scope(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["n!"])
     assert result.exit_code == 0, result.output
     assert "big idea" in result.output
+
+
+def test_important_task_scopes_are_exclusive(runner, tmp_config, tmp_data):
+    result = runner.invoke(main, ["t!", "-w", "-b"])
+    assert result.exit_code != 0
+    assert "one scope" in result.output.lower()
