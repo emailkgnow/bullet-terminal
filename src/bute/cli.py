@@ -138,7 +138,9 @@ class DwnGroup(click.Group):
                 if cmd is not None:
                     view_args = [stripped]
                     for r in rest:
-                        if r in VIEW_FLAGS:
+                        if r.startswith("@"):
+                            view_args.append(r[1:])
+                        elif r in VIEW_FLAGS:
                             view_args.append(r)
                     return "important", cmd, view_args
 

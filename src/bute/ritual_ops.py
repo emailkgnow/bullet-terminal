@@ -230,8 +230,9 @@ def get_weekly_active_tasks(config=None, fallback: bool = True) -> list[Entry]:
 
     With `fallback` (the default), an unplanned week yields all active tasks.
     That is what `bt dp` wants — an empty weekly selection should still offer
-    the backlog to pick from. `bt w` passes `fallback=False`, because a view
-    that quietly turns into `bt b` is indistinguishable from `bt b`.
+    the backlog to pick from. `_week_scope` (`bt t -w`) passes `fallback=False`,
+    because a view that quietly turns into `bt t -b` is indistinguishable from
+    `bt t -b`.
     """
     from bute.storage import query_and_load
     weekly = query_and_load(

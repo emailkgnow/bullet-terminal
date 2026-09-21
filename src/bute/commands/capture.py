@@ -31,6 +31,10 @@ from bute.storage import load_entry, save_entry
 @click.pass_context
 def capture_cmd(ctx, week_only, backlog, tokens):
     """Capture a new entry."""
+    if week_only and backlog:
+        click.echo("Pick one scope: -w (this week) or -b (backlog).")
+        ctx.exit(1)
+        return
     # -a is a view filter, not a capture scope. ignore_unknown_options would
     # otherwise write it into the body. Only reject it in flag position —
     # immediately after the signifier — so a body that merely contains the

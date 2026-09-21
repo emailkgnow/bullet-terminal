@@ -202,6 +202,15 @@ def test_capture_bare_sets_both(runner, tmp_config, tmp_data):
     assert entry.week_date is not None
 
 
+def test_capture_scopes_are_exclusive(runner, tmp_config, tmp_data):
+    from bute.storage import query_and_load
+
+    result = runner.invoke(main, ["t", "-w", "-b", "interaction"])
+    assert result.exit_code != 0
+    assert "one scope" in result.output.lower()
+    assert query_and_load(type="task") == []
+
+
 def test_capture_rejects_all_flag(runner, tmp_config, tmp_data):
     from bute.storage import query_and_load
 

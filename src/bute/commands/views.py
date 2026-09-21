@@ -53,15 +53,11 @@ def _dimension_command(name, entry_type, label, group_by_date=False):
         kwargs = {"type": entry_type.value}
         if tag:
             kwargs["tag"] = tag
-        if not show_all and entry_type == EntryType.TASK:
-            kwargs["status"] = "active"
         entries = query_and_load(config, **kwargs)
 
         title_parts = [label]
         if tag:
             title_parts.append(f"@{tag}")
-        if show_all and entry_type == EntryType.TASK:
-            title_parts[0] = f"All {label}"
         title = " ".join(title_parts)
 
         if group_by_date:
@@ -155,11 +151,12 @@ calendar_cmd = _dimension_command("calendar", EntryType.CALENDAR, "Calendar", gr
 
 @click.command("important", hidden=True)
 @click.argument("entry_type", required=False, default=None)
+@click.argument("tag", required=False, default=None, shell_complete=complete_tags)
 @click.option("--week", "-w", "scope_week", is_flag=True, help="This week's tasks.")
 @click.option("--backlog", "-b", "scope_backlog", is_flag=True, help="All active tasks.")
 @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
 @click.pass_context
-def important_cmd(ctx, entry_type, scope_week, scope_backlog, show_all):
+def important_cmd(ctx, entry_type, tag, scope_week, scope_backlog, show_all):
     """Show important entries. Optional type filter (task, note, journal, calendar)."""
     config = ctx.obj.get("config")
 
@@ -167,6 +164,9 @@ def important_cmd(ctx, entry_type, scope_week, scope_backlog, show_all):
         console.print("  [red]Pick one scope: -w (this week) or -b (backlog).[/red]")
         ctx.exit(1)
         return
+
+    if tag and tag.startswith("@"):
+        tag = tag[1:]
 
     type_map = {
         "task": EntryType.TASK, "t": EntryType.TASK,
@@ -186,6 +186,9 @@ def important_cmd(ctx, entry_type, scope_week, scope_backlog, show_all):
             entries, scope_title, _ = _today_scope(config, show_all)
         entries = [e for e in entries if e.important]
         title = scope_title.replace("Tasks — ", "Important Tasks — ")
+        if tag:
+            entries = [e for e in entries if tag in e.tags]
+            title = f"{title} @{tag}"
         display_entry_list(entries, title)
         save_state("important", [e.id for e in entries], config)
         return
@@ -193,6 +196,8 @@ def important_cmd(ctx, entry_type, scope_week, scope_backlog, show_all):
     kwargs = {"important": True}
     if filter_type:
         kwargs["type"] = filter_type.value
+    if tag:
+        kwargs["tag"] = tag
     if not show_all:
         kwargs["exclude_status"] = "dropped"
     entries = query_and_load(config, **kwargs)
@@ -213,6 +218,8 @@ def important_cmd(ctx, entry_type, scope_week, scope_backlog, show_all):
         title = f"{'All ' if show_all else ''}Important {type_label}"
     else:
         title = f"{'All ' if show_all else ''}Important"
+    if tag:
+        title = f"{title} @{tag}"
 
     display_entry_list(entries, title)
     save_state("important", [e.id for e in entries], config)

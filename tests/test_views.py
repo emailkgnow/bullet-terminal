@@ -312,6 +312,23 @@ def test_tasks_backlog_all_is_every_task(runner, tmp_config, tmp_data):
     assert "Tasks — All" in result.output
 
 
+def test_task_scope_grouping_pins_date_column(runner, tmp_config, tmp_data):
+    """Only `bt t -b -a` groups by date; bt t / bt t -w / bt t -b stay flat lists."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "ordinary task"))
+
+    result = runner.invoke(main, ["t", "-b", "-a"])
+    assert result.exit_code == 0, result.output
+    assert "Date" in result.output
+
+    for args in (["t"], ["t", "-w"], ["t", "-b"]):
+        result = runner.invoke(main, args)
+        assert result.exit_code == 0, result.output
+        assert "Date" not in result.output
+
+
 def test_tasks_scopes_are_exclusive(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["t", "-w", "-b"])
     assert result.exit_code != 0
@@ -413,3 +430,31 @@ def test_important_task_scopes_are_exclusive(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["t!", "-w", "-b"])
     assert result.exit_code != 0
     assert "one scope" in result.output.lower()
+
+
+def test_important_task_backlog_scope_tag_filter(runner, tmp_config, tmp_data):
+    """bt t! -b @backend composes the important filter, the backlog scope, and the tag filter."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "urgent tagged", important=True, tags=["backend"]))
+    save_entry(Entry.create(EntryType.TASK, "urgent untagged", important=True))
+
+    result = runner.invoke(main, ["t!", "-b", "@backend"])
+    assert result.exit_code == 0, result.output
+    assert "urgent tagged" in result.output
+    assert "urgent untagged" not in result.output
+
+
+def test_important_non_task_tag_filter(runner, tmp_config, tmp_data):
+    """bt n! @idea filters important notes by tag too."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.NOTE, "big idea", important=True, tags=["idea"]))
+    save_entry(Entry.create(EntryType.NOTE, "other thought", important=True))
+
+    result = runner.invoke(main, ["n!", "@idea"])
+    assert result.exit_code == 0, result.output
+    assert "big idea" in result.output
+    assert "other thought" not in result.output
