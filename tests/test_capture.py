@@ -102,7 +102,7 @@ def test_capture_task_sets_focus_and_week_dates(runner, tmp_config, tmp_data):
     assert loaded.week_date == week_anchor()
 
 
-def test_capture_task_later_flag_sets_week_date_only(runner, tmp_config, tmp_data):
+def test_capture_old_l_flag_in_body_no_longer_special(runner, tmp_config, tmp_data):
     """The -l flag is gone; it's now written into the body text as part of normal capture."""
     from datetime import date
     from bute.storage import load_entry
@@ -209,6 +209,18 @@ def test_capture_rejects_all_flag(runner, tmp_config, tmp_data):
     assert result.exit_code != 0
     assert "-w" in result.output and "-b" in result.output
     assert query_and_load(type="task") == []
+
+
+def test_capture_preserves_a_word_in_body(runner, tmp_config, tmp_data):
+    """The -a rejection only fires when -a is in flag position (tokens[1]).
+    A note with -a as a body word must be captured verbatim."""
+    from bute.storage import query_and_load
+
+    result = runner.invoke(main, ["n", "grade", "-a", "paper"])
+    assert result.exit_code == 0, result.output
+    entry = query_and_load(type="note")[0]
+    # Body should preserve the "-a" word
+    assert "grade -a paper" in entry.body
 
 
 def test_later_flag_is_gone(runner, tmp_config, tmp_data):

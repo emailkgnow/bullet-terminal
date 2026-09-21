@@ -32,16 +32,16 @@ from bute.storage import load_entry, save_entry
 def capture_cmd(ctx, week_only, backlog, tokens):
     """Capture a new entry."""
     # -a is a view filter, not a capture scope. ignore_unknown_options would
-    # otherwise write it into the body — reject it the way removed metadata
-    # keys are rejected, with a pointer at the flag that was meant.
-    for tok in tokens[1:]:
-        if tok in ("-a", "--all"):
-            click.echo(
-                f"{tok} filters a view, it doesn't pick a capture scope. "
-                "Use -w for this week or -b for the backlog."
-            )
-            ctx.exit(1)
-            return
+    # otherwise write it into the body. Only reject it in flag position —
+    # immediately after the signifier — so a body that merely contains the
+    # word "-a" is still captured verbatim.
+    if len(tokens) > 1 and tokens[1] in ("-a", "--all"):
+        click.echo(
+            f"{tokens[1]} filters a view, it doesn't pick a capture scope. "
+            "Use -w for this week or -b for the backlog."
+        )
+        ctx.exit(1)
+        return
     # Interactive fallback: if only the signifier is given, prompt for text
     if len(tokens) == 1 and (SIGNIFIER_RE.match(tokens[0]) or WORD_SIGNIFIER_RE.match(tokens[0])):
         import questionary
