@@ -38,7 +38,7 @@ def test_tag_filter_empty(runner, tmp_config, populated_data):
 
 
 def test_tasks_writes_state(runner, tmp_config, populated_data):
-    runner.invoke(main, ["tasks", "-b"])
+    runner.invoke(main, ["t", "-b"])
     path = state_path()
     assert path.exists()
     state = json.loads(path.read_text())
@@ -58,7 +58,7 @@ def test_tasks_view_excludes_recurring(tmp_config, tmp_data, runner):
     recurring = Entry.create(entry_type=EntryType.TASK, body="meditate", repeat="daily")
     save_entry(recurring)
 
-    result = runner.invoke(main, ["tasks", "-b"])
+    result = runner.invoke(main, ["t", "-b"])
     assert "call dentist" in result.output
     assert "meditate" not in result.output
 
@@ -67,7 +67,7 @@ def test_list_view_shows_extra_meta(runner, tmp_config, tmp_data):
     from bute.models import Entry, EntryType
     from bute.storage import save_entry
     save_entry(Entry.create(EntryType.TASK, "call bank", extra_meta={"project": "alpha"}))
-    result = runner.invoke(main, ["tasks", "-b"])
+    result = runner.invoke(main, ["t", "-b"])
     assert result.exit_code == 0, result.output
     assert "project:alpha" in result.output
 
@@ -78,7 +78,7 @@ def test_list_view_safe_with_unmatched_rich_tag_in_extra_meta(runner, tmp_config
     from bute.storage import save_entry
     # Unmatched closing tag [/] would crash Rich table without escaping
     save_entry(Entry.create(EntryType.TASK, "call bank", extra_meta={"key": "[/]"}))
-    result = runner.invoke(main, ["tasks", "-b"])
+    result = runner.invoke(main, ["t", "-b"])
     assert result.exit_code == 0, result.output
     # Literal value should appear in output
     assert "key:[/]" in result.output
@@ -90,7 +90,7 @@ def test_list_view_renders_literal_text_with_styling_markup_in_extra_meta(runner
     from bute.storage import save_entry
     # [bold]x should render as literal text, not as bold x
     save_entry(Entry.create(EntryType.TASK, "call bank", extra_meta={"key": "[bold]x"}))
-    result = runner.invoke(main, ["tasks", "-b"])
+    result = runner.invoke(main, ["t", "-b"])
     assert result.exit_code == 0, result.output
     # Literal value should appear (without being consumed as markup)
     assert "key:[bold]x" in result.output
@@ -188,7 +188,7 @@ def _planned_week(*bodies_and_tags):
 
 def test_week_view_tag_filter(runner, tmp_config, tmp_data):
     _planned_week(("fix bug", ["backend"]), ("call dentist", []))
-    result = runner.invoke(main, ["tasks", "-w", "@backend"])
+    result = runner.invoke(main, ["t", "-w", "@backend"])
     assert result.exit_code == 0, result.output
     assert "fix bug" in result.output
     assert "call dentist" not in result.output
@@ -196,7 +196,7 @@ def test_week_view_tag_filter(runner, tmp_config, tmp_data):
 
 def test_week_writes_state(runner, tmp_config, tmp_data):
     _planned_week(("call dentist", []))
-    runner.invoke(main, ["tasks", "-w"])
+    runner.invoke(main, ["t", "-w"])
     state = json.loads(state_path().read_text())
     assert state["view"] == "week"
     assert len(state["entries"]) == 1
@@ -209,7 +209,7 @@ def test_week_view_does_not_fall_back_to_backlog(runner, tmp_config, tmp_data):
 
     save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
 
-    result = runner.invoke(main, ["tasks", "-w"])
+    result = runner.invoke(main, ["t", "-w"])
     assert result.exit_code == 0, result.output
     assert "someday maybe" not in result.output
 
@@ -223,7 +223,7 @@ def test_week_view_ignores_recurring_when_deciding_emptiness(runner, tmp_config,
     save_entry(Entry.create(EntryType.TASK, "exercise", repeat="daily", week_date=week_anchor()))
     save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
 
-    result = runner.invoke(main, ["tasks", "-w"])
+    result = runner.invoke(main, ["t", "-w"])
     assert result.exit_code == 0, result.output
     assert "someday maybe" not in result.output
     assert "exercise" not in result.output
@@ -235,7 +235,7 @@ def test_week_view_empty_points_at_wp(runner, tmp_config, tmp_data):
 
     save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
 
-    result = runner.invoke(main, ["tasks", "-w"])
+    result = runner.invoke(main, ["t", "-w"])
     assert "bt wp" in result.output
 
 
@@ -246,7 +246,7 @@ def test_week_view_empty_still_emits_json(runner, tmp_config, tmp_data):
 
     save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
 
-    result = runner.invoke(main, ["tasks", "-w", "--json"])
+    result = runner.invoke(main, ["t", "-w", "--json"])
     assert result.exit_code == 0, result.output
     data = _json.loads(result.output.strip().splitlines()[-1])
     assert data["entries"] == []
@@ -275,7 +275,7 @@ def test_tasks_week_scope(runner, tmp_config, tmp_data):
     save_entry(Entry.create(EntryType.TASK, "planned this week", week_date=week_anchor()))
     save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
 
-    result = runner.invoke(main, ["tasks", "-w"])
+    result = runner.invoke(main, ["t", "-w"])
     assert result.exit_code == 0, result.output
     assert "planned this week" in result.output
     assert "someday maybe" not in result.output
@@ -290,7 +290,7 @@ def test_tasks_backlog_scope(runner, tmp_config, tmp_data):
     done.status = TaskStatus.DONE
     save_entry(done)
 
-    result = runner.invoke(main, ["tasks", "-b"])
+    result = runner.invoke(main, ["t", "-b"])
     assert result.exit_code == 0, result.output
     assert "someday maybe" in result.output
     assert "already finished" not in result.output
@@ -305,7 +305,7 @@ def test_tasks_backlog_all_is_every_task(runner, tmp_config, tmp_data):
     done.status = TaskStatus.DONE
     save_entry(done)
 
-    result = runner.invoke(main, ["tasks", "-b", "-a"])
+    result = runner.invoke(main, ["t", "-b", "-a"])
     assert result.exit_code == 0, result.output
     assert "still open" in result.output
     assert "already finished" in result.output
@@ -313,7 +313,7 @@ def test_tasks_backlog_all_is_every_task(runner, tmp_config, tmp_data):
 
 
 def test_tasks_scopes_are_exclusive(runner, tmp_config, tmp_data):
-    result = runner.invoke(main, ["tasks", "-w", "-b"])
+    result = runner.invoke(main, ["t", "-w", "-b"])
     assert result.exit_code != 0
     assert "one scope" in result.output.lower()
 
@@ -325,7 +325,7 @@ def test_tasks_scope_excludes_recurring(runner, tmp_config, tmp_data):
     save_entry(Entry.create(EntryType.TASK, "meditate", repeat="daily"))
     save_entry(Entry.create(EntryType.TASK, "ordinary task"))
 
-    result = runner.invoke(main, ["tasks", "-b"])
+    result = runner.invoke(main, ["t", "-b"])
     assert "meditate" not in result.output
     assert "ordinary task" in result.output
 
@@ -337,7 +337,7 @@ def test_tasks_scope_tag_filter(runner, tmp_config, tmp_data):
     save_entry(Entry.create(EntryType.TASK, "tagged one", tags=["backend"]))
     save_entry(Entry.create(EntryType.TASK, "untagged one"))
 
-    result = runner.invoke(main, ["tasks", "-b", "@backend"])
+    result = runner.invoke(main, ["t", "-b", "@backend"])
     assert result.exit_code == 0, result.output
     assert "tagged one" in result.output
     assert "untagged one" not in result.output
@@ -352,8 +352,8 @@ def test_tasks_scopes_write_distinct_state(runner, tmp_config, tmp_data):
 
     for args, view in (
         (["t"], "tasks"),
-        (["tasks", "-w"], "week"),
-        (["tasks", "-b"], "backlog"),
+        (["t", "-w"], "week"),
+        (["t", "-b"], "backlog"),
     ):
         runner.invoke(main, args)
         state = _json.loads(state_path().read_text())

@@ -15,7 +15,7 @@ def _parse(output: str) -> dict:
 
 def test_backlog_json_flag_after_command(runner, tmp_config, tmp_data):
     save_entry(Entry.create(EntryType.TASK, "alpha", tags=["x"], due=date(2026, 9, 20)))
-    result = runner.invoke(main, ["b", "--json"])
+    result = runner.invoke(main, ["t", "-b", "--json"])
     assert result.exit_code == 0, result.output
     data = _parse(result.output)
     assert data["view"] == "Tasks — Backlog"
@@ -32,7 +32,7 @@ def test_backlog_json_flag_after_command(runner, tmp_config, tmp_data):
 
 def test_json_flag_before_command(runner, tmp_config, tmp_data):
     save_entry(Entry.create(EntryType.TASK, "alpha"))
-    result = runner.invoke(main, ["--json", "b"])
+    result = runner.invoke(main, ["--json", "t", "-b"])
     assert result.exit_code == 0, result.output
     assert _parse(result.output)["entries"][0]["body"] == "alpha"
 
@@ -42,7 +42,7 @@ def test_signifier_view_with_json_is_a_view_not_capture(runner, tmp_config, tmp_
     result = runner.invoke(main, ["t", "--json"])
     assert result.exit_code == 0, result.output
     data = _parse(result.output)
-    assert data["view"] == "Tasks — All"
+    assert data["view"] == "Tasks — Today"
     entries_dir = tmp_data / "entries"
     assert not entries_dir.exists() or list(entries_dir.rglob("*.md")) == []
 
@@ -50,7 +50,7 @@ def test_signifier_view_with_json_is_a_view_not_capture(runner, tmp_config, tmp_
 def test_json_numbers_match_state(runner, tmp_config, tmp_data):
     save_entry(Entry.create(EntryType.TASK, "plain"))
     save_entry(Entry.create(EntryType.TASK, "urgent", important=True))
-    result = runner.invoke(main, ["b", "--json"])
+    result = runner.invoke(main, ["t", "-b", "--json"])
     data = _parse(result.output)
     state = json.loads(state_path().read_text())
     assert [e["id"] for e in data["entries"]] == state["entries"]
@@ -67,7 +67,7 @@ def test_grouped_view_json(runner, tmp_config, tmp_data):
 
 
 def test_empty_view_json(runner, tmp_config, tmp_data):
-    result = runner.invoke(main, ["b", "--json"])
+    result = runner.invoke(main, ["t", "-b", "--json"])
     assert result.exit_code == 0, result.output
     assert _parse(result.output) == {"view": "Tasks — Backlog", "entries": []}
 
@@ -134,7 +134,7 @@ def test_extra_meta_is_raw_not_escaped_in_json(runner, tmp_config, tmp_data):
     """Task 6 wraps extra_meta in rich.markup.escape() for terminal rendering;
     JSON must carry the literal value an agent would need to round-trip."""
     save_entry(Entry.create(EntryType.TASK, "call bank", extra_meta={"key": "[bold]x"}))
-    result = runner.invoke(main, ["b", "--json"])
+    result = runner.invoke(main, ["t", "-b", "--json"])
     assert result.exit_code == 0, result.output
     data = _parse(result.output)
     assert data["entries"][0]["extra"]["key"] == "[bold]x"

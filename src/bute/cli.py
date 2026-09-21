@@ -15,8 +15,12 @@ WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|calendar)!?$")
 ACTION_NUMBER_PATTERN = re.compile(r"^\d+(-\d+)?$")
 
 # Short letter to view command mapping (when no text follows)
-SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog"}
+SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar"}
 WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calendar": "calendar"}
+
+# Flags that keep a signifier on the view path instead of routing to capture.
+# Scope flags (-w/-b) are task-only; the other dimensions reject them at Click.
+VIEW_FLAGS = {"-a", "--all", "-w", "--week", "-b", "--backlog"}
 
 
 def _is_capture_like(args: list[str]) -> bool:
@@ -33,9 +37,8 @@ def _is_capture_like(args: list[str]) -> bool:
     rest = [a for a in args[1:] if a != "--json"]
 
     if SIGNIFIER_PATTERN.match(first) or WORD_SIGNIFIER_PATTERN.match(first):
-        view_flags = {"-a", "--all"}
         # Only @tags / view flags after the signifier → it's a view, not capture.
-        return bool(rest) and not all(r.startswith("@") or r in view_flags for r in rest)
+        return bool(rest) and not all(r.startswith("@") or r in VIEW_FLAGS for r in rest)
 
     # Number-action with a `mod` verb — the tail is replacement body text.
     if ACTION_NUMBER_PATTERN.match(first):
@@ -82,8 +85,7 @@ class DwnGroup(click.Group):
         # 1. Word signifier with text → capture (before named command check,
         #    so "bt calendar meet mom" routes to capture, not the calendar view)
         if rest and WORD_SIGNIFIER_PATTERN.match(first):
-            view_flags = {"-a", "--all"}
-            if not all(r.startswith("@") or r in view_flags for r in rest):
+            if not all(r.startswith("@") or r in VIEW_FLAGS for r in rest):
                 if rest == ("open",) or rest == ["open"]:
                     cmd = self.get_command(ctx, "open_capture")
                     if cmd is not None:
@@ -103,22 +105,14 @@ class DwnGroup(click.Group):
         if cmd is not None:
             return cmd.name, cmd, rest
 
-        # 2. Single letter shortcuts — scope letters, not signifiers
-        for letter, view in (("b", "backlog"), ("w", "week")):
-            if first == letter:
-                cmd = self.get_command(ctx, view)
-                if cmd is not None:
-                    return view, cmd, rest
-
         # 3. Signifier (short: t, /t | word: task, note, journal, calendar)
         is_short = SIGNIFIER_PATTERN.match(first)
         is_word = WORD_SIGNIFIER_PATTERN.match(first)
 
         if is_short or is_word:
             # Check if rest is only view flags/options (not capture text)
-            view_flags = {"-a", "--all"}
             is_view_args = rest and all(
-                r.startswith("@") or r in view_flags for r in rest
+                r.startswith("@") or r in VIEW_FLAGS for r in rest
             )
 
             # Text follows (and not just @tag or view flags) → capture
@@ -144,7 +138,7 @@ class DwnGroup(click.Group):
                 if cmd is not None:
                     view_args = [stripped]
                     for r in rest:
-                        if r in view_flags:
+                        if r in VIEW_FLAGS:
                             view_args.append(r)
                     return "important", cmd, view_args
 
@@ -161,7 +155,7 @@ class DwnGroup(click.Group):
                     for r in rest:
                         if r.startswith("@"):
                             view_args.append(r[1:])
-                        elif r in view_flags:
+                        elif r in VIEW_FLAGS:
                             view_args.append(r)
                     return view_name, cmd, view_args
 

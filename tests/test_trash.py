@@ -145,7 +145,7 @@ def test_restore_entry_collision_raises_and_preserves_existing(tmp_data):
 def test_delete_action_moves_to_trash(runner, tmp_config, tmp_data):
     e = Entry.create(EntryType.TASK, "delete me")
     save_entry(e)
-    runner.invoke(main, ["b"])
+    runner.invoke(main, ["t", "-b"])
     result = runner.invoke(main, ["1", "delete"])
     assert result.exit_code == 0, result.output
     assert (trash_dir() / f"{e.id}.md").exists()
@@ -175,7 +175,7 @@ def test_empty_trash_view_preserves_previous_numbering(runner, tmp_config, tmp_d
     """`bt trash` on an empty trash must not clobber the last view's number map."""
     e = Entry.create(EntryType.TASK, "still numbered")
     save_entry(e)
-    runner.invoke(main, ["b"])
+    runner.invoke(main, ["t", "-b"])
     before = json.loads(state_path().read_text())
 
     runner.invoke(main, ["trash"])
@@ -205,7 +205,7 @@ def test_restore_action_from_trash_view(runner, tmp_config, tmp_data):
 def test_restore_action_outside_trash_view_errors(runner, tmp_config, tmp_data):
     e = Entry.create(EntryType.TASK, "live one")
     save_entry(e)
-    runner.invoke(main, ["b"])
+    runner.invoke(main, ["t", "-b"])
     result = runner.invoke(main, ["1", "restore"])
     assert "not in the trash" in result.output
 
@@ -213,7 +213,7 @@ def test_restore_action_outside_trash_view_errors(runner, tmp_config, tmp_data):
 def test_undo_after_delete_restores_from_trash(runner, tmp_config, tmp_data):
     e = Entry.create(EntryType.TASK, "oops")
     save_entry(e)
-    runner.invoke(main, ["b"])
+    runner.invoke(main, ["t", "-b"])
     runner.invoke(main, ["1", "delete"])
     assert entry_path_from_id(e.id) is None
 
