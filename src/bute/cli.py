@@ -572,7 +572,6 @@ from bute.commands.capture import capture_cmd, open_capture_cmd  # noqa: E402
 from bute.commands.action import action_cmd, undo_cmd  # noqa: E402
 from bute.commands.init_cmd import init_cmd  # noqa: E402
 from bute.commands.views import (  # noqa: E402
-    backlog_cmd,
     calendar_cmd,
     due_cmd,
     important_cmd,
@@ -581,7 +580,6 @@ from bute.commands.views import (  # noqa: E402
     tag_filter_cmd,
     tags_cmd,
     tasks_cmd,
-    week_cmd,
 )
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
@@ -602,8 +600,6 @@ main.add_command(open_capture_cmd)
 main.add_command(action_cmd)
 main.add_command(undo_cmd)
 main.add_command(tasks_cmd)
-main.add_command(backlog_cmd)
-main.add_command(week_cmd)
 main.add_command(notes_cmd)
 main.add_command(journals_cmd)
 main.add_command(calendar_cmd)
