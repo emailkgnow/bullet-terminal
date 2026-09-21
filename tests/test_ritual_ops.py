@@ -325,3 +325,35 @@ def test_weekly_selection_roundtrips_under_sunday_week_start(tmp_data):
 
     bodies = {e.body for e in get_weekly_active_tasks(SUNDAY_CONFIG)}
     assert bodies == {"write report"}
+
+
+def test_get_today_tasks_is_the_task_rows_of_the_focus_log(tmp_config, tmp_data):
+    from datetime import date
+    from bute.models import Entry, EntryType
+    from bute.ritual_ops import get_daily_log, get_today_tasks
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "focused today", focus_date=date.today()))
+    save_entry(Entry.create(EntryType.TASK, "not focused"))
+    save_entry(Entry.create(EntryType.NOTE, "a note today"))
+
+    tasks = get_today_tasks()
+    bodies = [e.body for e in tasks]
+
+    assert "focused today" in bodies
+    assert "a note today" not in bodies
+    assert all(e.type == EntryType.TASK for e in tasks)
+    # Never disagrees with bt
+    log_tasks = [e.id for e in get_daily_log() if e.type == EntryType.TASK]
+    assert [e.id for e in tasks] == log_tasks
+
+
+def test_get_today_tasks_include_all_adds_unfocused_captures(tmp_config, tmp_data):
+    from bute.models import Entry, EntryType
+    from bute.ritual_ops import get_today_tasks
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "captured without focus"))
+
+    assert "captured without focus" not in [e.body for e in get_today_tasks()]
+    assert "captured without focus" in [e.body for e in get_today_tasks(include_all=True)]

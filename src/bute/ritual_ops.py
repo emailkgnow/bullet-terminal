@@ -161,6 +161,19 @@ def get_daily_log(config=None, include_all: bool = False) -> list[Entry]:
     return sorted(result, key=_daily_sort_key)
 
 
+def get_today_tasks(config=None, include_all: bool = False) -> list[Entry]:
+    """The task rows of the Focus Log — what `bt t` shows.
+
+    Derived from get_daily_log rather than redefined, so `bt` and `bt t`
+    can never disagree about what "today" means. That covers focus_date ==
+    today, due <= today, scheduled_date == today, and tasks completed today.
+    """
+    return [
+        e for e in get_daily_log(config, include_all=include_all)
+        if e.type == EntryType.TASK
+    ]
+
+
 def get_week_entries(target_date: date | None = None, config=None) -> list[Entry]:
     """All entries for the week containing target_date.
 
