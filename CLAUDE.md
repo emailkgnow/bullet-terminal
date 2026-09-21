@@ -29,16 +29,20 @@ uv build
 
 ### CLI Dispatch (cli.py — DwnGroup)
 
-Custom Click group with 5-layer routing in `resolve_command()`:
+Custom Click group with 7-branch routing in `resolve_command()` (numbered 1–7 in the source):
 
-1. **Named commands** — standard Click (dp, tasks, backlog, notes, tags, etc.)
-2. **Letter shortcut** — `b` → backlog, `m` → monthly
+1. **Word signifier with text** — `task`/`note`/`journal`/`calendar` followed by text routes straight to capture, checked before the named-command lookup so `bt calendar meet mom` doesn't get swallowed by the `calendar` view.
+2. **Named commands** — standard Click lookup (dp, tasks, notes, tags, etc.), plus the `bt overdue` → `bt due overdue` alias.
 3. **Signifiers** — `t`, `n`, `j`, `c` (or full words: `task`, `note`, `journal`, `calendar`)
    - With text → **capture** (`bt t call dentist`)
-   - Without text → **view** (`bt t` → show Tasks / weekly focus)
-   - With only `@tag` → **filtered view** (`bt t @backend`)
-4. **Tag filter** — `@tagname` → cross-dimension filter (multi-tag: `@a @b -@c`)
-5. **Number-action** — `1 done`, `2 3 drop` → action dispatch
+   - Without text (or only `@tag`/view flags) → **view** (`bt t` → today's tasks)
+   - With a bare `!` suffix and no text → the important-filtered view
+4. **Important filter** — `!` alone → all important entries
+5. **Tag filter** — `@tagname` (or a leading `-@tagname`) → cross-dimension filter (multi-tag: `@a @b -@c`)
+6. **Number-action** — `1 done`, `2 3 drop` → action dispatch
+7. **Unknown** — falls through to Click's own error
+
+`b` and `m` are not letter shortcuts: `SHORT_TO_VIEW` maps only `t`/`n`/`j`/`c`, so `bt b`/`bt w` are unregistered and error like any unknown command. No `monthly` command is registered at all — `bt m` errors too, despite being documented throughout this file and the README (see the `bt m` entry under Backlog).
 
 Bullet symbols (`. - = o`) are used in display output but not accepted as CLI input — they conflict with shell metacharacters (`=` in zsh, `-` as option prefix). Use letter shortcuts instead.
 
@@ -199,7 +203,7 @@ bt completion     # print the shell line that enables @tag tab completion
 - **`bt t` and `bt` share one definition of today** — `ritual_ops.get_today_tasks()` filters `get_daily_log()` to tasks, so the two views can't disagree about focus dates, overdue tasks or today's completions.
 - **Focus state as dates, not tags** — `focus_date` and `week_date` are proper `Optional[date]` fields on `Entry`. Set by `bt dp` / `bt wp` / `bt focus` / capture. Cleared by `bt later` / `bt backlog`. Old dates expire naturally — no clearing ritual needed. Replaces the former `@today` / `@thisweek` system tags.
 - **`bt wp`** includes task dump phase — add tasks before selecting for the week.
-- **Display**: `bt t` and notes/journals/calendar = grouped by date with a Date column (`display_entry_list_grouped`, keyed on `scheduled_date` else `created`); the curated task views `bt t -w` and `bt t -b` stay flat lists, since a short list needs no date spine.
+- **Display**: notes/journals/calendar always group by date with a Date column (`display_entry_list_grouped`, keyed on `scheduled_date` else `created`). Among task scopes only `bt t -b -a` (the full task dimension) groups the same way; `bt t`, `bt t -w`, and `bt t -b` stay flat lists, since a short curated list needs no date spine.
 - **Scheduling is universal** — `date:` (scheduled_date) works on all entry types. Tasks: deadline. Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
 - **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.
 - **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Input is `HH:MM`, 24-hour unless suffixed `am`/`pm`; minutes are always required, so `time:9` is an error pointing at `time:9:00`. There is exactly one way to write any given time.
