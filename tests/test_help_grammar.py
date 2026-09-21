@@ -82,3 +82,36 @@ class TestHelpDocumentsTheGrammar:
     @pytest.mark.parametrize("retired", ["date:4.7", "time:14.30", "next-friday", "jan15"])
     def test_does_not_advertise_retired_spellings(self, runner, tmp_config, tmp_data, retired):
         assert retired not in _help_text(runner, tmp_config, tmp_data)
+
+
+def _row(text: str, marker: str) -> str:
+    """The single help line containing `marker` (COLUMNS=200 keeps rows unwrapped)."""
+    rows = [line for line in text.splitlines() if marker in line]
+    assert len(rows) == 1, f"expected exactly one row for {marker!r}, got {rows}"
+    return rows[0]
+
+
+class TestHelpDocumentsTheFocusFlow:
+    """`-l` and `-b` decide which of the three task views a capture lands in.
+
+    The help called `-l` the "Task log" long after that view was renamed
+    Tasks — Weekly Log, so it described a destination that no longer had a
+    name. Pin each flag to the view command that shows its result.
+    """
+
+    def test_later_flag_names_the_weekly_log(self, runner, tmp_config, tmp_data):
+        row = _row(_help_text(runner, tmp_config, tmp_data), "-l|--later")
+        assert "bt w" in row, f"the -l row must point at bt w: {row!r}"
+
+    def test_backlog_flag_names_the_backlog(self, runner, tmp_config, tmp_data):
+        row = _row(_help_text(runner, tmp_config, tmp_data), "-b|--backlog")
+        assert "bt b" in row, f"the -b row must point at bt b: {row!r}"
+
+    def test_does_not_use_the_retired_task_log_name(self, runner, tmp_config, tmp_data):
+        text = _help_text(runner, tmp_config, tmp_data).lower()
+        assert "task log" not in text, "the view is Tasks — Weekly Log (bt w)"
+
+    def test_important_is_shown_as_a_signifier_suffix(self, runner, tmp_config, tmp_data):
+        """`!` only works glued to the letter — `bt t x !` puts a literal ! in the body."""
+        text = _help_text(runner, tmp_config, tmp_data)
+        assert "bt t!" in text, "help must show ! attached to the signifier"
