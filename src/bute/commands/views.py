@@ -155,9 +155,11 @@ calendar_cmd = _dimension_command("calendar", EntryType.CALENDAR, "Calendar", gr
 
 @click.command("important", hidden=True)
 @click.argument("entry_type", required=False, default=None)
+@click.option("--week", "-w", "scope_week", is_flag=True, help="This week's tasks.")
+@click.option("--backlog", "-b", "scope_backlog", is_flag=True, help="All active tasks.")
 @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
 @click.pass_context
-def important_cmd(ctx, entry_type, show_all):
+def important_cmd(ctx, entry_type, scope_week, scope_backlog, show_all):
     """Show important entries. Optional type filter (task, note, journal, calendar)."""
     config = ctx.obj.get("config")
 
@@ -168,6 +170,20 @@ def important_cmd(ctx, entry_type, show_all):
         "calendar": EntryType.CALENDAR, "c": EntryType.CALENDAR,
     }
     filter_type = type_map.get(entry_type) if entry_type else None
+
+    if filter_type == EntryType.TASK:
+        # ! is a filter, so it stacks on a scope exactly as -a and @tag do.
+        if scope_backlog:
+            entries, scope_title, _ = _backlog_scope(config, show_all)
+        elif scope_week:
+            entries, scope_title, _ = _week_scope(config, show_all)
+        else:
+            entries, scope_title, _ = _today_scope(config, show_all)
+        entries = [e for e in entries if e.important]
+        title = scope_title.replace("Tasks — ", "Important Tasks — ")
+        display_entry_list(entries, title)
+        save_state("important", [e.id for e in entries], config)
+        return
 
     kwargs = {"important": True}
     if filter_type:

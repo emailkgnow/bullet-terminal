@@ -369,3 +369,41 @@ def test_dp_pool_still_falls_back_to_backlog(tmp_config, tmp_data):
     save_entry(Entry.create(EntryType.TASK, "someday maybe", week_date=None))
 
     assert {e.body for e in get_weekly_active_tasks(None)} == {"someday maybe"}
+
+
+def test_important_task_scope_defaults_to_today(runner, tmp_config, tmp_data):
+    from datetime import date
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "urgent today", important=True, focus_date=date.today()))
+    save_entry(Entry.create(EntryType.TASK, "urgent someday", important=True))
+
+    result = runner.invoke(main, ["t!"])
+    assert result.exit_code == 0, result.output
+    assert "urgent today" in result.output
+    assert "urgent someday" not in result.output
+
+
+def test_important_task_backlog_scope(runner, tmp_config, tmp_data):
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "urgent someday", important=True))
+    save_entry(Entry.create(EntryType.TASK, "ordinary someday"))
+
+    result = runner.invoke(main, ["t!", "-b"])
+    assert result.exit_code == 0, result.output
+    assert "urgent someday" in result.output
+    assert "ordinary someday" not in result.output
+
+
+def test_important_non_task_types_ignore_scope(runner, tmp_config, tmp_data):
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.NOTE, "big idea", important=True))
+
+    result = runner.invoke(main, ["n!"])
+    assert result.exit_code == 0, result.output
+    assert "big idea" in result.output
