@@ -25,12 +25,27 @@ from bute.storage import load_entry, save_entry
 
 
 @click.command("capture", hidden=True, context_settings={"ignore_unknown_options": True})
-@click.option("--later", "-l", is_flag=True, help="This week, not today (Task log).")
-@click.option("--backlog", "-b", is_flag=True, help="Backlog only — no focus tags.")
+@click.option("--week", "-w", "week_only", is_flag=True, help="This week, not today (bt t -w).")
+@click.option("--backlog", "-b", is_flag=True, help="Backlog only — no focus dates.")
 @click.argument("tokens", nargs=-1, required=True, shell_complete=complete_tags)
 @click.pass_context
-def capture_cmd(ctx, later, backlog, tokens):
+def capture_cmd(ctx, week_only, backlog, tokens):
     """Capture a new entry."""
+    if week_only and backlog:
+        click.echo("Pick one scope: -w (this week) or -b (backlog).")
+        ctx.exit(1)
+        return
+    # -a is a view filter, not a capture scope. ignore_unknown_options would
+    # otherwise write it into the body. Only reject it in flag position —
+    # immediately after the signifier — so a body that merely contains the
+    # word "-a" is still captured verbatim.
+    if len(tokens) > 1 and tokens[1] in ("-a", "--all"):
+        click.echo(
+            f"{tokens[1]} filters a view, it doesn't pick a capture scope. "
+            "Use -w for this week or -b for the backlog."
+        )
+        ctx.exit(1)
+        return
     # Interactive fallback: if only the signifier is given, prompt for text
     if len(tokens) == 1 and (SIGNIFIER_RE.match(tokens[0]) or WORD_SIGNIFIER_RE.match(tokens[0])):
         import questionary
@@ -97,16 +112,16 @@ def capture_cmd(ctx, later, backlog, tokens):
     )
 
     # Set focus dates on tasks based on flags:
-    #   default  → focus_date=today + week_date=monday (Focus Log)
-    #   -l       → week_date only (Task log, not today)
-    #   -b       → no focus dates (Backlog)
+    #   default  → focus_date=today + week_date=monday (bt t)
+    #   -w       → week_date only (bt t -w)
+    #   -b       → no focus dates (bt t -b)
     config = ctx.obj.get("config")
     has_future_date = entry.scheduled_date and entry.scheduled_date > date.today()
     has_future_due = entry.due and entry.due > date.today()
     if entry.type == EntryType.TASK and not backlog and not has_future_date and not has_future_due:
         from bute.ritual_ops import week_anchor
         entry.week_date = week_anchor(config=config)
-        if not later:
+        if not week_only:
             entry.focus_date = date.today()
 
     save_entry(entry, config)

@@ -161,6 +161,19 @@ def get_daily_log(config=None, include_all: bool = False) -> list[Entry]:
     return sorted(result, key=_daily_sort_key)
 
 
+def get_today_tasks(config=None, include_all: bool = False) -> list[Entry]:
+    """The task rows of the Focus Log — what `bt t` shows.
+
+    Derived from get_daily_log rather than redefined, so `bt` and `bt t`
+    can never disagree about what "today" means. That covers focus_date ==
+    today, due <= today, scheduled_date == today, and tasks completed today.
+    """
+    return [
+        e for e in get_daily_log(config, include_all=include_all)
+        if e.type == EntryType.TASK
+    ]
+
+
 def get_week_entries(target_date: date | None = None, config=None) -> list[Entry]:
     """All entries for the week containing target_date.
 
@@ -217,8 +230,9 @@ def get_weekly_active_tasks(config=None, fallback: bool = True) -> list[Entry]:
 
     With `fallback` (the default), an unplanned week yields all active tasks.
     That is what `bt dp` wants — an empty weekly selection should still offer
-    the backlog to pick from. `bt w` passes `fallback=False`, because a view
-    that quietly turns into `bt b` is indistinguishable from `bt b`.
+    the backlog to pick from. `_week_scope` (`bt t -w`) passes `fallback=False`,
+    because a view that quietly turns into `bt t -b` is indistinguishable from
+    `bt t -b`.
     """
     from bute.storage import query_and_load
     weekly = query_and_load(

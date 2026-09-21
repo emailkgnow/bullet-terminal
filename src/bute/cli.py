@@ -15,8 +15,12 @@ WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|calendar)!?$")
 ACTION_NUMBER_PATTERN = re.compile(r"^\d+(-\d+)?$")
 
 # Short letter to view command mapping (when no text follows)
-SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar", "b": "backlog"}
+SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar"}
 WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calendar": "calendar"}
+
+# Flags that keep a signifier on the view path instead of routing to capture.
+# Scope flags (-w/-b) are task-only; the other dimensions reject them at Click.
+VIEW_FLAGS = {"-a", "--all", "-w", "--week", "-b", "--backlog"}
 
 
 def _is_capture_like(args: list[str]) -> bool:
@@ -33,9 +37,8 @@ def _is_capture_like(args: list[str]) -> bool:
     rest = [a for a in args[1:] if a != "--json"]
 
     if SIGNIFIER_PATTERN.match(first) or WORD_SIGNIFIER_PATTERN.match(first):
-        view_flags = {"-a", "--all"}
         # Only @tags / view flags after the signifier → it's a view, not capture.
-        return bool(rest) and not all(r.startswith("@") or r in view_flags for r in rest)
+        return bool(rest) and not all(r.startswith("@") or r in VIEW_FLAGS for r in rest)
 
     # Number-action with a `mod` verb — the tail is replacement body text.
     if ACTION_NUMBER_PATTERN.match(first):
@@ -82,8 +85,7 @@ class DwnGroup(click.Group):
         # 1. Word signifier with text → capture (before named command check,
         #    so "bt calendar meet mom" routes to capture, not the calendar view)
         if rest and WORD_SIGNIFIER_PATTERN.match(first):
-            view_flags = {"-a", "--all"}
-            if not all(r.startswith("@") or r in view_flags for r in rest):
+            if not all(r.startswith("@") or r in VIEW_FLAGS for r in rest):
                 if rest == ("open",) or rest == ["open"]:
                     cmd = self.get_command(ctx, "open_capture")
                     if cmd is not None:
@@ -103,22 +105,14 @@ class DwnGroup(click.Group):
         if cmd is not None:
             return cmd.name, cmd, rest
 
-        # 2. Single letter shortcuts — scope letters, not signifiers
-        for letter, view in (("b", "backlog"), ("w", "week")):
-            if first == letter:
-                cmd = self.get_command(ctx, view)
-                if cmd is not None:
-                    return view, cmd, rest
-
         # 3. Signifier (short: t, /t | word: task, note, journal, calendar)
         is_short = SIGNIFIER_PATTERN.match(first)
         is_word = WORD_SIGNIFIER_PATTERN.match(first)
 
         if is_short or is_word:
             # Check if rest is only view flags/options (not capture text)
-            view_flags = {"-a", "--all"}
             is_view_args = rest and all(
-                r.startswith("@") or r in view_flags for r in rest
+                r.startswith("@") or r in VIEW_FLAGS for r in rest
             )
 
             # Text follows (and not just @tag or view flags) → capture
@@ -144,7 +138,9 @@ class DwnGroup(click.Group):
                 if cmd is not None:
                     view_args = [stripped]
                     for r in rest:
-                        if r in view_flags:
+                        if r.startswith("@"):
+                            view_args.append(r[1:])
+                        elif r in VIEW_FLAGS:
                             view_args.append(r)
                     return "important", cmd, view_args
 
@@ -161,7 +157,7 @@ class DwnGroup(click.Group):
                     for r in rest:
                         if r.startswith("@"):
                             view_args.append(r[1:])
-                        elif r in view_flags:
+                        elif r in VIEW_FLAGS:
                             view_args.append(r)
                     return view_name, cmd, view_args
 
@@ -279,8 +275,8 @@ def _print_help():
     t.add_column("What")
     t.add_column("Example", style="dim")
     t.add_row("[cyan]bt t[/cyan] <text>", "Task — lands in today's Focus Log", "bt t call dentist due:friday")
-    t.add_row("[cyan]bt t -l|--later[/cyan] <text>", "Task — this week (bt w), not today", "bt t -l research flights")
-    t.add_row("[cyan]bt t -b|--backlog[/cyan] <text>", "Task — straight to Backlog (bt b)", "bt t -b someday idea")
+    t.add_row("[cyan]bt t -w|--week[/cyan] <text>", "Task — this week (bt t -w), not today", "bt t -w research flights")
+    t.add_row("[cyan]bt t -b|--backlog[/cyan] <text>", "Task — straight to the backlog (bt t -b)", "bt t -b someday idea")
     t.add_row("[yellow]bt n[/yellow] <text>", "Note / idea", "bt n OAuth2 tokens expire in 30 days")
     t.add_row("[magenta]bt j[/magenta] <text>", "Journal", "bt j rough morning, couldn't focus")
     t.add_row("[green]bt c[/green] <text>", "Calendar event", "bt c standup time:9:00")
@@ -317,9 +313,9 @@ def _print_help():
     t.add_column("Notes", style="dim")
     t.add_row("bt", "Focus Log", "wp → dp → Focus Log flow")
     t.add_row("bt -a", "Focus Log + hidden items", "dropped, non-focus captures, past events")
-    t.add_row("bt t", "Tasks — All (every task ever)", "Grouped by date")
-    t.add_row("bt w", "Tasks — Weekly Log (picked by bt wp)", "")
-    t.add_row("bt b", "Tasks — Backlog (all active)", "")
+    t.add_row("bt t", "Tasks — Today", "The task rows of the Focus Log")
+    t.add_row("bt t -w", "Tasks — Weekly Log (picked by bt wp)", "")
+    t.add_row("bt t -b", "Tasks — Backlog (all active)", "")
     t.add_row("bt n", "Notes", "Grouped by date")
     t.add_row("bt j", "Journals", "Grouped by date")
     t.add_row("bt c", "Events", "Grouped by date")
@@ -336,7 +332,7 @@ def _print_help():
     console.print(t)
     console.print()
     console.print("    [dim]Also:[/dim] [bold]bt task[/bold] / [bold]bt note[/bold] / [bold]bt journal[/bold] / [bold]bt calendar[/bold] — full words work everywhere [cyan]t[/cyan]/[yellow]n[/yellow]/[magenta]j[/magenta]/[green]c[/green] do")
-    console.print("    [dim]Also:[/dim] [bold]bt backlog[/bold] / [bold]bt week[/bold] — long forms of [bold]b[/bold] / [bold]w[/bold]")
+    console.print("    [dim]Also:[/dim] [bold]bt t[/bold] today · [bold]bt t -w[/bold] this week · [bold]bt t -b[/bold] backlog · [bold]-a[/bold] adds done/dropped")
 
     # --- Actions ---
     t = Table(title="Actions — act on numbered entries from last view", title_style="bold cyan",
@@ -347,8 +343,8 @@ def _print_help():
     t.add_row("bt <n> done", "Mark task(s) complete", "bt 1-4 done")
     t.add_row("bt <n> drop", "Consciously delete", "bt 2 3 drop")
     t.add_row("bt <n> !", "Toggle important flag", "bt 1 !")
-    t.add_row("bt <n> later", "Off today, stays in this week (bt w)", "bt 3 later")
-    t.add_row("bt <n> backlog", "Send to Backlog (bt b) — clears week and day", "bt 3 backlog")
+    t.add_row("bt <n> later", "Off today, stays in this week (bt t -w)", "bt 3 later")
+    t.add_row("bt <n> backlog", "Send to the backlog (bt t -b) — clears week and day", "bt 3 backlog")
     t.add_row("bt <n> focus", "Pull back into today's Focus Log", "bt 3 focus")
     t.add_row("bt <n> show", "Read entry in leaf (q to quit), else Rich", "bt 1 view")
     t.add_row("bt <n> open", "Open in $EDITOR", "bt 1 open")
@@ -383,7 +379,7 @@ def _print_help():
     t.add_row("bt -d [dim]| --demo[/dim]", "Demo session", "Isolated data, auto-cleanup")
     t.add_row("bt like <input>", "Find similar entries (semantic)", "bt like 3, bt like productivity")
     t.add_row("bt -j [dim]| --journal-whisper[/dim]", "Toggle random journal whisper in Focus Log", "")
-    t.add_row("bt <view> --json", "Emit numbered entry views as JSON", "bt b --json, bt @home --json")
+    t.add_row("bt <view> --json", "Emit numbered entry views as JSON", "bt t -b --json, bt @home --json")
     console.print()
     console.print(t)
     console.print()
@@ -572,7 +568,6 @@ from bute.commands.capture import capture_cmd, open_capture_cmd  # noqa: E402
 from bute.commands.action import action_cmd, undo_cmd  # noqa: E402
 from bute.commands.init_cmd import init_cmd  # noqa: E402
 from bute.commands.views import (  # noqa: E402
-    backlog_cmd,
     calendar_cmd,
     due_cmd,
     important_cmd,
@@ -581,7 +576,6 @@ from bute.commands.views import (  # noqa: E402
     tag_filter_cmd,
     tags_cmd,
     tasks_cmd,
-    week_cmd,
 )
 from bute.commands.rituals import (  # noqa: E402
     dp_cmd,
@@ -602,8 +596,6 @@ main.add_command(open_capture_cmd)
 main.add_command(action_cmd)
 main.add_command(undo_cmd)
 main.add_command(tasks_cmd)
-main.add_command(backlog_cmd)
-main.add_command(week_cmd)
 main.add_command(notes_cmd)
 main.add_command(journals_cmd)
 main.add_command(calendar_cmd)

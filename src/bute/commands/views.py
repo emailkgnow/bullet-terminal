@@ -18,7 +18,7 @@ from bute.display import (
     json_mode,
 )
 from bute.models import EntryType, TaskStatus
-from bute.ritual_ops import get_all_active_tasks, get_weekly_active_tasks
+from bute.ritual_ops import get_today_tasks, get_weekly_active_tasks
 from bute.state import save_state
 from bute.storage import query_and_load
 
@@ -53,15 +53,11 @@ def _dimension_command(name, entry_type, label, group_by_date=False):
         kwargs = {"type": entry_type.value}
         if tag:
             kwargs["tag"] = tag
-        if not show_all and entry_type == EntryType.TASK:
-            kwargs["status"] = "active"
         entries = query_and_load(config, **kwargs)
 
         title_parts = [label]
         if tag:
             title_parts.append(f"@{tag}")
-        if show_all and entry_type == EntryType.TASK:
-            title_parts[0] = f"All {label}"
         title = " ".join(title_parts)
 
         if group_by_date:
@@ -76,88 +72,76 @@ def _dimension_command(name, entry_type, label, group_by_date=False):
 
 @click.command("tasks")
 @click.argument("tag", required=False, default=None, shell_complete=complete_tags)
+@click.option("--week", "-w", "scope_week", is_flag=True, help="This week's tasks.")
+@click.option("--backlog", "-b", "scope_backlog", is_flag=True, help="All active tasks.")
 @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
 @click.pass_context
-def tasks_cmd(ctx, tag, show_all):
-    """Show every task, grouped by date. bt w for this week's active tasks."""
+def tasks_cmd(ctx, tag, scope_week, scope_backlog, show_all):
+    """Today's tasks. -w this week, -b backlog, -a include done/dropped."""
     config = ctx.obj.get("config")
 
-    if tag and tag.startswith("@"):
-        tag = tag[1:]
-
-    # No status filter — the task dimension in full, mirroring bt n/j/c.
-    # `-a` is therefore inert here, as it already is on the other dimensions.
-    kwargs = {"type": "task"}
-    if tag:
-        kwargs["tag"] = tag
-    entries = query_and_load(config, **kwargs)
-    # Exclude recurring tasks — they have their own view (bt streak)
-    entries = [e for e in entries if not e.is_recurring()]
-
-    title = "Tasks — All" + (f" @{tag}" if tag else "")
-
-    display_entry_list_grouped(entries, title)
-    save_state("tasks", [e.id for e in entries], config)
-
-
-@click.command("week")
-@click.argument("tag", required=False, default=None, shell_complete=complete_tags)
-@click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
-@click.pass_context
-def week_cmd(ctx, tag, show_all):
-    """Show active tasks selected for this week. Optional @tag to filter."""
-    config = ctx.obj.get("config")
-
-    if tag and tag.startswith("@"):
-        tag = tag[1:]
-
-    entries = get_weekly_active_tasks(config, fallback=False)
-    if tag:
-        entries = [e for e in entries if tag in e.tags]
-
-    title = "Tasks — Weekly Log" + (f" @{tag}" if tag else "")
-
-    if not entries and not json_mode():
-        console.print(
-            "  [dim]Nothing planned for this week. "
-            "Run [bold]bt wp[/bold] to pick tasks, or [bold]bt b[/bold] for the backlog.[/dim]"
-        )
-        save_state("week", [], config)
+    if scope_week and scope_backlog:
+        console.print("  [red]Pick one scope: -w (this week) or -b (backlog).[/red]")
+        ctx.exit(1)
         return
 
-    display_entry_list(entries, title)
-    save_state("week", [e.id for e in entries], config)
-
-
-@click.command("backlog")
-@click.argument("tag", required=False, default=None, shell_complete=complete_tags)
-@click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
-@click.pass_context
-def backlog_cmd(ctx, tag, show_all):
-    """Show all active tasks. -a for done/dropped."""
-    config = ctx.obj.get("config")
-
     if tag and tag.startswith("@"):
         tag = tag[1:]
 
-    kwargs = {"type": "task"}
+    if scope_backlog:
+        entries, title, view = _backlog_scope(config, show_all)
+    elif scope_week:
+        entries, title, view = _week_scope(config, show_all)
+    else:
+        entries, title, view = _today_scope(config, show_all)
+
     if tag:
-        kwargs["tag"] = tag
+        entries = [e for e in entries if tag in e.tags]
+        title = f"{title} @{tag}"
+
+    # Group by date only where the result spans many dates.
+    if scope_backlog and show_all:
+        display_entry_list_grouped(entries, title)
+    else:
+        if not entries and view == "week" and not json_mode():
+            console.print(
+                "  [dim]Nothing planned for this week. "
+                "Run [bold]bt wp[/bold] to pick tasks, "
+                "or [bold]bt t -b[/bold] for the backlog.[/dim]"
+            )
+            save_state(view, [], config)
+            return
+        display_entry_list(entries, title)
+
+    save_state(view, [e.id for e in entries], config)
+
+
+def _today_scope(config, show_all):
+    """Bare `bt t` — the task rows of the Focus Log."""
+    entries = get_today_tasks(config, include_all=show_all)
+    return entries, "Tasks — Today", "tasks"
+
+
+def _week_scope(config, show_all):
+    """`bt t -w` — tasks selected for this week."""
+    if show_all:
+        from bute.ritual_ops import week_anchor
+        entries = query_and_load(
+            config, type="task", week_date=week_anchor(config=config).isoformat()
+        )
+        entries = [e for e in entries if not e.is_recurring()]
+        return entries, "Tasks — Weekly Log (all)", "week"
+    return get_weekly_active_tasks(config, fallback=False), "Tasks — Weekly Log", "week"
+
+
+def _backlog_scope(config, show_all):
+    """`bt t -b` — active tasks; with -a, the whole task dimension."""
+    kwargs = {"type": "task"}
     if not show_all:
         kwargs["status"] = "active"
-    entries = query_and_load(config, **kwargs)
-    # Exclude recurring tasks — they have their own view (bt streak)
-    entries = [e for e in entries if not e.is_recurring()]
-
-    title_parts = ["Tasks — Backlog"]
-    if tag:
-        title_parts.append(f"@{tag}")
-    if show_all:
-        title_parts[0] = "Tasks — Backlog (all)"
-    title = " ".join(title_parts)
-
-    display_entry_list(entries, title)
-    save_state("backlog", [e.id for e in entries], config)
+    entries = [e for e in query_and_load(config, **kwargs) if not e.is_recurring()]
+    title = "Tasks — All" if show_all else "Tasks — Backlog"
+    return entries, title, "backlog"
 
 
 notes_cmd = _dimension_command("notes", EntryType.NOTE, "Notes", group_by_date=True)
@@ -167,11 +151,22 @@ calendar_cmd = _dimension_command("calendar", EntryType.CALENDAR, "Calendar", gr
 
 @click.command("important", hidden=True)
 @click.argument("entry_type", required=False, default=None)
+@click.argument("tag", required=False, default=None, shell_complete=complete_tags)
+@click.option("--week", "-w", "scope_week", is_flag=True, help="This week's tasks.")
+@click.option("--backlog", "-b", "scope_backlog", is_flag=True, help="All active tasks.")
 @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
 @click.pass_context
-def important_cmd(ctx, entry_type, show_all):
+def important_cmd(ctx, entry_type, tag, scope_week, scope_backlog, show_all):
     """Show important entries. Optional type filter (task, note, journal, calendar)."""
     config = ctx.obj.get("config")
+
+    if scope_week and scope_backlog:
+        console.print("  [red]Pick one scope: -w (this week) or -b (backlog).[/red]")
+        ctx.exit(1)
+        return
+
+    if tag and tag.startswith("@"):
+        tag = tag[1:]
 
     type_map = {
         "task": EntryType.TASK, "t": EntryType.TASK,
@@ -181,9 +176,28 @@ def important_cmd(ctx, entry_type, show_all):
     }
     filter_type = type_map.get(entry_type) if entry_type else None
 
+    if filter_type == EntryType.TASK:
+        # ! is a filter, so it stacks on a scope exactly as -a and @tag do.
+        if scope_backlog:
+            entries, scope_title, _ = _backlog_scope(config, show_all)
+        elif scope_week:
+            entries, scope_title, _ = _week_scope(config, show_all)
+        else:
+            entries, scope_title, _ = _today_scope(config, show_all)
+        entries = [e for e in entries if e.important]
+        title = scope_title.replace("Tasks — ", "Important Tasks — ")
+        if tag:
+            entries = [e for e in entries if tag in e.tags]
+            title = f"{title} @{tag}"
+        display_entry_list(entries, title)
+        save_state("important", [e.id for e in entries], config)
+        return
+
     kwargs = {"important": True}
     if filter_type:
         kwargs["type"] = filter_type.value
+    if tag:
+        kwargs["tag"] = tag
     if not show_all:
         kwargs["exclude_status"] = "dropped"
     entries = query_and_load(config, **kwargs)
@@ -204,6 +218,8 @@ def important_cmd(ctx, entry_type, show_all):
         title = f"{'All ' if show_all else ''}Important {type_label}"
     else:
         title = f"{'All ' if show_all else ''}Important"
+    if tag:
+        title = f"{title} @{tag}"
 
     display_entry_list(entries, title)
     save_state("important", [e.id for e in entries], config)

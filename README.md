@@ -27,9 +27,10 @@ bt j rough morning, couldn't focus   # capture a journal
 bt c standup time:9                  # capture a calendar event
 
 bt                # Focus Log — what matters today
-bt t              # every task, grouped by date
-bt w              # this week's tasks
-bt b              # backlog (all active tasks)
+bt t              # today's tasks
+bt t -w           # this week's tasks
+bt t -b           # backlog (all active tasks)
+bt t -b -a        # every task, any status, grouped by date
 bt dp             # daily plan ritual (pick today's tasks)
 bt wp             # weekly plan ritual (pick this week's)
 bt m              # monthly log — retrospective, one row per day
@@ -156,7 +157,7 @@ bt has no built-in LLM. If you want AI over your entries, point your own agent (
 3. **Frontmatter must be valid YAML** with the keys documented above. At minimum: `id`, `type`, `created`. Tasks should set `status: active`.
 4. **Body is free-form Markdown.** First line is the title shown in list views.
 
-To read what bt shows without parsing tables, append `--json` to any numbered entry view — the Focus Log, Tasks/Backlog/Notes/Journals/Calendar, tag filters, `due`, `tags`, `find`, and `like` (`bt --json`, `bt b --json`, `bt @home --json`, `bt find x --json`). It does not apply to `bt stats`/`bt streak` (their own reports), or to actions and captures (which still print Rich confirmations). The `n` field is the number you would pass to `bt <n> done`. Every view returns `{"view": ..., "entries": [...]}`; the one exception is `bt tags --json`, which returns a `tags` array of `{"tag", "count"}` objects instead of `entries` (tags are not numbered).
+To read what bt shows without parsing tables, append `--json` to any numbered entry view — the Focus Log, Tasks/Backlog/Notes/Journals/Calendar, tag filters, `due`, `tags`, `find`, and `like` (`bt --json`, `bt t -b --json`, `bt @home --json`, `bt find x --json`). It does not apply to `bt stats`/`bt streak` (their own reports), or to actions and captures (which still print Rich confirmations). The `n` field is the number you would pass to `bt <n> done`. Every view returns `{"view": ..., "entries": [...]}`; the one exception is `bt tags --json`, which returns a `tags` array of `{"tag", "count"}` objects instead of `entries` (tags are not numbered).
 
 ### How reconciliation works
 
@@ -253,13 +254,13 @@ Full help: `bt -h`.
 |---|---|
 | `bt t <text>` | capture a task (also `n`, `j`, `c` for note/journal/calendar) |
 | `bt` | Focus Log — today's focused tasks, due today, today's events/notes/journals |
-| `bt t` | every task, grouped by date (like `bt n`/`j`/`c`) |
-| `bt w` / `bt b` | this week's active tasks / full Backlog |
+| `bt t` | today's tasks |
+| `bt t -w` / `bt t -b` | this week's active tasks / full Backlog |
 | `bt m` / `bt m jan` / `bt m 2026` | Monthly Log (event-driven daily retrospective) |
 | `bt @tag` | filter across all types; `@a @b` = AND, `-@c` = NOT (matching is case-insensitive) |
 | `@@tag` | double duty tag at capture — keeps the word in the sentence *and* tags it: `bt j lunch with @@Elham` stores "lunch with Elham" tagged `elham` |
 | `bt find <q>` | keyword + tag search over full note bodies; matches partial words (prefix via FTS5, then a substring fallback) and shows the matching line |
-| `bt <view> --json` | numbered entry views as JSON (`bt`, `bt b`/`t`/`n`/`j`/`c`, `bt @tag`, `bt due`, `bt tags`, `bt find`, `bt like`) — same numbers as the table, so `bt 3 done` works from a script |
+| `bt <view> --json` | numbered entry views as JSON (`bt`, `bt t`/`n`/`j`/`c`, `bt t -b`, `bt @tag`, `bt due`, `bt tags`, `bt find`, `bt like`) — same numbers as the table, so `bt 3 done` works from a script |
 | `bt like <q>` | semantic search (local embeddings, no API key) |
 | `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `edit`, `later`, `focus`, `restore`) |
 | `bt <n> clear <field>` | clear tag, due, date, time, repeat, or `!` |

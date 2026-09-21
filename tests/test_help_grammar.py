@@ -92,26 +92,37 @@ def _row(text: str, marker: str) -> str:
 
 
 class TestHelpDocumentsTheFocusFlow:
-    """`-l` and `-b` decide which of the three task views a capture lands in.
+    """`-w` and `-b` decide which task scope a capture lands in.
 
     The help called `-l` the "Task log" long after that view was renamed
     Tasks — Weekly Log, so it described a destination that no longer had a
-    name. Pin each flag to the view command that shows its result.
+    name. `-l` is gone now too — the flag is `-w`/`--week`. Pin each flag to
+    the view command that shows its result.
     """
 
-    def test_later_flag_names_the_weekly_log(self, runner, tmp_config, tmp_data):
-        row = _row(_help_text(runner, tmp_config, tmp_data), "-l|--later")
-        assert "bt w" in row, f"the -l row must point at bt w: {row!r}"
+    def test_week_flag_names_the_weekly_log(self, runner, tmp_config, tmp_data):
+        row = _row(_help_text(runner, tmp_config, tmp_data), "-w|--week")
+        assert "bt t -w" in row, f"the -w row must point at bt t -w: {row!r}"
 
     def test_backlog_flag_names_the_backlog(self, runner, tmp_config, tmp_data):
         row = _row(_help_text(runner, tmp_config, tmp_data), "-b|--backlog")
-        assert "bt b" in row, f"the -b row must point at bt b: {row!r}"
+        assert "bt t -b" in row, f"the -b row must point at bt t -b: {row!r}"
 
     def test_does_not_use_the_retired_task_log_name(self, runner, tmp_config, tmp_data):
         text = _help_text(runner, tmp_config, tmp_data).lower()
-        assert "task log" not in text, "the view is Tasks — Weekly Log (bt w)"
+        assert "task log" not in text, "the view is Tasks — Weekly Log (bt t -w)"
 
     def test_important_is_shown_as_a_signifier_suffix(self, runner, tmp_config, tmp_data):
         """`!` only works glued to the letter — `bt t x !` puts a literal ! in the body."""
         text = _help_text(runner, tmp_config, tmp_data)
         assert "bt t!" in text, "help must show ! attached to the signifier"
+
+
+def test_help_teaches_scope_flags_and_not_the_old_commands(runner):
+    result = runner.invoke(main, ["-h"])
+    assert result.exit_code == 0
+    out = result.output
+    assert "bt t -b" in out
+    assert "bt t -w" in out
+    assert "-l|--later" not in out
+    assert "long forms of" not in out  # the bt backlog / bt week row is gone
