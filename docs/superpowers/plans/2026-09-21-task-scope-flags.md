@@ -127,7 +127,15 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 **Files:**
 - Modify: `src/bute/commands/views.py:77-150` (replace `tasks_cmd`, `week_cmd`, `backlog_cmd`)
 - Modify: `src/bute/commands/views.py:21` (imports)
+- Modify: `src/bute/cli.py:568-578` and `:605-606` (drop the `backlog_cmd`/`week_cmd` imports and registrations — see Ruling A)
 - Test: `tests/test_views.py`
+
+**Ruling A (controller, pre-flight):** this task must also remove
+`backlog_cmd` and `week_cmd` from `cli.py`'s import list and delete
+`main.add_command(backlog_cmd)` / `main.add_command(week_cmd)`. Deleting the
+two commands from `views.py` while `cli.py` still imports them raises
+ImportError at CLI import, which turns the *entire* suite red rather than just
+the `bt b` / `bt w` tests. Task 3 keeps everything else in `cli.py`.
 
 **Interfaces:**
 - Consumes: `get_today_tasks(config, include_all)` from Task 1; `get_weekly_active_tasks(config, fallback=False)` (`ritual_ops.py:211`); `query_and_load` (`storage.py:151`); `display_entry_list` / `display_entry_list_grouped` (`display.py:316`, `:370`); `save_state(view, ids, config)`
@@ -339,15 +347,29 @@ def _backlog_scope(config, show_all):
     return entries, title, "backlog"
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 4: Drop the dead registrations from `cli.py` (Ruling A)**
+
+In the import block at `src/bute/cli.py:568-578`, remove the `backlog_cmd,` and
+`week_cmd,` lines. Then delete these two lines at `:605-606`:
+
+```python
+main.add_command(backlog_cmd)
+main.add_command(week_cmd)
+```
+
+Leave `SHORT_TO_VIEW`, the `view_flags` sets and the b/w branch alone — Task 3
+owns those. `bt b` will already stop working, because the branch looks up a
+command that is no longer registered and falls through to Click's error.
+
+- [ ] **Step 5: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_views.py -v`
-Expected: PASS. `tests/test_action.py`, `test_json_output.py`, `test_rituals.py` will still fail on `bt b`/`bt w` — Task 3 fixes those.
+Expected: PASS. `tests/test_action.py`, `test_json_output.py`, `test_rituals.py` will still fail where they invoke `["b"]` or `["w"]` — Task 3 Step 5 fixes those.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/bute/commands/views.py tests/test_views.py
+git add src/bute/commands/views.py src/bute/cli.py tests/test_views.py
 git commit -m "feat(views)!: bt t takes scope flags, absorbing bt b and bt w
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
@@ -358,7 +380,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ### Task 3: Dispatcher — teach `cli.py` the new view flags, delete `b`/`w`
 
 **Files:**
-- Modify: `src/bute/cli.py:18` (`SHORT_TO_VIEW`), `:36` and `:109`/`:134` (`view_flags`), `:100-105` (b/w branch), `:565-606` (imports and registrations)
+- Modify: `src/bute/cli.py:18` (`SHORT_TO_VIEW`), `:36` and `:109`/`:134` (`view_flags`), `:100-105` (b/w branch). The `backlog_cmd`/`week_cmd` imports and registrations are already gone — Task 2 removed them under Ruling A.
 - Test: `tests/test_cli_dispatch.py` (create if absent), `tests/test_action.py`, `tests/test_json_output.py`, `tests/test_rituals.py`
 
 **Interfaces:**
@@ -409,14 +431,23 @@ def test_scope_flag_with_text_is_a_capture(runner, tmp_config, tmp_data):
     assert [e.body for e in entries] == ["buy milk"]
 
 
-def test_json_is_not_stripped_from_capture_text_with_scope_flags(runner, tmp_config, tmp_data):
+def test_scope_flags_do_not_break_literal_json_in_capture_text(runner, tmp_config, tmp_data):
+    """The --json-in-body contract (test_json_output.py:211) survives the new flags."""
     from bute.storage import query_and_load
 
-    result = runner.invoke(main, ["n", "--json", "add", "-w", "flag", "to", "parser"])
+    result = runner.invoke(main, ["n", "add", "--json", "flag", "to", "api"])
     assert result.exit_code == 0, result.output
-    bodies = [e.body for e in query_and_load(type="note")]
-    assert bodies == ["add -w flag to parser"]
+    bodies = [e.body for e in query_and_load(None, type="note")]
+    assert bodies == ["add --json flag to api"]
 ```
+
+**Ruling B (controller, pre-flight):** the plan originally asserted that
+`bt n --json add -w flag to parser` stores `"add -w flag to parser"`. Both
+halves are wrong: `tests/test_json_output.py:211` pins the opposite contract
+(a literal `--json` inside capture text is *preserved*, so the body would start
+with `--json`), and Click consumes a declared `-w` appearing inside capture
+text regardless of this plan. The test above asserts the contract that actually
+holds. Do not reinstate the original.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -457,7 +488,9 @@ Delete the b/w branch entirely (lines 100-105):
                     return view, cmd, rest
 ```
 
-In the registration block, drop `backlog_cmd` and `week_cmd` from the import at line 568 and delete `main.add_command(backlog_cmd)` and `main.add_command(week_cmd)` (lines 605-606).
+The registration block needs no change — Task 2 already removed the
+`backlog_cmd`/`week_cmd` imports and `main.add_command` calls under Ruling A.
+Verify with `grep -n "backlog_cmd\|week_cmd" src/bute/cli.py`; expected: no output.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
