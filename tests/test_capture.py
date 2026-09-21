@@ -103,20 +103,21 @@ def test_capture_task_sets_focus_and_week_dates(runner, tmp_config, tmp_data):
 
 
 def test_capture_task_later_flag_sets_week_date_only(runner, tmp_config, tmp_data):
-    """bt t -l sets week_date but not focus_date."""
+    """The -l flag is gone; it's now written into the body text as part of normal capture."""
     from datetime import date
     from bute.storage import load_entry
     from bute.ritual_ops import week_anchor
 
     result = runner.invoke(main, ["/t", "-l", "next", "week"])
-    # The -l flag is parsed by the capture_cmd; may or may not support here. Skip if unsupported.
-    if result.exit_code != 0:
-        return
+    # -l is no longer an option, so it gets written into the body.
+    # Since there's no future date, a normal capture sets both focus_date and week_date.
+    assert result.exit_code == 0
     entries = list(tmp_data.rglob("*.md"))
-    if entries:
-        loaded = load_entry(entries[0])
-        assert loaded.focus_date is None
-        assert loaded.week_date == week_anchor()
+    assert len(entries) == 1
+    loaded = load_entry(entries[0])
+    # Both should be set because -l in the body doesn't trigger special behavior anymore
+    assert loaded.focus_date == date.today()
+    assert loaded.week_date == week_anchor()
 
 
 def test_capture_note_has_no_focus_dates(runner, tmp_config, tmp_data):
@@ -168,3 +169,52 @@ def test_capture_confirmation_safe_with_rich_markup_in_extra_meta(runner, tmp_co
     assert "key:" in result.output
     # Confirm no stray backslashes visible (Text() doesn't show escape chars)
     assert "\\[" not in result.output
+
+
+def test_capture_week_flag_sets_week_date_only(runner, tmp_config, tmp_data):
+    from bute.storage import query_and_load
+
+    result = runner.invoke(main, ["t", "-w", "research", "flights"])
+    assert result.exit_code == 0, result.output
+    entry = query_and_load(type="task")[0]
+    assert entry.week_date is not None
+    assert entry.focus_date is None
+
+
+def test_capture_backlog_flag_sets_neither(runner, tmp_config, tmp_data):
+    from bute.storage import query_and_load
+
+    result = runner.invoke(main, ["t", "-b", "someday", "idea"])
+    assert result.exit_code == 0, result.output
+    entry = query_and_load(type="task")[0]
+    assert entry.week_date is None
+    assert entry.focus_date is None
+
+
+def test_capture_bare_sets_both(runner, tmp_config, tmp_data):
+    from datetime import date
+    from bute.storage import query_and_load
+
+    result = runner.invoke(main, ["t", "call", "dentist"])
+    assert result.exit_code == 0, result.output
+    entry = query_and_load(type="task")[0]
+    assert entry.focus_date == date.today()
+    assert entry.week_date is not None
+
+
+def test_capture_rejects_all_flag(runner, tmp_config, tmp_data):
+    from bute.storage import query_and_load
+
+    result = runner.invoke(main, ["t", "-a", "buy", "milk"])
+    assert result.exit_code != 0
+    assert "-w" in result.output and "-b" in result.output
+    assert query_and_load(type="task") == []
+
+
+def test_later_flag_is_gone(runner, tmp_config, tmp_data):
+    from bute.storage import query_and_load
+
+    runner.invoke(main, ["t", "-l", "research", "flights"])
+    # -l is no longer an option; it must not silently set week_date only.
+    entries = query_and_load(type="task")
+    assert not any(e.week_date is not None and e.focus_date is None for e in entries)
