@@ -497,9 +497,38 @@ Verify with `grep -n "backlog_cmd\|week_cmd" src/bute/cli.py`; expected: no outp
 Run: `uv run pytest tests/test_cli_dispatch.py -v`
 Expected: PASS (6 tests)
 
-- [ ] **Step 5: Fix the suites that still say `b` or `w`**
+- [ ] **Step 5: Fix the suites that still say `b` or `w` (Ruling C)**
 
-Run: `uv run pytest -q` and update every `["b"]` → `["t", "-b"]` and `["w"]` → `["t", "-w"]` in `tests/test_action.py`, `tests/test_json_output.py`, `tests/test_rituals.py`, `tests/test_open_capture.py`. Re-run until green.
+Task 2 left exactly 10 known failures, verified by the controller: **6 in
+`tests/test_json_output.py`** and **4 in `tests/test_trash.py`**. The plan's
+original list was wrong — `tests/test_action.py`, `tests/test_rituals.py` and
+`tests/test_open_capture.py` contain no `["b"]`/`["w"]` invocations and are
+already green. Do not edit those three.
+
+Run `uv run pytest -q`, then in the two failing files replace every
+`["b"]` → `["t", "-b"]` and `["w"]` → `["t", "-w"]`. Some failures are from the
+title change rather than the command: `bt t`'s `--json` `view` field is now
+`"Tasks — Today"`, and `"Tasks — All"` is now produced by `bt t -b -a`. Update
+those assertions to the view the test actually means to exercise. Re-run until
+the whole suite is green.
+
+- [ ] **Step 5b: Restore the signifier spelling in `tests/test_views.py` (Ruling D)**
+
+Task 2 could not invoke `["t", "-w"]` / `["t", "-b"]` as views — the dispatcher
+did not know the flags yet — so it used the registered command name
+(`["tasks", "-w"]`) at roughly 15 call sites. Now that `VIEW_FLAGS` exists,
+convert every one of those back to the signifier form users actually type:
+`["tasks", "-w"]` → `["t", "-w"]`, `["tasks", "-b"]` → `["t", "-b"]`,
+`["tasks", "-b", "-a"]` → `["t", "-b", "-a"]`, and so on, including the tag and
+exclusivity cases. Find them with:
+
+```bash
+grep -n '"tasks"' tests/test_views.py
+```
+
+Leave a bare `["tasks"]` with no flags alone if one exists — that one still
+resolves. Re-run `uv run pytest tests/test_views.py -v`; it must stay green,
+and it now exercises the dispatcher rather than bypassing it.
 
 - [ ] **Step 6: Commit**
 
