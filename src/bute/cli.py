@@ -316,6 +316,7 @@ def _print_help():
     t.add_row("bt t", "Tasks — Today", "The task rows of the Focus Log")
     t.add_row("bt t -w", "Tasks — Weekly Log (picked by bt wp)", "")
     t.add_row("bt t -b", "Tasks — Backlog (all active)", "")
+    t.add_row("bt t -b -a", "Tasks — All", "Every task, any status, by date")
     t.add_row("bt n", "Notes", "Grouped by date")
     t.add_row("bt j", "Journals", "Grouped by date")
     t.add_row("bt c", "Events", "Grouped by date")

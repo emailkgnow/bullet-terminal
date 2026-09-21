@@ -126,3 +126,14 @@ def test_help_teaches_scope_flags_and_not_the_old_commands(runner):
     assert "bt t -w" in out
     assert "-l|--later" not in out
     assert "long forms of" not in out  # the bt backlog / bt week row is gone
+
+
+def test_help_lists_the_widest_task_scope(runner):
+    """bt t -b -a replaced what bt t used to show — it needs its own row.
+
+    Without one the whole task dimension is reachable only by guessing that
+    -a stacks on -b, which no row in the table states.
+    """
+    out = runner.invoke(main, ["-h"]).output
+    assert "bt t -b -a" in out
+    assert "Tasks — All" in out
