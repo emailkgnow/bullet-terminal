@@ -18,7 +18,7 @@ from bute.display import (
     json_mode,
 )
 from bute.models import EntryType, TaskStatus
-from bute.ritual_ops import get_all_active_tasks, get_today_tasks, get_weekly_active_tasks
+from bute.ritual_ops import get_today_tasks, get_weekly_active_tasks
 from bute.state import save_state
 from bute.storage import query_and_load
 

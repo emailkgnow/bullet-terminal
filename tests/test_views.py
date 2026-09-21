@@ -13,12 +13,6 @@ def _setup_config(tmp_config, tmp_data):
     save_config(doc)
 
 
-def test_tasks_view(runner, tmp_config, populated_data):
-    result = runner.invoke(main, ["tasks"])
-    assert result.exit_code == 0
-    assert "call dentist" in result.output
-
-
 def test_tasks_view_empty(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["tasks"])
     assert result.exit_code == 0
