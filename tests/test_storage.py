@@ -199,3 +199,50 @@ def test_load_entries_by_filter_finds_all_types(tmp_data):
     types = {e.type for e in entries}
     assert EntryType.TASK in types
     assert EntryType.NOTE in types
+
+
+def _entry_at(created):
+    """An entry whose ULID and created timestamp both point at `created`."""
+    from ulid import ULID
+
+    entry = Entry.create(EntryType.JOURNAL, "couldn't sleep")
+    entry.id = str(ULID.from_datetime(created))
+    entry.created = created
+    return entry
+
+
+def test_path_from_id_finds_entry_filed_in_next_local_month(tmp_data):
+    """UTC+3 at 01:30 on Oct 1 is still Sep 30 in UTC — the ULID's month.
+
+    save_entry files by the local month (2026-10), so the lookup must not
+    stop at the ULID's UTC month (2026-09).
+    """
+    from datetime import datetime, timedelta, timezone
+
+    created = datetime(2026, 10, 1, 1, 30, tzinfo=timezone(timedelta(hours=3)))
+    path = save_entry(_entry_at(created))
+    assert path.parent.name == "2026-10"
+
+    assert entry_path_from_id(path.stem) == path
+
+
+def test_path_from_id_finds_entry_filed_in_previous_local_month(tmp_data):
+    """UTC-5 at 21:00 on Sep 30 is already Oct 1 in UTC."""
+    from datetime import datetime, timedelta, timezone
+
+    created = datetime(2026, 9, 30, 21, 0, tzinfo=timezone(timedelta(hours=-5)))
+    path = save_entry(_entry_at(created))
+    assert path.parent.name == "2026-09"
+
+    assert entry_path_from_id(path.stem) == path
+
+
+def test_path_from_id_rolls_over_the_year(tmp_data):
+    """UTC+3 at 02:00 on Jan 1 is Dec 31 in UTC — next month is next year."""
+    from datetime import datetime, timedelta, timezone
+
+    created = datetime(2027, 1, 1, 2, 0, tzinfo=timezone(timedelta(hours=3)))
+    path = save_entry(_entry_at(created))
+    assert path.parent.name == "2027-01"
+
+    assert entry_path_from_id(path.stem) == path

@@ -181,18 +181,32 @@ def query_and_load(config=None, sort_key=None, reverse=False, **kwargs) -> list[
 
 
 def entry_path_from_id(entry_id: str, config=None) -> Path | None:
-    """Find an entry file by ULID. Checks all type dirs for the entry."""
+    """Find an entry file by ULID. Checks all type dirs for the entry.
+
+    The ULID's timestamp is UTC, but save_entry files by the local month of
+    `created`. Near midnight on the 1st those differ by a month either way
+    (UTC+3 at 01:30 Oct 1 is Sep 30 UTC), so the UTC month is probed first,
+    then its neighbours.
+    """
     from ulid import ULID
 
-    ulid = ULID.from_str(entry_id)
-    ts = ulid.datetime
+    ts = ULID.from_str(entry_id).datetime
     data_dir = get_data_dir(config)
-    month = ts.strftime("%Y-%m")
-    for type_name in ENTRY_TYPE_DIRS:
-        candidate = data_dir / "entries" / type_name / month / f"{entry_id}.md"
-        if candidate.exists():
-            return candidate
+    for month in _months_around(ts.year, ts.month):
+        for type_name in ENTRY_TYPE_DIRS:
+            candidate = data_dir / "entries" / type_name / month / f"{entry_id}.md"
+            if candidate.exists():
+                return candidate
     return None
+
+
+def _months_around(year: int, month: int) -> list[str]:
+    """['YYYY-MM'] for the given month, then the next and the previous one."""
+    def fmt(y: int, m: int) -> str:
+        y, m = y + (m - 1) // 12, (m - 1) % 12 + 1
+        return f"{y:04d}-{m:02d}"
+
+    return [fmt(year, month), fmt(year, month + 1), fmt(year, month - 1)]
 
 
 _READ_TIME_RE = re.compile(r"^(\d{1,2})[:.]?(\d{2})\s*(am|pm)?$", re.IGNORECASE)
