@@ -306,6 +306,7 @@ def _parse_meta_tokens(tokens: list[str]) -> dict[str, str]:
 def handle_set_meta(entry: Entry, meta: dict[str, str], config) -> None:
     """Update due date, scheduled date, time, or repeat on an entry."""
     from bute.parser import (
+        check_due_is_task_only,
         check_removed_meta_keys,
         resolve_date,
         resolve_repeat,
@@ -313,6 +314,7 @@ def handle_set_meta(entry: Entry, meta: dict[str, str], config) -> None:
     )
 
     check_removed_meta_keys(meta)
+    check_due_is_task_only(entry.type.value, meta)
 
     prev = {}
     labels = []

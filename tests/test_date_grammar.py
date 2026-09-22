@@ -413,3 +413,37 @@ class TestReadingIsLooserThanTyping:
         entry = load_entry(Path(f))
         assert entry.scheduled_time == "14:30"
         assert entry.body == "agent-written event"
+
+
+# --- due: is a task deadline, nothing else ---
+
+class TestDueIsTaskOnly:
+    @pytest.mark.parametrize("sig,noun", [("n", "note"), ("j", "journal"), ("c", "calendar")])
+    def test_capture_rejects_due_on_non_task(self, runner, tmp_config, tmp_data, sig, noun):
+        result = runner.invoke(main, [sig, "thing", "due:friday"])
+        assert result.exit_code != 0, result.output
+        assert "date:" in result.output, "should point at date: instead"
+        assert noun in result.output
+        assert list(tmp_data.rglob("*.md")) == [], "nothing should be written"
+
+    def test_capture_rejects_due_time_shortcut_on_non_task(self, runner, tmp_config, tmp_data):
+        result = runner.invoke(main, ["c", "thing", "due:3:00pm"])
+        assert result.exit_code != 0, result.output
+        assert list(tmp_data.rglob("*.md")) == []
+
+    def test_action_rejects_due_on_non_task(self, runner, tmp_config, tmp_data):
+        entry = Entry.create(EntryType.NOTE, "oauth docs")
+        save_entry(entry)
+        save_state("notes", [entry.id])
+        result = runner.invoke(main, ["1", "due:friday"])
+        assert "date:" in result.output
+        assert load_entry(entry_path_from_id(entry.id)).due is None
+
+    def test_action_can_still_clear_stray_due_on_non_task(self, runner, tmp_config, tmp_data):
+        """A due: written by an external agent must stay removable."""
+        entry = Entry.create(EntryType.NOTE, "oauth docs", due=date(2026, 10, 1))
+        save_entry(entry)
+        save_state("notes", [entry.id])
+        result = runner.invoke(main, ["1", "clear", "due"])
+        assert result.exit_code == 0, result.output
+        assert load_entry(entry_path_from_id(entry.id)).due is None

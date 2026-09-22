@@ -16,6 +16,7 @@ from bute.parser import (
     SIGNIFIER_RE,
     WORD_SIGNIFIER_RE,
     parse_capture_tokens,
+    check_due_is_task_only,
     check_removed_meta_keys,
     resolve_date,
     resolve_repeat,
@@ -77,8 +78,10 @@ def capture_cmd(ctx, week_only, backlog, tokens):
     meta = dict(parsed.metadata)
     try:
         check_removed_meta_keys(meta)
+        check_due_is_task_only(entry_type.value, meta)
         raw_time = meta.pop("time", None)
-        # due: can be a date (due:friday) or a time (due:3pm → today at 3pm)
+        # due: can be a date (due:friday) or an am/pm time (due:3:00pm → due
+        # today, and fills time: unless one was given)
         raw_due = meta.pop("due", None)
         if raw_due is not None:
             if re.search(r'(?:am|pm)$', raw_due.lower().strip()):

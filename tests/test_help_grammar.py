@@ -16,9 +16,16 @@ from bute.parser import resolve_date, resolve_repeat, resolve_time
 # date:friday, time:14:30, due:friday, repeat:daily — but not the <placeholders>
 EXAMPLE_RE = re.compile(r"\b(date|time|due|repeat):([^\s<>|\]]+)")
 
+def _resolve_due(value: str):
+    """Mirror capture: an am/pm value is a time (due today), else a date."""
+    if re.search(r"(?:am|pm)$", value.lower()):
+        return resolve_time(value)
+    return resolve_date(value)
+
+
 RESOLVERS = {
     "date": resolve_date,
-    "due": resolve_date,
+    "due": _resolve_due,
     "time": resolve_time,
     "repeat": resolve_repeat,
 }

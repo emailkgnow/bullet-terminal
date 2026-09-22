@@ -109,7 +109,7 @@ bt j lunch with @@Elham                  # double duty tag: body keeps "Elham", 
 Four keys, one spelling each — the typed word *is* the frontmatter key it writes.
 - `date:` — scheduled / resurface date. Five forms, hyphen-separated, case-insensitive: `today`, `tomorrow`, a weekday (`friday`/`fri`), `jan-23`, `01-23`, `2026-01-23`.
 - `time:` — `HH:MM`, read as 24-hour unless an `am`/`pm` suffix is given. Minutes are always required: `time:9:00`, `time:14:30`, `time:2:20pm`.
-- `due:` — deadline for tasks (same date forms as `date:`)
+- `due:` — deadline, tasks only (same date forms as `date:`). Rejected on notes/journals/calendar with a pointer to `date:` (`parser.check_due_is_task_only`); an empty/`none` value (a clear) is still allowed so stray BYOAI-written `due` fields stay removable. On capture only, an `am`/`pm` time (`due:3:00pm`) means due today and fills `time:` unless one was given.
 - `repeat:` — `daily` | `weekly` | `monthly` | `yearly`; anything else is rejected at capture.
 
 Everything except full ISO resolves *forward*: `01-23` typed in September means next January. Use full ISO for a past date.
@@ -204,7 +204,7 @@ bt completion     # print the shell line that enables @tag tab completion
 - **Focus state as dates, not tags** — `focus_date` and `week_date` are proper `Optional[date]` fields on `Entry`. Set by `bt dp` / `bt wp` / `bt focus` / capture. Cleared by `bt later` / `bt backlog`. Old dates expire naturally — no clearing ritual needed. Replaces the former `@today` / `@thisweek` system tags.
 - **`bt wp`** includes task dump phase — add tasks before selecting for the week.
 - **Display**: notes/journals/calendar always group by date with a Date column (`display_entry_list_grouped`, keyed on `scheduled_date` else `created`). Among task scopes only `bt t -b -a` (the full task dimension) groups the same way; `bt t`, `bt t -w`, and `bt t -b` stay flat lists, since a short curated list needs no date spine.
-- **Scheduling is universal** — `date:` (scheduled_date) works on all entry types. Tasks: deadline. Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
+- **Scheduling is universal** — `date:` (scheduled_date) works on all entry types. Tasks: the day to work on it (the deadline is `due:`, tasks only). Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
 - **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.
 - **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Input is `HH:MM`, 24-hour unless suffixed `am`/`pm`; minutes are always required, so `time:9` is an error pointing at `time:9:00`. There is exactly one way to write any given time.
 - **Date format**: five forms — `today`, `tomorrow`, weekday, `jan-23`, `01-23`, `2026-01-23`. The hyphen is the only separator and the dot is not a date character at all, which is what keeps `01-23` from colliding with a time. `01-23` is full ISO with the year dropped, so the month-day order is ISO's, not an American convention.

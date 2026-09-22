@@ -325,6 +325,20 @@ def resolve_repeat(value: str) -> str:
     return low
 
 
+def check_due_is_task_only(entry_type: str, meta: dict) -> None:
+    """Raise if due: is set on a non-task — no view reads it there.
+
+    An empty or 'none' value is a clear, not a set, so it stays allowed.
+    """
+    raw = meta.get("due")
+    if entry_type == "task" or not raw or raw.lower() == "none":
+        return
+    raise ValueError(
+        f"'due:' is a task deadline — use 'date:' to schedule a {entry_type} "
+        f"(e.g. date:{raw})."
+    )
+
+
 def check_removed_meta_keys(meta: dict) -> None:
     """Raise if a removed short key (d:/t:/r:) was used, naming its replacement."""
     for short, full in REMOVED_META_KEYS.items():

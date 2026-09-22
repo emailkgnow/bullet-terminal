@@ -206,7 +206,7 @@ Four keys, one spelling each — the word you type is the frontmatter key it wri
 
 | Key | Writes | Applies to | Accepted values |
 |---|---|---|---|
-| `due:` | `due` | tasks | a date (below) |
+| `due:` | `due` | tasks only — rejected on notes, journals, calendar | a date (below), or an `am`/`pm` time |
 | `date:` | `date` | all types | a date (below) |
 | `time:` | `time` | all types | `HH:MM`, optionally with `am`/`pm` |
 | `repeat:` | `repeat` | tasks | `daily` \| `weekly` \| `monthly` \| `yearly` |
@@ -231,6 +231,27 @@ always required, so there is exactly one way to write any given time:
 time:09:00   → 09:00      time:14:30   → 14:30
 time:9:00am  → 09:00      time:2:20pm  → 14:20
 ```
+
+**`due:` with a time** — on capture, a `due:` value ending in `am`/`pm` means
+*due today at that time*: `bt t take meds due:3:00pm` writes `due` = today and
+`time` = `15:00` (an explicit `time:` wins). Same `HH:MM` rule, so `due:3pm` is
+an error. On an existing entry, `bt <n> due:` takes a date only.
+
+**`date:` means something slightly different for each type.** It always puts
+the entry in the Focus Log on that day, and on that day only:
+
+| Type | `date:` means | Before the day | After the day |
+|---|---|---|---|
+| task | the day you plan to work on it | waits in the Backlog | back to the Backlog if still open |
+| calendar | the day of the event | hidden from the Focus Log | drops off |
+| note | the day it resurfaces as a reminder | hidden from the Focus Log | drops off |
+| journal | the day it resurfaces | hidden from the Focus Log | drops off |
+
+`due:` versus `date:` on a task — `date:` is when it shows up for you to work
+on; `due:` is when it must be finished. A task due today or earlier stays in the
+Focus Log every day until it's done or dropped, and shows in `bt overdue`.
+`bt t draft report date:monday due:friday` shows up Monday and, if still open,
+comes back Friday and stays until finished.
 
 ```bash
 bt t file taxes due:friday
