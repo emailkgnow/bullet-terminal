@@ -33,7 +33,6 @@ bt t -b           # backlog (all active tasks)
 bt t -b -a        # every task, any status, grouped by date
 bt dp             # daily plan ritual (pick today's tasks)
 bt wp             # weekly plan ritual (pick this week's)
-bt m              # monthly log — retrospective, one row per day
 bt @home          # cross-dimension filter
 bt find OAuth     # keyword search (partial words match: bt find auth)
 bt like 3         # semantic: entries similar to entry #3
@@ -94,7 +93,6 @@ All metadata lives in YAML frontmatter. Body text is the rest of the file.
 | `week_date` | ISO date | no | Monday of the week this task is in focus for |
 | `completed_date` | ISO date | no | when a task became `done` or `dropped` |
 | `tags` | list[string] | no | e.g. `['home', 'urgent']` — no `@` prefix in YAML, always lowercase |
-| `events` | list[dict] | no | lifecycle event log; see below |
 | `completions` | list[ISO date] | no | for repeating tasks, dates when completed |
 
 Any other frontmatter key is preserved as `extra_meta` — round-trips through reads/writes but doesn't affect behavior. bt shows these keys in the meta column of list views.
@@ -136,13 +134,11 @@ First line is the display title. Subsequent lines are long-form content. In list
 
 ### Task statuses
 
-Only three: `active`, `done`, `dropped`. There is no `migrated` state — tasks stay `active` until completed or dropped. Migration is implicit: repeated appearance across days in `bt m` *is* the migration signal.
+Only three: `active`, `done`, `dropped`. There is no `migrated` state — tasks stay `active` until completed or dropped. The daily plan (`bt dp`) resurfaces yesterday's unfinished tasks instead.
 
-### Events (optional, but bt appends them)
+### No history log
 
-bt's own mutations (capture, dp, wp, done, drop, later, backlog, schedule, mod, undo) append to an `events` list in frontmatter. Each event has a `date` (ISO) and `action` (`captured`, `focused`, `unfocused`, `scheduled`, `unscheduled`, `week_planned`, `done`, `dropped`, `undropped`, `modified`, `due_set`, `due_cleared`). `bt m` replays events to render a daily retrospective.
-
-External writers can omit `events`. When an entry has no stored events, bt synthesizes them at read time from `created`, `scheduled_date`, `focus_date`, and `completed_date`.
+bt keeps current state only. An `events` list from older versions is read without error and dropped on the next save — don't write one. For a retrospective, derive it from the date fields (`created`, `focus_date`, `scheduled_date`, `due`, `week_date`, `completed_date`, `completions`).
 
 ---
 
@@ -161,7 +157,7 @@ To read what bt shows without parsing tables, append `--json` to any numbered en
 
 ### How reconciliation works
 
-The first read operation per bt process (`bt`, `bt t`, `bt m`, `bt find`, `bt like`, etc.) compares the set of `.md` files under `entries/` against the SQLite index's `entry_id` column:
+The first read operation per bt process (`bt`, `bt t`, `bt find`, `bt like`, etc.) compares the set of `.md` files under `entries/` against the SQLite index's `entry_id` column:
 
 - **Files on disk not in the index** → `load_entry()` + `upsert` into the index and FTS5.
 - **IDs in the index without a file** → delete from index.
@@ -277,7 +273,6 @@ Full help: `bt -h`.
 | `bt` | Focus Log — today's focused tasks, due today, today's events/notes/journals |
 | `bt t` | today's tasks |
 | `bt t -w` / `bt t -b` | this week's active tasks / full Backlog |
-| `bt m` / `bt m jan` / `bt m 2026` | Monthly Log (event-driven daily retrospective) |
 | `bt @tag` | filter across all types; `@a @b` = AND, `-@c` = NOT (matching is case-insensitive) |
 | `@@tag` | double duty tag at capture — keeps the word in the sentence *and* tags it: `bt j lunch with @@Elham` stores "lunch with Elham" tagged `elham` |
 | `bt find <q>` | keyword + tag search over full note bodies; matches partial words (prefix via FTS5, then a substring fallback) and shows the matching line |
@@ -304,7 +299,7 @@ Full help: `bt -h`.
 - **Embeddings**: local via fastembed (ONNX). No API keys, no network.
 - **State**: `.state.json` at config dir remembers the last displayed list so `bt 1 done` knows which entry "#1" maps to.
 
-Core modules: `cli.py` dispatches, `parser.py` tokenizes capture input, `models.py` holds `Entry`, `storage.py` reads/writes .md, `db.py` manages the SQLite index and reconciliation, `events.py` owns the event log, `display.py` renders Rich output, `commands/` hosts each subcommand.
+Core modules: `cli.py` dispatches, `parser.py` tokenizes capture input, `models.py` holds `Entry`, `storage.py` reads/writes .md, `db.py` manages the SQLite index and reconciliation, `display.py` renders Rich output, `commands/` hosts each subcommand.
 
 ---
 

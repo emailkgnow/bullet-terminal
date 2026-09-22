@@ -42,7 +42,7 @@ Custom Click group with 7-branch routing in `resolve_command()` (numbered 1–7 
 6. **Number-action** — `1 done`, `2 3 drop` → action dispatch
 7. **Unknown** — falls through to Click's own error
 
-`b` and `m` are not letter shortcuts: `SHORT_TO_VIEW` maps only `t`/`n`/`j`/`c`, so `bt b`/`bt w` are unregistered and error like any unknown command. No `monthly` command is registered at all — `bt m` errors too, despite being documented throughout this file and the README (see the `bt m` entry under Backlog).
+`b`, `w` and `m` are not letter shortcuts: `SHORT_TO_VIEW` maps only `t`/`n`/`j`/`c`, so `bt b`/`bt w`/`bt m` are unregistered and error like any unknown command.
 
 Bullet symbols (`. - = o`) are used in display output but not accepted as CLI input — they conflict with shell metacharacters (`=` in zsh, `-` as option prefix). Use letter shortcuts instead.
 
@@ -124,10 +124,6 @@ bt t @backend     # any scope, filtered by tag
 bt t! -b          # any scope, important only
 bt n / j / c      # notes / journals / calendar (grouped by date)
 bt -a             # Focus Log + hidden items (dropped, non-focus captures, past events)
-bt m              # monthly log (all entries for the month)
-bt m jan          # January's log (full or abbreviated name)
-bt m 2026-03      # March 2026
-bt m 2026         # all months of 2026
 bt                # Focus Log (or daily plan if not done today)
 bt @tagname       # cross-dimension tag filter
 bt @bt @ai        # entries with both tags (AND)
@@ -193,8 +189,8 @@ bt completion     # print the shell line that enables @tag tab completion
 - **Double duty tags (`@@`)** — `@tag` files the entry and removes the word from the body (unchanged). `@@tag` keeps the word in the body *as typed* and records the lowercased tag: `bt j lunch with @@Elham` → body "lunch with Elham", tag `elham`. Only `@@` is scanned inside tokens, so it survives quoting and glued punctuation while single `@` keeps whole-token matching — that's what protects literal text like `@server.tool()` and quoted `@backend` in notes about bt.
 - **Tags are always lowercase** — normalized at creation (parser, `bt <n> @tag`, filters) *and* on every read in `storage._normalize_tags()`, so files written directly by external agents (BYOAI) can't split a tag into `Elham`/`elham`. Filtering is therefore case-insensitive: `bt @Elham` finds `elham`.
 - **Tags are plain labels** — organize entries and power cross-dimension filters. The `+collection` syntax was removed — tags absorbed collections. A `tag_stages` SQLite table from the removed AI analyze feature still exists; harmless, may be pruned later.
-- **Logs are derived** — no stored files. Focus Log (`bt`), monthly log (`bt m`) query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label). `bt -a` expands the Focus Log to include dropped tasks, non-focus captures from today, and past-timed events — replaces the retired `bt d` and the old per-day/per-week logs.
-- **`bt m` is event-driven** — each entry surfaces on every day any of its lifecycle events occurred (captured, focused, scheduled, completed, dropped, undropped). Events are stored as a YAML `events:` list in the entry's frontmatter, appended by every mutation site (capture, dp, wp, done, drop, later, backlog, schedule, mod, undo). Legacy entries without a stored `events` list use render-time synthesis from `created`, `scheduled_date`, `focus_date`, `completed_date`. This makes `bt m` a BuJo retrospective — you can relive each day of the month.
+- **Logs are derived** — no stored files. The Focus Log (`bt`) and the task scopes query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label). `bt -a` expands the Focus Log to include dropped tasks, non-focus captures from today, and past-timed events — replaces the retired `bt d` and the old per-day/per-week logs.
+- **No Monthly Log, no event history** — `bt m` and the per-entry `events:` list were removed in `78c82dd` (2026-04-18): the list bloated frontmatter and existed almost only to power `bt m`'s day-by-day replay. Under BYOAI, retrospectives belong to external agents reading the date fields. `storage.py` still accepts a legacy `events` key and drops it on save. Don't rebuild `bt m` without revisiting that trade-off.
 - **`bt` with no args** = planning entry point. On the trigger day (default Sunday, configurable via `core.wp_day`), runs weekly plan then daily plan. Other days, runs daily plan only. If all done, shows Focus Log.
 - **Focus Log (`bt`)** — what matters today: tasks with `focus_date == today`, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `date:` (scheduled_date) matching today also surfaces. Other tasks stay in the Backlog (`bt t -b`) or this week's Weekly Log (`bt t -w`). Curated and active-only — `bt -a` expands to dropped tasks, captures from today that lack focus, and past-timed events.
 - **Task view titles share a root** — `Tasks — Today` / `Tasks — Weekly Log` / `Tasks — Backlog` / `Tasks — All` (backlog with `-a`), em dash, so the views read as one dimension at different zoom levels and rank correctly by size. `Notes`/`Journals`/`Calendar` stay bare nouns; tasks alone need the qualifier because they alone have multiple scopes.
@@ -210,7 +206,6 @@ bt completion     # print the shell line that enables @tag tab completion
 - **Date format**: five forms — `today`, `tomorrow`, weekday, `jan-23`, `01-23`, `2026-01-23`. The hyphen is the only separator and the dot is not a date character at all, which is what keeps `01-23` from colliding with a time. `01-23` is full ISO with the year dropped, so the month-day order is ISO's, not an American convention.
 - **Reading is looser than typing** — `storage._normalize_time` does *not* call `resolve_time`. The input grammar is opinionated and has changed twice; files on disk are forever. It reads the canonical `'HH:MM'`, the retired spellings (`3pm`, `14.30`, `1430`), and the integer YAML produces from an *unquoted* `time: 14:30` (sexagesimal, 870). Anything unreadable returns `None` instead of raising, so one bad field can't hide an entry from every view.
 - **One spelling per key, one spelling per value** — `d:`/`t:`/`r:` and the legacy numeric formats (`0407`, `3/29`, `1430`) went first; then the value grammar itself was cut to one form each (dot dates, `next-<day>`, glued `jan15`, bare hours, dot times, and the `tod`/`tom`/`tmr`/`tmrw` aliases). Rationale: on 161 real tasks only 6 carried any date metadata (the dp/wp/Focus Log flow does the prioritising), and 72% of all usage was on calendar entries, so the full words cost ~137 keystrokes across 25 weeks of real use. Typing a removed key raises a pointer to its replacement (`parser.REMOVED_META_KEYS`) rather than silently landing in `extra_meta` or being misread as a tag.
-- **API key**: resolved from config value, `keychain:<service>`, or auto-lookup in macOS Keychain.
 - **No built-in AI** — `bt chat` and the LLM layer were removed in favor of "bring your own AI." External agents (Claude Desktop + filesystem MCP, Claude Code, scripts) read/write `.md` files directly in `~/bullet-terminal/entries/`. bt's README is the schema contract; `db.reconcile_index()` picks up external writes on the next read. Local semantic search via `bt like` stays — it uses fastembed + sqlite-vec, no network.
 
 ## Backlog
@@ -223,9 +218,8 @@ bt completion     # print the shell line that enables @tag tab completion
 
 ### Commands — Medium Value
 - ~~`bt streak`~~ Done — 7-day grid, current streak count, 30-day completion rate.
-- ~~`bt reflect`~~ / `bt recap` — removed with the AI layer. For retrospectives, use `bt m` (per-day replay across a month) or point your own AI agent at `entries/`.
+- ~~`bt reflect`~~ / `bt recap` — removed with the AI layer. For retrospectives, point your own AI agent at `entries/`.
 - `bt w` — free again: the this-week task scope moved to the `-w` flag (`bt t -w`), so the bare `bt w` command no longer exists. A cross-dimension Weekly Log (Mon–Sun over all four types, `bt w last`, `bt w 14`) was documented as done but never existed; if it is still wanted, `bt w` is available for it again.
-- **`bt m` is not implemented** — the Monthly Log is documented throughout this file and the README, but no `monthly` command is registered in `cli.py` and `bt m` errors with `No such command`. Either build it or strike the docs.
 - **Notes as reference layer** — full PKM features (pinned notes, linked references) remain future work. AI-driven recall is now handled by external agents via BYOAI.
 
 ### Commands — Nice to Have
