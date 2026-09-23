@@ -637,3 +637,87 @@ def test_view_aliases_show(runner, tmp_config, tmp_data, fake_leaf):
     assert result.exit_code == 0
     assert len(fake_leaf) == 1
     assert fake_leaf[0][0] == "leaf"
+
+
+# --- later lands in this week; hint when the Focus Log still shows it ---
+
+
+def test_later_puts_unweeked_task_in_this_week(runner, tmp_config, tmp_data):
+    """A task picked in dp has focus_date but no week_date; later must still land it in this week."""
+    from datetime import date
+    from bute.ritual_ops import week_anchor
+    entry = Entry.create(EntryType.TASK, "dp pick", focus_date=date.today())
+    save_entry(entry)
+    save_state("tasks", [entry.id])
+
+    result = runner.invoke(main, ["1", "later"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.focus_date is None
+    assert loaded.week_date == week_anchor()
+
+
+def test_later_refreshes_stale_week_date(runner, tmp_config, tmp_data):
+    """A week_date from a past week would leave the task out of this week's log."""
+    from datetime import date, timedelta
+    from bute.ritual_ops import week_anchor
+    entry = Entry.create(
+        EntryType.TASK, "old week",
+        focus_date=date.today(),
+        week_date=week_anchor() - timedelta(days=7),
+    )
+    save_entry(entry)
+    save_state("tasks", [entry.id])
+
+    runner.invoke(main, ["1", "later"])
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.week_date == week_anchor()
+
+
+def test_undo_later_restores_missing_week_date(runner, tmp_config, tmp_data):
+    from datetime import date
+    entry = Entry.create(EntryType.TASK, "dp pick", focus_date=date.today())
+    save_entry(entry)
+    save_state("tasks", [entry.id])
+
+    runner.invoke(main, ["1", "later"])
+    result = runner.invoke(main, ["undo"])
+    assert result.exit_code == 0
+
+    loaded = load_entry(entry_path_from_id(entry.id))
+    assert loaded.focus_date == date.today()
+    assert loaded.week_date is None
+
+
+def test_later_hints_when_due_keeps_task_in_focus_log(runner, tmp_config, tmp_data):
+    from datetime import date
+    entry = Entry.create(EntryType.TASK, "due now", focus_date=date.today(), due=date.today())
+    save_entry(entry)
+    save_state("tasks", [entry.id])
+
+    result = runner.invoke(main, ["1", "later"])
+    assert "still in Focus Log" in result.output
+    assert "bt 1 clear due" in result.output
+
+
+def test_backlog_hints_when_date_keeps_task_in_focus_log(runner, tmp_config, tmp_data):
+    from datetime import date
+    entry = Entry.create(EntryType.TASK, "scheduled", focus_date=date.today(), scheduled_date=date.today())
+    save_entry(entry)
+    save_state("tasks", [entry.id])
+
+    result = runner.invoke(main, ["1", "backlog"])
+    assert "still in Focus Log" in result.output
+    assert "bt 1 clear date" in result.output
+
+
+def test_later_no_hint_for_plain_task(runner, tmp_config, tmp_data):
+    from datetime import date
+    entry = Entry.create(EntryType.TASK, "plain", focus_date=date.today())
+    save_entry(entry)
+    save_state("tasks", [entry.id])
+
+    result = runner.invoke(main, ["1", "later"])
+    assert "still in Focus Log" not in result.output

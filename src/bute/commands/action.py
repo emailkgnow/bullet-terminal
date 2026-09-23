@@ -231,18 +231,35 @@ def handle_add_tag(entry: Entry, tag: str, config) -> None:
 
 
 def handle_later(entry: Entry, args: list[str], config) -> None:
-    """Clear focus_date — defer task to Task log."""
+    """Clear focus_date and set this week's week_date — defer task to the Weekly Log."""
+    from bute.ritual_ops import week_anchor
     _require_task(entry, "later")
-    if entry.focus_date is not None:
-        record_undo(
-            entry.id, "later",
-            {"focus_date": entry.focus_date.isoformat()},
-            config,
-        )
-        entry.focus_date = None
-        update_entry(entry, config)
-    else:
+    if entry.focus_date is None:
         Console().print(f"  [dim]Not in today's log[/dim]")
+        return
+    record_undo(
+        entry.id, "later",
+        {
+            "focus_date": entry.focus_date.isoformat(),
+            "week_date": entry.week_date.isoformat() if entry.week_date else None,
+        },
+        config,
+    )
+    entry.focus_date = None
+    entry.week_date = week_anchor(date.today(), config)
+    update_entry(entry, config)
+
+
+def _focus_log_hint(entry: Entry, n: int) -> str | None:
+    """Why the Focus Log still shows a task after later/backlog, if it does."""
+    if entry.status != TaskStatus.ACTIVE:
+        return None
+    today = date.today()
+    if entry.due is not None and entry.due <= today:
+        return f"{'due today' if entry.due == today else 'overdue'} — bt {n} clear due"
+    if entry.scheduled_date == today:
+        return f"date: is today — bt {n} clear date"
+    return None
 
 
 def handle_focus(entry: Entry, args: list[str], config) -> None:
@@ -521,6 +538,9 @@ def apply_undo(record: dict, config) -> None:
     elif action == "later":
         from datetime import date as date_type
         entry.focus_date = date_type.fromisoformat(prev["focus_date"]) if prev.get("focus_date") else None
+        # Records written before later set week_date carry no week_date key
+        if "week_date" in prev:
+            entry.week_date = date_type.fromisoformat(prev["week_date"]) if prev["week_date"] else None
         update_entry(entry, config)
     elif action == "backlog":
         from datetime import date as date_type
@@ -669,7 +689,7 @@ def action_cmd(ctx, tokens):
     if handler is None:
         raise InvalidActionError(f"Unknown action: '{action}'")
 
-    for entry_id in entry_ids:
+    for n, entry_id in zip(numbers, entry_ids):
         path = entry_path_from_id(entry_id, config)
         if path is None:
             console.print(f"  [red]Entry {entry_id[:8]} not found.[/red]")
@@ -679,6 +699,10 @@ def action_cmd(ctx, tokens):
             handler(entry, args, config)
             if action not in ("edit", "open", "show", "read", "view"):
                 display_action_confirmation(entry, action)
+            if action in ("later", "backlog"):
+                hint = _focus_log_hint(entry, n)
+                if hint:
+                    console.print(f"  [dim]still in Focus Log: {hint}[/dim]")
         except DwnError as e:
             console.print(f"  [red]{e.format_message()}[/red]")
 

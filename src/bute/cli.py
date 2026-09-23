@@ -344,7 +344,7 @@ def _print_help():
     t.add_row("bt <n> done", "Mark task(s) complete", "bt 1-4 done")
     t.add_row("bt <n> drop", "Consciously delete", "bt 2 3 drop")
     t.add_row("bt <n> !", "Toggle important flag", "bt 1 !")
-    t.add_row("bt <n> later", "Off today, stays in this week (bt t -w)", "bt 3 later")
+    t.add_row("bt <n> later", "Off today, into this week (bt t -w)", "bt 3 later")
     t.add_row("bt <n> backlog", "Send to the backlog (bt t -b) — clears week and day", "bt 3 backlog")
     t.add_row("bt <n> focus", "Pull back into today's Focus Log", "bt 3 focus")
     t.add_row("bt <n> show", "Read entry in leaf (q to quit), else Rich", "bt 1 view")

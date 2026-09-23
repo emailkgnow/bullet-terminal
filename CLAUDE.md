@@ -155,7 +155,8 @@ bt 6 clear time   # clear time
 bt 6 clear repeat # clear repeat
 bt 7 edit         # open in $EDITOR
 bt 3 show         # read entry in leaf viewer, q to quit (aliases: view, read)
-bt 3 later        # defer — remove from today's log
+bt 3 later        # defer — off today, into this week's Weekly Log (bt t -w)
+bt 3 backlog      # off today and this week — Backlog only (bt t -b)
 bt undo           # undo last action
 bt 3 undo         # undo last action on entry 3
 ```
@@ -197,7 +198,7 @@ bt completion     # print the shell line that enables @tag tab completion
 - **Task scope is a flag, not a command** — `bt t` is today, `-w` is this week, `-b` is the backlog, and the same flag spells the scope on capture (`bt t -b <text>`). `bt b` and `bt w` were removed along with their `backlog`/`week` long forms. `t`/`n`/`j`/`c` are dimensions again, with no scope letters beside them.
 - **Filters stack, scopes don't** — `-a` (include done/dropped), `@tag` and `!` compose on top of exactly one scope; `-w` and `-b` together is an error. `-a` therefore keeps the one meaning it has everywhere in bt: widen status, never scope. The full task dimension is `bt t -b -a`.
 - **`bt t` and `bt` share one definition of today** — `ritual_ops.get_today_tasks()` filters `get_daily_log()` to tasks, so the two views can't disagree about focus dates, overdue tasks or today's completions.
-- **Focus state as dates, not tags** — `focus_date` and `week_date` are proper `Optional[date]` fields on `Entry`. Set by `bt dp` / `bt wp` / `bt focus` / capture. Cleared by `bt later` / `bt backlog`. Old dates expire naturally — no clearing ritual needed. Replaces the former `@today` / `@thisweek` system tags.
+- **Focus state as dates, not tags** — `focus_date` and `week_date` are proper `Optional[date]` fields on `Entry`. Set by `bt dp` / `bt wp` / `bt focus` / capture. `bt <n> later` swaps `focus_date` for this week's `week_date` (a task picked in `dp` has no `week_date`, so clearing focus alone would silently drop it to the Backlog); `bt <n> backlog` clears both. Either prints a dim hint when `due:` or `date:` still keeps the task in the Focus Log. Old dates expire naturally — no clearing ritual needed. Replaces the former `@today` / `@thisweek` system tags.
 - **`bt wp`** includes task dump phase — add tasks before selecting for the week.
 - **Display**: notes/journals/calendar always group by date with a Date column (`display_entry_list_grouped`, keyed on `scheduled_date` else `created`). Among task scopes only `bt t -b -a` (the full task dimension) groups the same way; `bt t`, `bt t -w`, and `bt t -b` stay flat lists, since a short curated list needs no date spine.
 - **Scheduling is universal** — `date:` (scheduled_date) works on all entry types. Tasks: the day to work on it (the deadline is `due:`, tasks only). Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
