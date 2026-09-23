@@ -74,16 +74,20 @@ def _dimension_command(name, entry_type, label, group_by_date=False):
 @click.argument("tag", required=False, default=None, shell_complete=complete_tags)
 @click.option("--weeklog", "-w", "scope_week", is_flag=True, help="The Weeklog — this week's tasks.")
 @click.option("--backlog", "-b", "scope_backlog", is_flag=True, help="All active tasks.")
-@click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
+@click.option("--all", "-a", "show_all", is_flag=True, help="Every task, any status (with -w: include done/dropped).")
 @click.pass_context
 def tasks_cmd(ctx, tag, scope_week, scope_backlog, show_all):
-    """Today's tasks. -w this week, -b backlog, -a include done/dropped."""
+    """Today's tasks. -w this week, -b backlog, -a every task."""
     config = ctx.obj.get("config")
 
     if scope_week and scope_backlog:
         console.print("  [red]Pick one scope: -w (this week) or -b (backlog).[/red]")
         ctx.exit(1)
         return
+
+    # Bare -a is the widest scope, Tasks — All; bt t -b -a still spells it too.
+    if show_all and not scope_week:
+        scope_backlog = True
 
     if tag and tag.startswith("@"):
         tag = tag[1:]
@@ -135,7 +139,7 @@ def _week_scope(config, show_all):
 
 
 def _backlog_scope(config, show_all):
-    """`bt t -b` — active tasks; with -a, the whole task dimension."""
+    """`bt t -b` — active tasks; with -a (or `bt t -a`), the whole task dimension."""
     kwargs = {"type": "task"}
     if not show_all:
         kwargs["status"] = "active"
@@ -178,6 +182,9 @@ def important_cmd(ctx, entry_type, tag, scope_week, scope_backlog, show_all):
 
     if filter_type == EntryType.TASK:
         # ! is a filter, so it stacks on a scope exactly as -a and @tag do.
+        # Bare -a picks the All scope, matching bt t -a.
+        if show_all and not scope_week:
+            scope_backlog = True
         if scope_backlog:
             entries, scope_title, _ = _backlog_scope(config, show_all)
         elif scope_week:

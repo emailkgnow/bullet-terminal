@@ -316,7 +316,7 @@ def _print_help():
     t.add_row("bt t", "Tasks — Today", "The task rows of the Focus Log")
     t.add_row("bt t -w", "Tasks — Weeklog (picked by bt wp)", "")
     t.add_row("bt t -b", "Tasks — Backlog (all active)", "")
-    t.add_row("bt t -b -a", "Tasks — All", "Every task, any status, by date")
+    t.add_row("bt t -a", "Tasks — All", "Every task, any status, by date")
     t.add_row("bt n", "Notes", "Grouped by date")
     t.add_row("bt j", "Journals", "Grouped by date")
     t.add_row("bt c", "Events", "Grouped by date")
@@ -333,7 +333,7 @@ def _print_help():
     console.print(t)
     console.print()
     console.print("    [dim]Also:[/dim] [bold]bt task[/bold] / [bold]bt note[/bold] / [bold]bt journal[/bold] / [bold]bt calendar[/bold] — full words work everywhere [cyan]t[/cyan]/[yellow]n[/yellow]/[magenta]j[/magenta]/[green]c[/green] do")
-    console.print("    [dim]Also:[/dim] [bold]bt t[/bold] today · [bold]bt t -w[/bold] Weeklog · [bold]bt t -b[/bold] Backlog · [bold]-a[/bold] adds done/dropped")
+    console.print("    [dim]Also:[/dim] [bold]bt t[/bold] today · [bold]bt t -w[/bold] Weeklog · [bold]bt t -b[/bold] Backlog · [bold]bt t -a[/bold] All · [bold]-w -a[/bold] adds done/dropped")
 
     # --- Actions ---
     t = Table(title="Actions — act on numbered entries from last view", title_style="bold cyan",

@@ -305,23 +305,43 @@ def test_tasks_backlog_all_is_every_task(runner, tmp_config, tmp_data):
     done.status = TaskStatus.DONE
     save_entry(done)
 
-    result = runner.invoke(main, ["t", "-b", "-a"])
+    for args in (["t", "-a"], ["t", "-b", "-a"]):
+        result = runner.invoke(main, args)
+        assert result.exit_code == 0, result.output
+        assert "still open" in result.output
+        assert "already finished" in result.output
+        assert "Tasks — All" in result.output
+
+
+def test_tasks_weeklog_all_stays_a_status_filter(runner, tmp_config, tmp_data):
+    """-a on top of -w widens status within the Weeklog; it doesn't jump to All."""
+    from bute.models import Entry, EntryType, TaskStatus
+    from bute.ritual_ops import week_anchor
+    from bute.storage import save_entry
+
+    done = Entry.create(EntryType.TASK, "finished this week", week_date=week_anchor())
+    done.status = TaskStatus.DONE
+    save_entry(done)
+    save_entry(Entry.create(EntryType.TASK, "not this week"))
+
+    result = runner.invoke(main, ["t", "-w", "-a"])
     assert result.exit_code == 0, result.output
-    assert "still open" in result.output
-    assert "already finished" in result.output
-    assert "Tasks — All" in result.output
+    assert "finished this week" in result.output
+    assert "not this week" not in result.output
+    assert "Tasks — Weeklog (all)" in result.output
 
 
 def test_task_scope_grouping_pins_date_column(runner, tmp_config, tmp_data):
-    """Only `bt t -b -a` groups by date; bt t / bt t -w / bt t -b stay flat lists."""
+    """Only `bt t -a` groups by date; bt t / bt t -w / bt t -b stay flat lists."""
     from bute.models import Entry, EntryType
     from bute.storage import save_entry
 
     save_entry(Entry.create(EntryType.TASK, "ordinary task"))
 
-    result = runner.invoke(main, ["t", "-b", "-a"])
-    assert result.exit_code == 0, result.output
-    assert "Date" in result.output
+    for args in (["t", "-a"], ["t", "-b", "-a"]):
+        result = runner.invoke(main, args)
+        assert result.exit_code == 0, result.output
+        assert "Date" in result.output
 
     for args in (["t"], ["t", "-w"], ["t", "-b"]):
         result = runner.invoke(main, args)
@@ -413,6 +433,25 @@ def test_important_task_backlog_scope(runner, tmp_config, tmp_data):
     assert result.exit_code == 0, result.output
     assert "urgent someday" in result.output
     assert "ordinary someday" not in result.output
+
+
+def test_important_task_all_scope(runner, tmp_config, tmp_data):
+    """bt t! -a matches bt t -a: every important task, any status."""
+    from bute.models import Entry, EntryType, TaskStatus
+    from bute.storage import save_entry
+
+    done = Entry.create(EntryType.TASK, "urgent finished", important=True)
+    done.status = TaskStatus.DONE
+    save_entry(done)
+    save_entry(Entry.create(EntryType.TASK, "urgent someday", important=True))
+    save_entry(Entry.create(EntryType.TASK, "ordinary someday"))
+
+    result = runner.invoke(main, ["t!", "-a"])
+    assert result.exit_code == 0, result.output
+    assert "urgent finished" in result.output
+    assert "urgent someday" in result.output
+    assert "ordinary someday" not in result.output
+    assert "Important Tasks — All" in result.output
 
 
 def test_important_non_task_types_ignore_scope(runner, tmp_config, tmp_data):

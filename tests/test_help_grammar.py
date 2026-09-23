@@ -136,11 +136,11 @@ def test_help_teaches_scope_flags_and_not_the_old_commands(runner):
 
 
 def test_help_lists_the_widest_task_scope(runner):
-    """bt t -b -a replaced what bt t used to show — it needs its own row.
+    """bt t -a replaced what bt t used to show — it needs its own row.
 
-    Without one the whole task dimension is reachable only by guessing that
-    -a stacks on -b, which no row in the table states.
+    Without one the whole task dimension is reachable only by guessing what
+    -a does on bt t, which no row in the table would state.
     """
     out = runner.invoke(main, ["-h"]).output
-    assert "bt t -b -a" in out
+    assert "bt t -a" in out
     assert "Tasks — All" in out

@@ -30,7 +30,7 @@ bt                # Focus Log — what matters today
 bt t              # today's tasks
 bt t -w           # this week's tasks
 bt t -b           # backlog (all active tasks)
-bt t -b -a        # every task, any status, grouped by date
+bt t -a           # every task, any status, grouped by date
 bt dp             # daily plan ritual (pick today's tasks)
 bt wp             # weekly plan ritual (pick this week's)
 bt @home          # cross-dimension filter
