@@ -72,7 +72,7 @@ def _dimension_command(name, entry_type, label, group_by_date=False):
 
 @click.command("tasks")
 @click.argument("tag", required=False, default=None, shell_complete=complete_tags)
-@click.option("--week", "-w", "scope_week", is_flag=True, help="This week's tasks.")
+@click.option("--weeklog", "-w", "scope_week", is_flag=True, help="The Weeklog — this week's tasks.")
 @click.option("--backlog", "-b", "scope_backlog", is_flag=True, help="All active tasks.")
 @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
 @click.pass_context
@@ -130,8 +130,8 @@ def _week_scope(config, show_all):
             config, type="task", week_date=week_anchor(config=config).isoformat()
         )
         entries = [e for e in entries if not e.is_recurring()]
-        return entries, "Tasks — Weekly Log (all)", "week"
-    return get_weekly_active_tasks(config, fallback=False), "Tasks — Weekly Log", "week"
+        return entries, "Tasks — Weeklog (all)", "week"
+    return get_weekly_active_tasks(config, fallback=False), "Tasks — Weeklog", "week"
 
 
 def _backlog_scope(config, show_all):
@@ -152,7 +152,7 @@ calendar_cmd = _dimension_command("calendar", EntryType.CALENDAR, "Calendar", gr
 @click.command("important", hidden=True)
 @click.argument("entry_type", required=False, default=None)
 @click.argument("tag", required=False, default=None, shell_complete=complete_tags)
-@click.option("--week", "-w", "scope_week", is_flag=True, help="This week's tasks.")
+@click.option("--weeklog", "-w", "scope_week", is_flag=True, help="The Weeklog — this week's tasks.")
 @click.option("--backlog", "-b", "scope_backlog", is_flag=True, help="All active tasks.")
 @click.option("--all", "-a", "show_all", is_flag=True, help="Include done/dropped.")
 @click.pass_context

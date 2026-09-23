@@ -278,7 +278,7 @@ Full help: `bt -h`.
 | `bt find <q>` | keyword + tag search over full note bodies; matches partial words (prefix via FTS5, then a substring fallback) and shows the matching line |
 | `bt <view> --json` | numbered entry views as JSON (`bt`, `bt t`/`n`/`j`/`c`, `bt t -b`, `bt @tag`, `bt due`, `bt tags`, `bt find`, `bt like`) — same numbers as the table, so `bt 3 done` works from a script |
 | `bt like <q>` | semantic search (local embeddings, no API key) |
-| `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `edit`, `later`, `focus`, `restore`) |
+| `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `edit`, `weeklog`, `focus`, `backlog`, `restore`) |
 | `bt <n> clear <field>` | clear tag, due, date, time, repeat, or `!` |
 | `bt <n> mod <text>` | replace entry body |
 | `bt dp` / `bt wp` | daily / weekly planning rituals |

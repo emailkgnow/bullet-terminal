@@ -20,7 +20,7 @@ WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calend
 
 # Flags that keep a signifier on the view path instead of routing to capture.
 # Scope flags (-w/-b) are task-only; the other dimensions reject them at Click.
-VIEW_FLAGS = {"-a", "--all", "-w", "--week", "-b", "--backlog"}
+VIEW_FLAGS = {"-a", "--all", "-w", "--weeklog", "-b", "--backlog"}
 
 
 def _is_capture_like(args: list[str]) -> bool:
@@ -275,8 +275,8 @@ def _print_help():
     t.add_column("What")
     t.add_column("Example", style="dim")
     t.add_row("[cyan]bt t[/cyan] <text>", "Task — lands in today's Focus Log", "bt t call dentist due:friday")
-    t.add_row("[cyan]bt t -w|--week[/cyan] <text>", "Task — this week (bt t -w), not today", "bt t -w research flights")
-    t.add_row("[cyan]bt t -b|--backlog[/cyan] <text>", "Task — straight to the backlog (bt t -b)", "bt t -b someday idea")
+    t.add_row("[cyan]bt t -w|--weeklog[/cyan] <text>", "Task — into the Weeklog (bt t -w), not today", "bt t -w research flights")
+    t.add_row("[cyan]bt t -b|--backlog[/cyan] <text>", "Task — straight to the Backlog (bt t -b)", "bt t -b someday idea")
     t.add_row("[yellow]bt n[/yellow] <text>", "Note / idea", "bt n OAuth2 tokens expire in 30 days")
     t.add_row("[magenta]bt j[/magenta] <text>", "Journal", "bt j rough morning, couldn't focus")
     t.add_row("[green]bt c[/green] <text>", "Calendar event", "bt c standup time:9:00")
@@ -314,7 +314,7 @@ def _print_help():
     t.add_row("bt", "Focus Log", "wp → dp → Focus Log flow")
     t.add_row("bt -a", "Focus Log + hidden items", "dropped, non-focus captures, past events")
     t.add_row("bt t", "Tasks — Today", "The task rows of the Focus Log")
-    t.add_row("bt t -w", "Tasks — Weekly Log (picked by bt wp)", "")
+    t.add_row("bt t -w", "Tasks — Weeklog (picked by bt wp)", "")
     t.add_row("bt t -b", "Tasks — Backlog (all active)", "")
     t.add_row("bt t -b -a", "Tasks — All", "Every task, any status, by date")
     t.add_row("bt n", "Notes", "Grouped by date")
@@ -333,7 +333,7 @@ def _print_help():
     console.print(t)
     console.print()
     console.print("    [dim]Also:[/dim] [bold]bt task[/bold] / [bold]bt note[/bold] / [bold]bt journal[/bold] / [bold]bt calendar[/bold] — full words work everywhere [cyan]t[/cyan]/[yellow]n[/yellow]/[magenta]j[/magenta]/[green]c[/green] do")
-    console.print("    [dim]Also:[/dim] [bold]bt t[/bold] today · [bold]bt t -w[/bold] this week · [bold]bt t -b[/bold] backlog · [bold]-a[/bold] adds done/dropped")
+    console.print("    [dim]Also:[/dim] [bold]bt t[/bold] today · [bold]bt t -w[/bold] Weeklog · [bold]bt t -b[/bold] Backlog · [bold]-a[/bold] adds done/dropped")
 
     # --- Actions ---
     t = Table(title="Actions — act on numbered entries from last view", title_style="bold cyan",
@@ -344,9 +344,9 @@ def _print_help():
     t.add_row("bt <n> done", "Mark task(s) complete", "bt 1-4 done")
     t.add_row("bt <n> drop", "Consciously delete", "bt 2 3 drop")
     t.add_row("bt <n> !", "Toggle important flag", "bt 1 !")
-    t.add_row("bt <n> later", "Off today, into this week (bt t -w)", "bt 3 later")
-    t.add_row("bt <n> backlog", "Send to the backlog (bt t -b) — clears week and day", "bt 3 backlog")
-    t.add_row("bt <n> focus", "Pull back into today's Focus Log", "bt 3 focus")
+    t.add_row("bt <n> focus", "Into today's Focus Log (bt t)", "bt 3 focus")
+    t.add_row("bt <n> weeklog", "Into the Weeklog (bt t -w) — off today", "bt 3 weeklog")
+    t.add_row("bt <n> backlog", "Into the Backlog (bt t -b) — off today and this week", "bt 3 backlog")
     t.add_row("bt <n> show", "Read entry in leaf (q to quit), else Rich", "bt 1 view")
     t.add_row("bt <n> open", "Open in $EDITOR", "bt 1 open")
     t.add_row("bt <n> mod <text>", "Replace entry text", "bt 1 mod new text here")

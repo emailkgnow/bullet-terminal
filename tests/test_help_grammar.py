@@ -102,13 +102,13 @@ class TestHelpDocumentsTheFocusFlow:
     """`-w` and `-b` decide which task scope a capture lands in.
 
     The help called `-l` the "Task log" long after that view was renamed
-    Tasks — Weekly Log, so it described a destination that no longer had a
-    name. `-l` is gone now too — the flag is `-w`/`--week`. Pin each flag to
+    Tasks — Weekly Log (now Weeklog), so it described a destination that no longer had a
+    name. `-l` is gone now too — the flag is `-w`/`--weeklog`. Pin each flag to
     the view command that shows its result.
     """
 
     def test_week_flag_names_the_weekly_log(self, runner, tmp_config, tmp_data):
-        row = _row(_help_text(runner, tmp_config, tmp_data), "-w|--week")
+        row = _row(_help_text(runner, tmp_config, tmp_data), "-w|--weeklog")
         assert "bt t -w" in row, f"the -w row must point at bt t -w: {row!r}"
 
     def test_backlog_flag_names_the_backlog(self, runner, tmp_config, tmp_data):
@@ -117,7 +117,7 @@ class TestHelpDocumentsTheFocusFlow:
 
     def test_does_not_use_the_retired_task_log_name(self, runner, tmp_config, tmp_data):
         text = _help_text(runner, tmp_config, tmp_data).lower()
-        assert "task log" not in text, "the view is Tasks — Weekly Log (bt t -w)"
+        assert "task log" not in text, "the view is Tasks — Weeklog (bt t -w)"
 
     def test_important_is_shown_as_a_signifier_suffix(self, runner, tmp_config, tmp_data):
         """`!` only works glued to the letter — `bt t x !` puts a literal ! in the body."""

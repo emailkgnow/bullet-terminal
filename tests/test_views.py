@@ -458,3 +458,19 @@ def test_important_non_task_tag_filter(runner, tmp_config, tmp_data):
     assert result.exit_code == 0, result.output
     assert "big idea" in result.output
     assert "other thought" not in result.output
+
+
+def test_week_view_is_titled_weeklog(runner, tmp_config, tmp_data):
+    _planned_week(("call dentist", []))
+    result = runner.invoke(main, ["t", "-w"])
+    assert "Tasks — Weeklog" in result.output
+
+
+def test_weeklog_long_flag_replaces_week(runner, tmp_config, tmp_data):
+    _planned_week(("call dentist", []))
+    assert "call dentist" in runner.invoke(main, ["t", "--weeklog"]).output
+    retired = runner.invoke(main, ["t", "--week"])
+    assert retired.exit_code != 0
+    assert "--weeklog" in retired.output
+    # and nothing was captured with "--week" as its body
+    assert "--week" not in runner.invoke(main, ["t", "-b"]).output

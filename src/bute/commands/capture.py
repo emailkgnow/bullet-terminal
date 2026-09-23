@@ -26,14 +26,14 @@ from bute.storage import load_entry, save_entry
 
 
 @click.command("capture", hidden=True, context_settings={"ignore_unknown_options": True})
-@click.option("--week", "-w", "week_only", is_flag=True, help="This week, not today (bt t -w).")
+@click.option("--weeklog", "-w", "week_only", is_flag=True, help="Weeklog — this week, not today (bt t -w).")
 @click.option("--backlog", "-b", is_flag=True, help="Backlog only — no focus dates.")
 @click.argument("tokens", nargs=-1, required=True, shell_complete=complete_tags)
 @click.pass_context
 def capture_cmd(ctx, week_only, backlog, tokens):
     """Capture a new entry."""
     if week_only and backlog:
-        click.echo("Pick one scope: -w (this week) or -b (backlog).")
+        click.echo("Pick one scope: -w (Weeklog) or -b (Backlog).")
         ctx.exit(1)
         return
     # -a is a view filter, not a capture scope. ignore_unknown_options would
@@ -43,8 +43,14 @@ def capture_cmd(ctx, week_only, backlog, tokens):
     if len(tokens) > 1 and tokens[1] in ("-a", "--all"):
         click.echo(
             f"{tokens[1]} filters a view, it doesn't pick a capture scope. "
-            "Use -w for this week or -b for the backlog."
+            "Use -w for the Weeklog or -b for the Backlog."
         )
+        ctx.exit(1)
+        return
+    # Same guard for the retired long flag, so muscle memory doesn't file a
+    # task whose body is "--week".
+    if len(tokens) > 1 and tokens[1] == "--week":
+        click.echo("--week was renamed — use -w or --weeklog.")
         ctx.exit(1)
         return
     # Interactive fallback: if only the signifier is given, prompt for text

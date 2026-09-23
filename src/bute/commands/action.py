@@ -230,15 +230,15 @@ def handle_add_tag(entry: Entry, tag: str, config) -> None:
 
 
 
-def handle_later(entry: Entry, args: list[str], config) -> None:
-    """Clear focus_date and set this week's week_date — defer task to the Weekly Log."""
+def handle_weeklog(entry: Entry, args: list[str], config) -> None:
+    """Clear focus_date and set this week's week_date — defer task to the Weeklog."""
     from bute.ritual_ops import week_anchor
-    _require_task(entry, "later")
+    _require_task(entry, "weeklog")
     if entry.focus_date is None:
         Console().print(f"  [dim]Not in today's log[/dim]")
         return
     record_undo(
-        entry.id, "later",
+        entry.id, "weeklog",
         {
             "focus_date": entry.focus_date.isoformat(),
             "week_date": entry.week_date.isoformat() if entry.week_date else None,
@@ -251,7 +251,7 @@ def handle_later(entry: Entry, args: list[str], config) -> None:
 
 
 def _focus_log_hint(entry: Entry, n: int) -> str | None:
-    """Why the Focus Log still shows a task after later/backlog, if it does."""
+    """Why the Focus Log still shows a task after weeklog/backlog, if it does."""
     if entry.status != TaskStatus.ACTIVE:
         return None
     today = date.today()
@@ -535,7 +535,7 @@ def apply_undo(record: dict, config) -> None:
         if "repeat" in prev:
             entry.repeat = prev["repeat"]
         update_entry(entry, config)
-    elif action == "later":
+    elif action in ("weeklog", "later"):  # "later": records saved before the rename
         from datetime import date as date_type
         entry.focus_date = date_type.fromisoformat(prev["focus_date"]) if prev.get("focus_date") else None
         # Records written before later set week_date carry no week_date key
@@ -580,10 +580,13 @@ ACTION_HANDLERS = {
     "show": handle_show,
     "read": handle_show,
     "view": handle_show,
-    "later": handle_later,
+    "weeklog": handle_weeklog,
     "focus": handle_focus,
     "backlog": handle_backlog,
 }
+
+# Renamed actions, so the old word gets a pointer instead of "Unknown action".
+REMOVED_ACTIONS = {"later": "weeklog"}
 
 
 @click.command("action", hidden=True, context_settings={"ignore_unknown_options": True})
@@ -687,6 +690,10 @@ def action_cmd(ctx, tokens):
     # Standard actions
     handler = ACTION_HANDLERS.get(action)
     if handler is None:
+        if action in REMOVED_ACTIONS:
+            raise InvalidActionError(
+                f"'{action}' was renamed — use bt <n> {REMOVED_ACTIONS[action]}"
+            )
         raise InvalidActionError(f"Unknown action: '{action}'")
 
     for n, entry_id in zip(numbers, entry_ids):
@@ -699,7 +706,7 @@ def action_cmd(ctx, tokens):
             handler(entry, args, config)
             if action not in ("edit", "open", "show", "read", "view"):
                 display_action_confirmation(entry, action)
-            if action in ("later", "backlog"):
+            if action in ("weeklog", "backlog"):
                 hint = _focus_log_hint(entry, n)
                 if hint:
                     console.print(f"  [dim]still in Focus Log: {hint}[/dim]")

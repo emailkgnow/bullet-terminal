@@ -117,7 +117,7 @@ Everything except full ISO resolves *forward*: `01-23` typed in September means 
 **Views** — signifier alone, or named commands:
 ```
 bt t              # Tasks — Today: the task rows of the Focus Log
-bt t -w           # Tasks — Weekly Log: active tasks with week_date == this week
+bt t -w           # Tasks — Weeklog: active tasks with week_date == this week (long form --weeklog)
 bt t -b           # Tasks — Backlog: all active tasks
 bt t -b -a        # Tasks — All: every task, any status, grouped by date
 bt t @backend     # any scope, filtered by tag
@@ -155,7 +155,7 @@ bt 6 clear time   # clear time
 bt 6 clear repeat # clear repeat
 bt 7 edit         # open in $EDITOR
 bt 3 show         # read entry in leaf viewer, q to quit (aliases: view, read)
-bt 3 later        # defer — off today, into this week's Weekly Log (bt t -w)
+bt 3 weeklog      # defer — off today, into this week's Weeklog (bt t -w)
 bt 3 backlog      # off today and this week — Backlog only (bt t -b)
 bt undo           # undo last action
 bt 3 undo         # undo last action on entry 3
@@ -193,12 +193,13 @@ bt completion     # print the shell line that enables @tag tab completion
 - **Logs are derived** — no stored files. The Focus Log (`bt`) and the task scopes query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label). `bt -a` expands the Focus Log to include dropped tasks, non-focus captures from today, and past-timed events — replaces the retired `bt d` and the old per-day/per-week logs.
 - **No Monthly Log, no event history** — `bt m` and the per-entry `events:` list were removed in `78c82dd` (2026-04-18): the list bloated frontmatter and existed almost only to power `bt m`'s day-by-day replay. Under BYOAI, retrospectives belong to external agents reading the date fields. `storage.py` still accepts a legacy `events` key and drops it on save. Don't rebuild `bt m` without revisiting that trade-off.
 - **`bt` with no args** = planning entry point. On the trigger day (default Sunday, configurable via `core.wp_day`), runs weekly plan then daily plan. Other days, runs daily plan only. If all done, shows Focus Log.
-- **Focus Log (`bt`)** — what matters today: tasks with `focus_date == today`, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `date:` (scheduled_date) matching today also surfaces. Other tasks stay in the Backlog (`bt t -b`) or this week's Weekly Log (`bt t -w`). Curated and active-only — `bt -a` expands to dropped tasks, captures from today that lack focus, and past-timed events.
-- **Task view titles share a root** — `Tasks — Today` / `Tasks — Weekly Log` / `Tasks — Backlog` / `Tasks — All` (backlog with `-a`), em dash, so the views read as one dimension at different zoom levels and rank correctly by size. `Notes`/`Journals`/`Calendar` stay bare nouns; tasks alone need the qualifier because they alone have multiple scopes.
+- **Focus Log (`bt`)** — what matters today: tasks with `focus_date == today`, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `date:` (scheduled_date) matching today also surfaces. Other tasks stay in the Backlog (`bt t -b`) or this week's Weeklog (`bt t -w`). Curated and active-only — `bt -a` expands to dropped tasks, captures from today that lack focus, and past-timed events.
+- **Task view titles share a root** — `Tasks — Today` / `Tasks — Weeklog` / `Tasks — Backlog` / `Tasks — All` (backlog with `-a`), em dash, so the views read as one dimension at different zoom levels and rank correctly by size. `Notes`/`Journals`/`Calendar` stay bare nouns; tasks alone need the qualifier because they alone have multiple scopes.
+- **Weeklog, a coined noun** — the this-week scope is the *Weeklog*, built like *Backlog*, because an action names the place a task goes, not a time: `bt <n> focus` / `bt <n> weeklog` / `bt <n> backlog`, matching `Tasks — Today` / `Tasks — Weeklog` / `Tasks — Backlog` and the long flags `--weeklog` / `--backlog`. It replaced `bt <n> later` and `--week`; both raise a pointer to the new name (`action.REMOVED_ACTIONS`, the `--week` guard in `capture_cmd`), and `apply_undo` still accepts undo records saved as `later`.
 - **Task scope is a flag, not a command** — `bt t` is today, `-w` is this week, `-b` is the backlog, and the same flag spells the scope on capture (`bt t -b <text>`). `bt b` and `bt w` were removed along with their `backlog`/`week` long forms. `t`/`n`/`j`/`c` are dimensions again, with no scope letters beside them.
 - **Filters stack, scopes don't** — `-a` (include done/dropped), `@tag` and `!` compose on top of exactly one scope; `-w` and `-b` together is an error. `-a` therefore keeps the one meaning it has everywhere in bt: widen status, never scope. The full task dimension is `bt t -b -a`.
 - **`bt t` and `bt` share one definition of today** — `ritual_ops.get_today_tasks()` filters `get_daily_log()` to tasks, so the two views can't disagree about focus dates, overdue tasks or today's completions.
-- **Focus state as dates, not tags** — `focus_date` and `week_date` are proper `Optional[date]` fields on `Entry`. Set by `bt dp` / `bt wp` / `bt focus` / capture. `bt <n> later` swaps `focus_date` for this week's `week_date` (a task picked in `dp` has no `week_date`, so clearing focus alone would silently drop it to the Backlog); `bt <n> backlog` clears both. Either prints a dim hint when `due:` or `date:` still keeps the task in the Focus Log. Old dates expire naturally — no clearing ritual needed. Replaces the former `@today` / `@thisweek` system tags.
+- **Focus state as dates, not tags** — `focus_date` and `week_date` are proper `Optional[date]` fields on `Entry`. Set by `bt dp` / `bt wp` / `bt focus` / capture. `bt <n> weeklog` swaps `focus_date` for this week's `week_date` (a task picked in `dp` has no `week_date`, so clearing focus alone would silently drop it to the Backlog); `bt <n> backlog` clears both. Either prints a dim hint when `due:` or `date:` still keeps the task in the Focus Log. Old dates expire naturally — no clearing ritual needed. Replaces the former `@today` / `@thisweek` system tags.
 - **`bt wp`** includes task dump phase — add tasks before selecting for the week.
 - **Display**: notes/journals/calendar always group by date with a Date column (`display_entry_list_grouped`, keyed on `scheduled_date` else `created`). Among task scopes only `bt t -b -a` (the full task dimension) groups the same way; `bt t`, `bt t -w`, and `bt t -b` stay flat lists, since a short curated list needs no date spine.
 - **Scheduling is universal** — `date:` (scheduled_date) works on all entry types. Tasks: the day to work on it (the deadline is `due:`, tasks only). Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
