@@ -90,6 +90,13 @@ class DwnGroup(click.Group):
             new = REMOVED_SIGNIFIER_WORDS[old] + first[len(old):]
             raise click.UsageError(f"'{first}' was renamed — use bt {new} (or bt {new[0]}{first[len(old):]})")
 
+        # `bt like` (semantic search) was removed: it matched topic, not meaning.
+        if first == "like":
+            raise click.UsageError(
+                "'like' was removed — use bt find <text> to search, "
+                "or point your own AI at entries/ for fuzzy recall"
+            )
+
         # 1. Word signifier with text → capture (before named command check,
         #    so "bt cal meet mom" routes to capture, not the calendar view)
         if rest and WORD_SIGNIFIER_PATTERN.match(first):
@@ -383,7 +390,6 @@ def _print_help():
     t.add_row(r"bt completion [dim]\[zsh|bash|fish][/dim]", "Print the shell line that enables @tag tab completion", "bt completion")
     t.add_row("bt -i [dim]| --interactive[/dim]", "Interactive REPL", "No quoting needed")
     t.add_row("bt -d [dim]| --demo[/dim]", "Demo session", "Isolated data, auto-cleanup")
-    t.add_row("bt like <input>", "Find similar entries (semantic)", "bt like 3, bt like productivity")
     t.add_row("bt -j [dim]| --journal-whisper[/dim]", "Toggle random journal whisper in Focus Log", "")
     t.add_row("bt <view> --json", "Emit numbered entry views as JSON", "bt t -b --json, bt @home --json")
     console.print()
@@ -590,7 +596,7 @@ from bute.commands.rituals import (  # noqa: E402
 from bute.commands.habits import streak_cmd  # noqa: E402
 from bute.commands.stats import stats_cmd  # noqa: E402
 from bute.commands.export import export_cmd  # noqa: E402
-from bute.commands.search import find_cmd, like_cmd, rebuild_cmd, readme_cmd  # noqa: E402
+from bute.commands.search import find_cmd, rebuild_cmd, readme_cmd  # noqa: E402
 from bute.commands.demo import demo_cmd  # noqa: E402
 from bute.commands.zen import this_cmd  # noqa: E402
 from bute.commands.trash import trash_cmd  # noqa: E402
@@ -614,7 +620,6 @@ main.add_command(dp_cmd, name="daily-plan")
 main.add_command(streak_cmd)
 main.add_command(wp_cmd)
 main.add_command(wp_cmd, name="weekly-plan")
-main.add_command(like_cmd)
 main.add_command(find_cmd)
 main.add_command(rebuild_cmd)
 main.add_command(readme_cmd)

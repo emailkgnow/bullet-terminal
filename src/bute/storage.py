@@ -350,12 +350,6 @@ def trash_entry(entry_id: str, config=None) -> Path | None:
     except Exception:
         import logging
         logging.getLogger(__name__).debug("Index delete failed for %s", entry_id[:8], exc_info=True)
-    try:
-        from bute.ai.vectors import is_available, delete as vec_delete
-        if is_available():
-            vec_delete(entry_id, config)
-    except Exception:
-        pass
     return dest
 
 

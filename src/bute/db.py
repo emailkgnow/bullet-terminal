@@ -47,8 +47,15 @@ def get_connection(config=None) -> sqlite3.Connection:
     is_new_db = not path.exists()
     path.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(str(path))
+    if not is_new_db and _has_legacy_vec_table(db):
+        # Index built while `bt like` existed. Its vec0 table can't be dropped
+        # without the sqlite-vec module, so discard the derived index and
+        # rebuild it from the .md files.
+        db.close()
+        path.unlink()
+        is_new_db = True
+        db = sqlite3.connect(str(path))
     db.row_factory = sqlite3.Row
-    _load_vec_extension(db)
     ensure_schema(db)
     _connection = db
 
@@ -58,16 +65,12 @@ def get_connection(config=None) -> sqlite3.Connection:
     return _connection
 
 
-def _load_vec_extension(db: sqlite3.Connection) -> None:
-    """Try to load sqlite-vec. No-op if not installed."""
-    try:
-        import sqlite_vec  # type: ignore
-        db.enable_load_extension(True)
-        sqlite_vec.load(db)
-        db.enable_load_extension(False)
-        logger.debug("sqlite-vec loaded")
-    except (ImportError, Exception) as exc:
-        logger.debug("sqlite-vec not available: %s", exc)
+def _has_legacy_vec_table(db: sqlite3.Connection) -> bool:
+    """True if the index still carries the retired sqlite-vec `vec_entries` table."""
+    row = db.execute(
+        "SELECT 1 FROM sqlite_master WHERE name = 'vec_entries'"
+    ).fetchone()
+    return row is not None
 
 
 def ensure_schema(db: sqlite3.Connection) -> None:
@@ -111,17 +114,6 @@ def ensure_schema(db: sqlite3.Connection) -> None:
             analyzed_at TEXT
         );
     """)
-    # vec0 is optional — only create if sqlite-vec is loaded
-    try:
-        db.execute("""
-            CREATE VIRTUAL TABLE IF NOT EXISTS vec_entries USING vec0(
-                entry_id TEXT PRIMARY KEY,
-                embedding float[384]
-            )
-        """)
-    except sqlite3.OperationalError:
-        # sqlite-vec not available; skip silently
-        pass
     db.commit()
 
 
@@ -140,9 +132,6 @@ def reconcile_index(config=None) -> int:
     Detects files added/removed externally (e.g., by a "bring your own AI"
     agent writing valid .md files into entries/{type}/YYYY-MM/) and upserts
     or deletes matching rows. Runs at most once per process.
-
-    Vectors are not written here; `embed_missing_vectors()` backfills them
-    when `bt like` runs.
 
     Returns the number of changes applied (0 if already in sync).
     """
@@ -188,56 +177,12 @@ def reconcile_index(config=None) -> int:
         try:
             db.execute("DELETE FROM entries_fts WHERE entry_id = ?", (entry_id,))
             db.execute("DELETE FROM entries WHERE entry_id = ?", (entry_id,))
-            try:
-                db.execute("DELETE FROM vec_entries WHERE entry_id = ?", (entry_id,))
-            except sqlite3.OperationalError:
-                pass
             changes += 1
         except Exception:
             logger.debug("reconcile: failed to delete %s", entry_id, exc_info=True)
     db.commit()
 
     return changes
-
-
-def embed_missing_vectors(config=None) -> int:
-    """Embed every indexed entry that has no row in vec_entries.
-
-    Capture never embeds (it would load the ONNX model on every write).
-    `bt like` calls this first, so semantic search lazily catches up on
-    everything captured, edited, or restored since the last search.
-
-    Returns the number of entries embedded. 0 when embeddings are not
-    installed or the vec table does not exist.
-    """
-    from bute.ai import is_embedding_available
-    if not is_embedding_available():
-        return 0
-
-    db = get_connection(config)
-    try:
-        rows = db.execute(
-            "SELECT entry_id, body FROM entries "
-            "WHERE entry_id NOT IN (SELECT entry_id FROM vec_entries)"
-        ).fetchall()
-    except sqlite3.OperationalError:
-        return 0
-    if not rows:
-        return 0
-
-    from bute.ai.embeddings import embed_texts
-    from bute.ai.vectors import upsert as vec_upsert
-
-    ids = [r[0] for r in rows]
-    vectors = embed_texts([r[1] for r in rows])
-    embedded = 0
-    for entry_id, vector in zip(ids, vectors):
-        try:
-            vec_upsert(entry_id, vector, config)
-            embedded += 1
-        except Exception:
-            logger.debug("embed_missing_vectors: upsert failed for %s", entry_id, exc_info=True)
-    return embedded
 
 
 def _auto_rebuild(config=None) -> None:
@@ -257,7 +202,7 @@ def _auto_rebuild(config=None) -> None:
     console.print("  [dim]Your entries are safe — all data lives in your .md files.[/dim]")
     console.print("  [dim]Building search index for faster lookups...[/dim]")
 
-    indexed = rebuild_from_files(config, include_vectors=False, show_progress=True)
+    indexed = rebuild_from_files(config, show_progress=True)
 
     if indexed > 0:
         console.print(f"  [green]Index built. {indexed} entries indexed.[/green]")
@@ -265,7 +210,7 @@ def _auto_rebuild(config=None) -> None:
     console.print()
 
 
-def rebuild_from_files(config=None, include_vectors: bool = False, show_progress: bool = True) -> int:
+def rebuild_from_files(config=None, show_progress: bool = True) -> int:
     """Rebuild the entire index from .md files. Returns count indexed."""
     from bute.storage import load_entry
 
@@ -288,46 +233,18 @@ def rebuild_from_files(config=None, include_vectors: bool = False, show_progress
 
     clear_all(config)
 
-    if include_vectors:
-        try:
-            from bute.ai.vectors import clear as vec_clear
-            vec_clear(config)
-        except Exception:
-            pass
-
-    vectors = None
-    if include_vectors:
-        try:
-            from bute.ai.embeddings import embed_texts, is_available
-            if is_available():
-                vectors = embed_texts([e.body for e in entries])
-        except Exception:
-            pass
-
     if show_progress:
         from rich.console import Console
         from rich.progress import Progress
         console = Console()
         with Progress(console=console) as progress:
             task = progress.add_task("  Indexing entries...", total=len(entries))
-            for i, entry in enumerate(entries):
+            for entry in entries:
                 upsert_entry(entry, config)
-                if include_vectors and vectors:
-                    try:
-                        from bute.ai.vectors import upsert as vec_upsert
-                        vec_upsert(entry.id, vectors[i], config)
-                    except Exception:
-                        pass
                 progress.advance(task)
     else:
-        for i, entry in enumerate(entries):
+        for entry in entries:
             upsert_entry(entry, config)
-            if include_vectors and vectors:
-                try:
-                    from bute.ai.vectors import upsert as vec_upsert
-                    vec_upsert(entry.id, vectors[i], config)
-                except Exception:
-                    pass
 
     return len(entries)
 

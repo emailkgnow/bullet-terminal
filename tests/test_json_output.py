@@ -195,20 +195,6 @@ def test_bare_json_skips_tour_wp_and_dp_rituals(runner, tmp_config, tmp_data):
     assert not TOUR_DONE.exists()
 
 
-def test_like_json_without_embeddings(runner, tmp_config, tmp_data, monkeypatch):
-    """When embeddings aren't installed, bt like --json must emit JSON
-    (with an error field), not the Rich install-instructions message."""
-    import bute.ai as ai_mod
-    monkeypatch.setattr(ai_mod, "is_embedding_available", lambda: False)
-
-    result = runner.invoke(main, ["like", "productivity", "--json"])
-    assert result.exit_code == 0, result.output
-    data = _parse(result.output)
-    assert data["view"] == "Like"
-    assert data["entries"] == []
-    assert "error" in data
-
-
 # --- --json must never be stripped out of captured text ---
 
 def test_capture_keeps_literal_json_token_in_body(runner, tmp_config, tmp_data):

@@ -10,16 +10,15 @@ bt (Bullet Terminal) is a CLI life management system based on the Bullet Journal
 
 ```bash
 # Install all deps (dev + optional)
-uv sync --extra embeddings --extra dev
+uv sync --extra dev
 
 # Run tests
 uv run pytest                         # all tests
 uv run pytest tests/test_capture.py   # single module
-uv run pytest -m "not slow"           # skip embedding tests
 uv run pytest --cov=src/bute          # with coverage
 
 # Install globally (for manual testing)
-uv tool install --from . --with fastembed --with sqlite-vec bullet-terminal --force --reinstall
+uv tool install --from . bullet-terminal --force --reinstall
 
 # Build
 uv build
@@ -31,7 +30,7 @@ uv build
 
 Custom Click group with 7-branch routing in `resolve_command()` (numbered 1–7 in the source):
 
-1. **Word signifier with text** — `task`/`note`/`jrnl`/`cal` followed by text routes straight to capture, checked before the named-command lookup so `bt cal meet mom` doesn't get swallowed by the `calendar` view. Ahead of this, the retired words `journal`/`calendar` raise a pointer to `jrnl`/`cal`.
+1. **Word signifier with text** — `task`/`note`/`jrnl`/`cal` followed by text routes straight to capture, checked before the named-command lookup so `bt cal meet mom` doesn't get swallowed by the `calendar` view. Ahead of this, the retired words `journal`/`calendar` raise a pointer to `jrnl`/`cal`, and the removed `like` points at `bt find`.
 2. **Named commands** — standard Click lookup (dp, tasks, notes, tags, etc.), plus the `bt overdue` → `bt due overdue` alias.
 3. **Signifiers** — `t`, `n`, `j`, `c` (or words: `task`, `note`, `jrnl`, `cal`)
    - With text → **capture** (`bt t call dentist`)
@@ -59,7 +58,7 @@ Bullet symbols (`. - = o`) are used in display output but not accepted as CLI in
 ```
 User input → DwnGroup.resolve_command() → capture.py
   → parser.py:parse_capture_tokens() — extracts signifier, body, key:value, @tags
-  → models.py:Entry.create() → storage.py:save_entry() → embed → confirm_capture()
+  → models.py:Entry.create() → storage.py:save_entry() → db.upsert_entry() → confirm_capture()
 ```
 
 ### State Management
@@ -77,16 +76,13 @@ User input → DwnGroup.resolve_command() → capture.py
 | `display.py` | Rich rendering: `display_entry_list`, `display_entry_list_grouped`, confirmations |
 | `ritual_ops.py` | Pure functions for rituals (Focus Log, yesterday unresolved, schedule, active tasks) |
 | `state.py` | View-to-action bridge, daily plan completion tracking |
-| `ai/vectors.py` | sqlite-vec wrapper (upsert, search, delete) |
-| `ai/embeddings.py` | fastembed wrapper, lazy model loading |
-| `db.py` | SQLite index — metadata, FTS5, vec_entries, and lazy reconciliation |
+| `db.py` | SQLite index — metadata, FTS5, and lazy reconciliation |
 | `commands/tags.py` | Tag listing and filtering helpers |
 
-### Local search tier (no LLM)
+### Local search (no LLM)
 
-1. **Embeddings** (local) — fastembed ONNX model, no API key needed
-2. **Vector DB** (local) — sqlite-vec, rebuildable from .md files via `bt rebuild`
-3. **Lazy reconciliation** — `db.reconcile_index()` runs once per process on first read and detects externally-added/removed `.md` files, upserting or deleting matching rows. Enables the "bring your own AI" model where external agents (Claude Desktop + filesystem MCP, Claude Code, scripts) write valid .md files into `entries/` and bt picks them up automatically.
+1. **SQLite index** — metadata + FTS5 at `.index/bt.db`, rebuildable from .md files via `bt rebuild`. Powers `bt find`.
+2. **Lazy reconciliation** — `db.reconcile_index()` runs once per process on first read and detects externally-added/removed `.md` files, upserting or deleting matching rows. Enables the "bring your own AI" model where external agents (Claude Desktop + filesystem MCP, Claude Code, scripts) write valid .md files into `entries/` and bt picks them up automatically.
 
 There is no built-in LLM. `bt chat` was removed in favor of BYOAI — the README's data-model section is the contract external agents read. When you change the data model, update README.md in the same commit.
 
@@ -132,7 +128,6 @@ bt -@habit        # all entries excluding @habit
 bt !              # all important entries
 bt t!             # important tasks (also: n!, j!, c!)
 bt find <keyword> # partial-word search in full body + tags (-t -n -j -c to filter)
-bt like <input>   # semantic similarity (bt like 3, bt like productivity)
 bt t -b --json      # numbered entry views as JSON (n = display number); not stats/streak/actions/captures
 ```
 
@@ -210,7 +205,8 @@ bt completion     # print the shell line that enables @tag tab completion
 - **Signifier words are 3–4 letters** — `task`, `note`, `jrnl`, `cal`, each starting with its letter. `journal` and `calendar` were retired as typed words because they were the two long outliers; each new word is its word's conventional short form (`jrnl` is the established CLI spelling, `cal` the Unix command). Only the typed word changed: the stored `type:` values, `entries/` folders, and view titles (`Journals`, `Calendar`) keep the full nouns, so no data migration and the BYOAI contract is untouched. Typing an old word raises a pointer (`parser.REMOVED_SIGNIFIER_WORDS`), caught before the named-command lookup so `bt calendar` can't reach the internal `calendar` view command.
 - **Reading is looser than typing** — `storage._normalize_time` does *not* call `resolve_time`. The input grammar is opinionated and has changed twice; files on disk are forever. It reads the canonical `'HH:MM'`, the retired spellings (`3pm`, `14.30`, `1430`), and the integer YAML produces from an *unquoted* `time: 14:30` (sexagesimal, 870). Anything unreadable returns `None` instead of raising, so one bad field can't hide an entry from every view.
 - **One spelling per key, one spelling per value** — `d:`/`t:`/`r:` and the legacy numeric formats (`0407`, `3/29`, `1430`) went first; then the value grammar itself was cut to one form each (dot dates, `next-<day>`, glued `jan15`, bare hours, dot times, and the `tod`/`tom`/`tmr`/`tmrw` aliases). Rationale: on 161 real tasks only 6 carried any date metadata (the dp/wp/Focus Log flow does the prioritising), and 72% of all usage was on calendar entries, so the full words cost ~137 keystrokes across 25 weeks of real use. Typing a removed key raises a pointer to its replacement (`parser.REMOVED_META_KEYS`) rather than silently landing in `extra_meta` or being misread as a tag.
-- **No built-in AI** — `bt chat` and the LLM layer were removed in favor of "bring your own AI." External agents (Claude Desktop + filesystem MCP, Claude Code, scripts) read/write `.md` files directly in `~/bullet-terminal/entries/`. bt's README is the schema contract; `db.reconcile_index()` picks up external writes on the next read. Local semantic search via `bt like` stays — it uses fastembed + sqlite-vec, no network.
+- **No built-in AI** — `bt chat` and the LLM layer were removed in favor of "bring your own AI." External agents (Claude Desktop + filesystem MCP, Claude Code, scripts) read/write `.md` files directly in `~/bullet-terminal/entries/`. bt's README is the schema contract; `db.reconcile_index()` picks up external writes on the next read. Semantic search is the agent's job too — see *No semantic search* below.
+- **No semantic search** — `bt like` (fastembed + sqlite-vec) was removed 2026-09-24. A small embedding model matches *topic*, not meaning: `bt like fun` returned "feeling down" because both are about mood, and with no distance cutoff it always showed 10 hits, mostly noise. It cost ~75 MB of onnxruntime, an 87 MB model cache, the `vec_entries` table and vector-sync code in storage/action/rebuild. `bt find` covers literal recall; fuzzy recall ("my fun days") belongs to a BYOAI agent. `bt like` raises a pointer to both, and `db.get_connection()` discards an old index that still has `vec_entries` (the vec0 table can't be dropped without its module) and rebuilds it from the .md files.
 
 ## Backlog
 
@@ -241,7 +237,7 @@ bt completion     # print the shell line that enables @tag tab completion
 ### Infrastructure
 - **`bt this` — capture Claude Code chat into bt** — add a Claude Code hook or slash command so `bt this` saves the current conversation's markdown export as a bt note. Turns ephemeral AI chats into searchable, tagged entries in the bt system.
 - **AI agent as mobile interface** — with BYOAI, external agents (Claude Desktop + filesystem MCP, Claude Code, mobile Claude) can both read and write `.md` files under `~/bullet-terminal/entries/`. bt's reconciliation picks up their writes. No mobile app, no REST API, no cloud sync needed — the AI agent is the frontend, bt is the storage + CLI.
-- ~~SQLite index for structured queries~~ In progress — see `docs/superpowers/specs/2026-04-02-sqlite-index-design.md`. Metadata + FTS5 + vectors in one DB, write-through sync, auto-rebuild.
+- ~~SQLite index for structured queries~~ In progress — see `docs/superpowers/specs/2026-04-02-sqlite-index-design.md`. Metadata + FTS5 in one DB, write-through sync, auto-rebuild.
 
 ### Design Guardrail
 - **Stay BuJo, not Notion.** As bt grows into a PKM, resist becoming a general-purpose notes app. Every feature should serve the BuJo methodology — signifiers, rapid logging, rituals, migration. The CLI constraint and opinionated simplicity are features, not limitations. If a feature requires explaining, it probably doesn't belong.

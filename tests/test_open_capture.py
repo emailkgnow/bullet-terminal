@@ -101,24 +101,6 @@ def test_open_capture_important(runner, tmp_config, tmp_data):
     assert "important: true" in content
 
 
-def test_open_capture_does_not_embed(runner, tmp_config, tmp_data, monkeypatch):
-    """The $EDITOR capture path must never load the embedding model either.
-
-    Same rationale as test_capture_does_not_embed in test_capture.py: spies
-    on the real model constructor with a call-count assertion rather than a
-    raising mock, since the old capture-path embed helper (since removed)
-    swallowed exceptions raised from inside it.
-    """
-    import bute.ai.embeddings as emb
-
-    calls = []
-    monkeypatch.setattr(emb, "_get_model", lambda: calls.append(1))
-    with patch("subprocess.call", side_effect=_fake_editor("edited body")):
-        result = runner.invoke(main, ["t", "open"])
-    assert result.exit_code == 0, result.output
-    assert calls == [], "editor capture must not load the embedding model"
-
-
 def test_open_capture_cleans_up_temp_file(runner, tmp_config, tmp_data):
     """Temp file should be deleted after editor closes."""
     temp_paths = []

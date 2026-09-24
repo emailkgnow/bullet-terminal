@@ -95,7 +95,7 @@ bullet-terminal/
 │   ├── README.md         ← you are here
 {type_dirs}├── .trash/           deleted entries — ignore; restore with bt trash → bt <n> restore
 └── .index/
-    └── bt.db             SQLite index (FTS5 + vectors)
+    └── bt.db             SQLite index (metadata + FTS5)
 ```
 
 ## Entry format
@@ -205,7 +205,6 @@ They live in `entries/task/` like other tasks — no separate storage. The
 at any time via `bt rebuild`. It contains:
 - Metadata table for structured queries
 - FTS5 full-text search index
-- Vector embeddings for semantic search
 
 The `.md` files are the source of truth, not the database.
 """

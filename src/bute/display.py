@@ -632,47 +632,6 @@ def display_habit_line_entries(
         console.print(table)
 
 
-def display_search_results(
-    entries: list[Entry], distances: list[float], query: str = ""
-) -> None:
-    """Render search results with relevance scores."""
-    if not entries:
-        if json_mode():
-            emit_json(f'Like: "{query}"' if query else "Like", [])
-        else:
-            console.print("  [dim]No results found.[/dim]")
-        return
-    if json_mode():
-        emit_json(
-            f'Like: "{query}"' if query else "Like",
-            entries,
-            [{"distance": d} for d in distances],
-        )
-        return
-
-    table = Table(
-        show_header=False,
-        show_edge=False,
-        pad_edge=False,
-        box=None,
-        padding=(0, 1),
-        width=min(console.width, _MAX_WIDTH),
-    )
-    table.add_column("#", style="bold dim", width=4, justify="right")
-    table.add_column("", width=2)  # type icon
-    table.add_column("", ratio=3)  # body
-    table.add_column("", style="dim", ratio=1, overflow="fold")  # meta
-
-    for i, entry in enumerate(entries, 1):
-        num, icon, body, meta = _build_entry_row(i, entry)
-        row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
-        table.add_row(num, icon, body, meta, style=row_style)
-
-    title = f'Like: "{query}"' if query else "Like"
-    console.print(f"\n  [bold]{escape_markup(title)}[/bold]")
-    console.print(Align.center(table))
-
-
 def entry_meta_parts(entry: Entry) -> list[str]:
     """The metadata line under an entry's header, as plain (unescaped) strings.
 

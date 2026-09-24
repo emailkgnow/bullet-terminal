@@ -9,10 +9,9 @@ bt stays opinionated and lean. The goal is to capture fast, plan each morning, a
 ## Install
 
 ```bash
-uv tool install 'bullet-terminal[embeddings] @ git+https://github.com/emailkgnow/bullet-terminal'
+uv tool install 'bullet-terminal @ git+https://github.com/emailkgnow/bullet-terminal'
 ```
 
-- `[embeddings]` pulls in `fastembed` + `sqlite-vec` for `bt like` (local semantic search). Drop the extra if you only want the core BuJo loop: `uv tool install 'bullet-terminal @ git+https://github.com/emailkgnow/bullet-terminal'`.
 - Run `bt init` once to create `~/.config/bt/config.toml` and `~/bullet-terminal/`.
 - Tab completion for `@tags` and command names: run `bt completion` and add the printed line to `~/.zshrc`.
 
@@ -35,7 +34,6 @@ bt dp             # daily plan ritual (pick today's tasks)
 bt wp             # weekly plan ritual (pick this week's)
 bt @home          # cross-dimension filter
 bt find OAuth     # keyword search (partial words match: bt find auth)
-bt like 3         # semantic: entries similar to entry #3
 
 bt 1 done         # mark entry #1 complete
 bt 2 3 drop       # drop entries #2 and #3
@@ -65,7 +63,7 @@ Full command reference: `bt -h`. First-run onboarding triggers automatically.
 ├── .trash/
 │   └── <ULID>.md       # deleted entries (bt <n> delete) — flat, restorable with bt trash → bt <n> restore
 ├── .index/
-│   └── bt.db           # SQLite index (metadata + FTS5 + vectors) — regenerable
+│   └── bt.db           # SQLite index (metadata + FTS5) — regenerable
 └── backups/
     └── bt-YYYY-MM-DD.zip   # daily auto-backup, pruned after 30 days — regenerable
 ```
@@ -153,17 +151,15 @@ bt has no built-in LLM. If you want AI over your entries, point your own agent (
 3. **Frontmatter must be valid YAML** with the keys documented above. At minimum: `id`, `type`, `created`. Tasks should set `status: active`.
 4. **Body is free-form Markdown.** First line is the title shown in list views.
 
-To read what bt shows without parsing tables, append `--json` to any numbered entry view — the Focus Log, Tasks/Backlog/Notes/Journals/Calendar, tag filters, `due`, `tags`, `find`, and `like` (`bt --json`, `bt t -b --json`, `bt @home --json`, `bt find x --json`). It does not apply to `bt stats`/`bt streak` (their own reports), or to actions and captures (which still print Rich confirmations). The `n` field is the number you would pass to `bt <n> done`. Every view returns `{"view": ..., "entries": [...]}`; the one exception is `bt tags --json`, which returns a `tags` array of `{"tag", "count", "types"}` objects instead of `entries` (tags are not numbered); `types` maps each entry type with a non-zero count to that count, e.g. `{"task": 54, "note": 10}`.
+To read what bt shows without parsing tables, append `--json` to any numbered entry view — the Focus Log, Tasks/Backlog/Notes/Journals/Calendar, tag filters, `due`, `tags`, and `find` (`bt --json`, `bt t -b --json`, `bt @home --json`, `bt find x --json`). It does not apply to `bt stats`/`bt streak` (their own reports), or to actions and captures (which still print Rich confirmations). The `n` field is the number you would pass to `bt <n> done`. Every view returns `{"view": ..., "entries": [...]}`; the one exception is `bt tags --json`, which returns a `tags` array of `{"tag", "count", "types"}` objects instead of `entries` (tags are not numbered); `types` maps each entry type with a non-zero count to that count, e.g. `{"task": 54, "note": 10}`.
 
 ### How reconciliation works
 
-The first read operation per bt process (`bt`, `bt t`, `bt find`, `bt like`, etc.) compares the set of `.md` files under `entries/` against the SQLite index's `entry_id` column:
+The first read operation per bt process (`bt`, `bt t`, `bt find`, etc.) compares the set of `.md` files under `entries/` against the SQLite index's `entry_id` column:
 
 - **Files on disk not in the index** → `load_entry()` + `upsert` into the index and FTS5.
 - **IDs in the index without a file** → delete from index.
 - On subsequent reads in the same process, reconciliation is a no-op (latched per process).
-
-Vectors are never written at capture time. `bt like` first embeds every indexed entry that has no vector yet (new captures, external files, edited bodies), so semantic search catches up lazily and capture stays fast.
 
 Edits to an existing file (same ID, new body) are not yet auto-detected. Run `bt rebuild` after external edits until that's handled. Capture/delete flows are fully auto-reconciled.
 
@@ -276,8 +272,7 @@ Full help: `bt -h`.
 | `bt @tag` | filter across all types, shown as a tree grouped by type; `@a @b` = AND, `-@c` = NOT (matching is case-insensitive) |
 | `@@tag` | double duty tag at capture — keeps the word in the sentence *and* tags it: `bt j lunch with @@Elham` stores "lunch with Elham" tagged `elham` |
 | `bt find <q>` | keyword + tag search over full note bodies; matches partial words (prefix via FTS5, then a substring fallback) and shows the matching line |
-| `bt <view> --json` | numbered entry views as JSON (`bt`, `bt t`/`n`/`j`/`c`, `bt t -b`, `bt @tag`, `bt due`, `bt tags`, `bt find`, `bt like`) — same numbers as the table, so `bt 3 done` works from a script |
-| `bt like <q>` | semantic search (local embeddings, no API key) |
+| `bt <view> --json` | numbered entry views as JSON (`bt`, `bt t`/`n`/`j`/`c`, `bt t -b`, `bt @tag`, `bt due`, `bt tags`, `bt find`) — same numbers as the table, so `bt 3 done` works from a script |
 | `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `weeklog`, `focus`, `backlog`, `restore`) |
 | `bt <n>` | read entry #n in a full-screen viewer — `e` edits in `$EDITOR`, `n`/`p` step through several (`bt 1 3`), `q` quits; piped, it prints instead |
 | `bt <n> clear <field>` | clear tag, due, date, time, repeat, or `!` |
@@ -288,7 +283,7 @@ Full help: `bt -h`.
 | `bt streak` / `bt habit <name>` | habit tracking |
 | `bt stats` | personal analytics (week/month/streaks) |
 | `bt export` | zip backup of all .md files to cwd |
-| `bt rebuild` | rebuild SQLite + FTS + vector index from .md files |
+| `bt rebuild` | rebuild SQLite + FTS index from .md files |
 | `bt init` | (re)create config + data dirs |
 
 ---
@@ -296,8 +291,7 @@ Full help: `bt -h`.
 ## Architecture (short version)
 
 - **Source of truth**: `.md` files. Everything else is derived.
-- **Index**: SQLite at `.index/bt.db` — metadata table, FTS5 virtual table, `vec_entries` virtual table (sqlite-vec). Auto-rebuilt on first run; auto-reconciled on each read.
-- **Embeddings**: local via fastembed (ONNX). No API keys, no network.
+- **Index**: SQLite at `.index/bt.db` — metadata table and FTS5 virtual table. Auto-rebuilt on first run; auto-reconciled on each read.
 - **State**: `.state.json` at config dir remembers the last displayed list so `bt 1 done` knows which entry "#1" maps to.
 
 Core modules: `cli.py` dispatches, `parser.py` tokenizes capture input, `models.py` holds `Entry`, `storage.py` reads/writes .md, `db.py` manages the SQLite index and reconciliation, `display.py` renders Rich output, `commands/` hosts each subcommand.

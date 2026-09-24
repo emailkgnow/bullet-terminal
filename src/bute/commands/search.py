@@ -1,120 +1,11 @@
-"""Search commands for bt — like, find, rebuild."""
+"""Search commands for bt — find, rebuild, readme."""
 
 import click
 from rich.console import Console
 
-from bute.display import display_search_results
 from bute.state import save_state
 
 console = Console()
-
-_INSTALL_MSG = (
-    "  [yellow]Semantic search requires embeddings.[/yellow]\n"
-    "  Install with: [bold]uv tool install 'bullet-terminal\\[embeddings] @ "
-    "git+https://github.com/emailkgnow/bullet-terminal' --force[/bold]"
-)
-
-
-@click.command("like")
-@click.argument("tokens", nargs=-1, required=True)
-@click.option("-n", "--limit", default=None, type=int, help="Max results.")
-@click.pass_context
-def like_cmd(ctx, tokens, limit):
-    """Find entries similar to an entry or a concept. Usage: bt like 3, bt like productivity."""
-    from bute.ai import is_embedding_available
-
-    if not is_embedding_available():
-        from bute.display import json_mode
-        if json_mode():
-            # Explicit "error" field so an agent can tell "feature unavailable"
-            # apart from "no results" (an empty entries list means the latter).
-            import json as _json
-            click.echo(_json.dumps({"view": "Like", "entries": [], "error": "embeddings not installed"}))
-        else:
-            console.print(_INSTALL_MSG)
-        return
-
-    config = ctx.obj.get("config")
-
-    # Reconcile externally-added .md files into SQLite + vector index so
-    # `bt like` can surface them without a manual `bt rebuild`.
-    from bute.db import embed_missing_vectors, reconcile_index
-    reconcile_index(config)
-    embed_missing_vectors(config)
-
-    # Route: single integer token → try similar-to-entry mode
-    source_entry = None
-    if len(tokens) == 1 and tokens[0].isdigit():
-        try:
-            from bute.state import resolve_numbers
-
-            entry_ids = resolve_numbers([int(tokens[0])], config)
-            from bute.storage import entry_path_from_id, load_entry
-
-            path = entry_path_from_id(entry_ids[0], config)
-            if path is not None:
-                source_entry = load_entry(path)
-        except Exception:
-            pass  # Fall through to text search
-
-    if source_entry is not None:
-        # Similar mode — embed entry body, exclude source from results
-        effective_limit = limit if limit is not None else 5
-
-        from bute.ai.embeddings import embed_text
-        from bute.ai.vectors import search
-
-        query_vector = embed_text(source_entry.body)
-        results = search(query_vector, effective_limit + 1, config)
-
-        from bute.storage import entry_path_from_id, load_entry
-
-        entries = []
-        distances = []
-        for rid, distance in results:
-            if rid == source_entry.id:
-                continue
-            p = entry_path_from_id(rid, config)
-            if p is not None:
-                entries.append(load_entry(p))
-                distances.append(distance)
-
-        entries = entries[:effective_limit]
-        distances = distances[:effective_limit]
-
-        from bute.display import json_mode
-        if not json_mode():
-            console.print(f"\n  [bold]Like:[/bold] {source_entry.body}")
-        display_search_results(entries, distances)
-    else:
-        # Search mode — embed query text
-        effective_limit = limit if limit is not None else 10
-        query_text = " ".join(tokens)
-
-        from bute.ai import search_similar
-        from bute.storage import entry_path_from_id, load_entry
-
-        results = search_similar(query_text, effective_limit, config)
-        if not results:
-            from bute.display import emit_json, json_mode
-            if json_mode():
-                emit_json(f'Like: "{query_text}"', [])
-            else:
-                console.print("  [dim]No results found.[/dim]")
-            return
-
-        entries = []
-        distances = []
-        for entry_id, distance in results:
-            path = entry_path_from_id(entry_id, config)
-            if path is not None:
-                entries.append(load_entry(path))
-                distances.append(distance)
-
-        display_search_results(entries, distances, query_text)
-
-    save_state("like", [e.id for e in entries], config)
-
 
 @click.command("find")
 @click.argument("query", nargs=-1, required=True)
@@ -206,22 +97,19 @@ def find_cmd(ctx, query, type_filter, limit):
 @click.pass_context
 def rebuild_cmd(ctx):
     """Rebuild the search index from Markdown files."""
-    from bute.ai import is_embedding_available
     from bute.db import rebuild_from_files
 
     config = ctx.obj.get("config")
-    include_vectors = is_embedding_available()
 
     console.print("  [dim]Your entries are safe — all data lives in your .md files.[/dim]")
     console.print("  [dim]Rebuilding search index...[/dim]")
 
-    count = rebuild_from_files(config, include_vectors=include_vectors)
+    count = rebuild_from_files(config)
 
     if count == 0:
         console.print("  [dim]No entries found to index.[/dim]")
     else:
-        vec_msg = f", {count} vectors embedded" if include_vectors else " (vectors skipped — embeddings not installed)"
-        console.print(f"  [green]Rebuilt index: {count} entries indexed{vec_msg}.[/green]")
+        console.print(f"  [green]Rebuilt index: {count} entries indexed.[/green]")
         console.print("  [dim]Your .md files are untouched — they're always the source of truth.[/dim]")
 
         from bute.guide import write_guide
