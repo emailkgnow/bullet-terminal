@@ -1,6 +1,6 @@
 # bt (Bullet Terminal)
 
-A terminal life manager built on four bullets. Every entry is marked as a task `.`, note `-`, journal `=`, or event `o`, and captured by its letter: `bt t call dentist`. Single user, local data, plain Markdown files. No cloud, no accounts, no network.
+A terminal life manager built on four bullets. Every entry is marked as a task `.`, note `-`, journal `=`, or event `o`, and captured by its letter: `bt t call dentist`. Capture in seconds; later, point any AI at the folder and ask about your life: patterns, advice, what you keep dropping. Single user, local data, plain Markdown files. No cloud, no accounts, no network.
 
 bt stays opinionated and lean. The goal is to capture fast, plan each morning, and keep the mental loop closed — in a terminal. The name carries both senses of *bullet*: speed, and the four marks that sort every entry.
 
@@ -87,11 +87,11 @@ All metadata lives in YAML frontmatter. Body text is the rest of the file.
 | `date` | ISO date | no | scheduled date; entry surfaces in Focus Log on that day |
 | `time` | string | no | `HH:MM` 24h, for timed calendar events |
 | `repeat` | string | no | `daily` \| `weekly` \| `monthly` \| `yearly` — any other value is rejected |
-| `focus_date` | ISO date | no | set by `bt dp`; day this task is pulled into Focus Log |
-| `week_date` | ISO date | no | Monday of the week this task is in focus for |
-| `completed_date` | ISO date | no | when a task became `done` or `dropped` |
+| `focus_date` | ISO date | no | day this task was picked for the Focus Log — set by `bt dp`, `bt <n> focus`, or plain capture; one date only, overwritten on re-pick; cleared on `done`/`drop` |
+| `week_date` | ISO date | no | first day of the week this task was picked for (per `core.week_start`, not always a Monday) — not a deadline; cleared on `done`/`drop` |
+| `completed_date` | ISO date | no | when a task became `done` **or** `dropped` — read `status` to tell them apart; never set on repeating tasks |
 | `tags` | list[string] | no | e.g. `['home', 'urgent']` — no `@` prefix in YAML, always lowercase |
-| `completions` | list[ISO date] | no | for repeating tasks, dates when completed |
+| `completions` | list[ISO date] | no | for repeating tasks, days marked done; consecutive days stored as a range (`2026-03-28..2026-03-30`) |
 
 Any other frontmatter key is preserved as `extra_meta` — round-trips through reads/writes but doesn't affect behavior. bt shows these keys in the meta column of list views.
 
@@ -143,6 +143,18 @@ bt keeps current state only. An `events` list from older versions is read withou
 ## Bring Your Own AI
 
 bt has no built-in LLM. If you want AI over your entries, point your own agent (Claude Desktop with filesystem MCP, Claude Code, Gemini CLI, a custom script, etc.) at `~/bullet-terminal/entries/`. Read the .md files directly; write new .md files directly. bt will pick them up.
+
+### Ask your AI
+
+Once a few weeks of entries exist, open your agent in the data folder and ask:
+
+- "How often do I finish tasks after their due date?"
+- "What patterns show up in the tasks I drop?"
+- "Summarise my journals from last week: how was I doing?"
+- "Which tags have I stopped using?"
+- "Given my calendar and tasks, what should I cut next week?"
+
+The agent should read `entries/README.md` first: bt regenerates it with the folder layout and what each field means (for example, `completed_date` is set on drops too). Your AI reads everything it's pointed at, so a cloud model sends your entries, journals included, to that provider; a local model keeps them on your machine.
 
 ### The contract
 

@@ -142,6 +142,40 @@ The entry body goes here. Plain text or markdown.
 
 There is no `migrated` status. Tasks stay active until done or dropped.
 
+## Fields and what sets them
+
+These keys are written by bt itself. Each one is listed with the actions that
+set, change, or clear it.
+
+- `created` — the moment the entry was captured. Set once, never changed.
+- `completed_date` — the day a task was resolved. Set by `done` **and** by
+  `drop`, so it does not by itself mean the task was finished: read `status`
+  to tell the two apart. Recurring tasks never get one (see `completions`).
+- `focus_date` — the day the task was picked for the Focus Log. Set by the
+  daily plan (`bt dp`), by `bt <n> focus`, and by capturing a task with no
+  scope flag (`bt t ...`). Unpicked tasks lose it at the next daily plan. It
+  holds one date only: picking the task again overwrites it.
+- `week_date` — the first day of the week the task was picked for (the week
+  start is configurable, so it is not always a Monday). It is not a deadline.
+  Set by the weekly plan (`bt wp`), by `bt <n> weeklog`, by `bt <n> focus`,
+  and by capture without `-b`.
+- `due` — a deadline the user typed. Tasks only.
+- `date` — the day the user scheduled the entry for: an event's date, or the
+  day a task, note or journal should resurface.
+- `completions` — on recurring tasks (`repeat:`), the days the task was marked
+  done. Consecutive days are stored as a range: `2026-03-28..2026-03-30` means
+  the 28th, 29th and 30th. A recurring task stays `active`; each `done` adds
+  today to this list.
+
+### What bt does not record
+
+- **Plans after resolution.** `done` and `drop` clear `focus_date` and
+  `week_date`, so a resolved task no longer shows whether it was ever planned.
+- **Plan history.** Only the latest `focus_date` and `week_date` are kept.
+- **Edit history.** A file shows its current state only; when a body or field
+  changed is not stored.
+- **Uncaptured life.** Entries exist only for what the user chose to capture.
+
 ## Tags
 
 Tags are plain strings stored in the `tags` list. They are pure organizational
