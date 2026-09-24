@@ -111,7 +111,10 @@ def test_tags_json(runner, tmp_config, tmp_data):
     result = runner.invoke(main, ["tags", "--json"])
     assert result.exit_code == 0, result.output
     data = _parse(result.output)
-    assert data == {"view": "Tags", "tags": [{"tag": "x", "count": 2}, {"tag": "y", "count": 1}]}
+    assert data == {"view": "Tags", "tags": [
+        {"tag": "x", "count": 2, "types": {"task": 2}},
+        {"tag": "y", "count": 1, "types": {"task": 1}},
+    ]}
 
 
 def test_find_json(runner, tmp_config, tmp_data):
@@ -256,3 +259,13 @@ def test_signifier_view_with_tag_and_json_still_routes_to_view(runner, tmp_confi
     result = runner.invoke(main, ["t", "@x", "--json"])
     assert result.exit_code == 0, result.output
     assert _parse(result.output)["view"].startswith("Task")
+
+
+def test_tag_filter_json_follows_tree_order(runner, tmp_config, tmp_data):
+    """bt @tag --json lists entries in the tree's order, so n matches the numbers on screen."""
+    save_entry(Entry.create(EntryType.NOTE, "a note", tags=["x"]))
+    save_entry(Entry.create(EntryType.TASK, "a task", tags=["x"]))
+    result = runner.invoke(main, ["@x", "--json"])
+    assert result.exit_code == 0, result.output
+    data = _parse(result.output)
+    assert [(e["n"], e["type"]) for e in data["entries"]] == [(1, "task"), (2, "note")]

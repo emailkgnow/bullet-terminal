@@ -11,8 +11,10 @@ from bute.completion import complete_tags
 from bute.display import (
     _build_entry_row,
     _ZEBRA_STYLE,
+    TYPE_STYLE,
     display_entry_list,
     display_entry_list_grouped,
+    display_entry_tree,
     emit_json,
     entry_to_dict,
     json_mode,
@@ -266,61 +268,76 @@ def tag_filter_cmd(ctx, tags, exclude, show_all):
         parts.append(f"-@{ex}")
     title = " ".join(parts) if parts else "All"
 
-    display_entry_list(entries, title)
+    display_entry_tree(entries, title, hide_tags=set(include_tags))
     save_state("tag_filter", [e.id for e in entries], config)
 
 
 @click.command("tags")
 @click.pass_context
 def tags_cmd(ctx):
-    """List all tags with entry counts and processing stage."""
-    from bute.db import get_all_tag_stages
+    """List all tags with entry counts, split by entry type."""
+    from collections import Counter
+
+    from rich.text import Text
+    from rich.tree import Tree
 
     config = ctx.obj.get("config")
 
     entries = query_and_load(config, has_tags=True)
 
-    counts: dict[str, int] = {}
+    counts: dict[str, Counter] = {}
     for entry in entries:
         for tag in entry.tags:
-            counts[tag] = counts.get(tag, 0) + 1
+            counts.setdefault(tag, Counter())[entry.type] += 1
+    types = list(TYPE_STYLE)  # task, note, journal, calendar — the display order
+    ordered = sorted(counts.items(), key=lambda x: (-x[1].total(), x[0]))
 
     if json_mode():
         import json as _json
         import click as _click
-        ordered = sorted(counts.items(), key=lambda x: (-x[1], x[0]))
-        _click.echo(_json.dumps({"view": "Tags", "tags": [{"tag": t, "count": c} for t, c in ordered]}))
+        _click.echo(_json.dumps({"view": "Tags", "tags": [
+            {"tag": t, "count": c.total(), "types": {et.value: c[et] for et in types if c[et]}}
+            for t, c in ordered
+        ]}))
         return
 
     if not counts:
         console.print("  [dim]No tags found.[/dim]")
         return
 
-    stages = {s["tag"]: s["stage"] for s in get_all_tag_stages(config)}
-    stage_colors = {"raw": "dim", "analyzed": "green"}
+    # Fixed-width columns so every count sits under its type symbol. Tree
+    # children are indented 4 cells ("├── "), so the key rows pad by that.
+    name_w = max(len(t) for t in counts) + 3  # "@" + tag + 2 spaces
+    total_w, type_w = 4, 5
 
-    table = Table(
-        title="Tags",
-        title_style="bold",
-        show_header=True,
-        header_style="bold dim",
-        box=None,
-        pad_edge=False,
-        padding=(0, 1),
-        expand=True,
-    )
-    table.add_column("Tag", ratio=1)
-    table.add_column("Stage")
-    table.add_column("#", justify="right", width=5)
+    def key_row(lead: str) -> Text:
+        row = Text(lead.ljust(4 + name_w), style="bold")
+        row.append("#".rjust(total_w), style="bold dim")
+        for et in types:
+            row.append(TYPE_STYLE[et]["icon"].rjust(type_w), style=f"bold {TYPE_STYLE[et]['color']}")
+        return row
 
-    for i, (tag, count) in enumerate(sorted(counts.items(), key=lambda x: x[1], reverse=True), 1):
-        stage = stages.get(tag, "raw")
-        color = stage_colors.get(stage, "dim")
-        row_style = _ZEBRA_STYLE if i % 2 == 0 else ""
-        table.add_row(f"@{tag}", f"[{color}]{stage}[/{color}]", str(count), style=row_style)
+    tree = Tree(key_row("Tags"), guide_style="dim")
+    for tag, c in ordered:
+        row = Text(f"@{tag}".ljust(name_w))
+        row.append(str(c.total()).rjust(total_w))
+        for et in types:
+            row.append(str(c[et] or "").rjust(type_w), style=TYPE_STYLE[et]["color"])
+        tree.add(row)
+
+    # A long list scrolls the header away, and the output ends at the bottom —
+    # so the key is repeated there, then spelled out once in words.
+    legend = Text("    ")
+    legend.append("# total", style="dim")
+    for et, word in zip(types, ("tasks", "notes", "journals", "calendar")):
+        legend.append("   ")
+        legend.append(TYPE_STYLE[et]["icon"], style=f"bold {TYPE_STYLE[et]['color']}")
+        legend.append(f" {word}", style="dim")
 
     console.print()
-    console.print(table)
+    console.print(tree)
+    console.print(key_row(""))
+    console.print(legend)
 
 
 @click.command("due")

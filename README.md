@@ -153,7 +153,7 @@ bt has no built-in LLM. If you want AI over your entries, point your own agent (
 3. **Frontmatter must be valid YAML** with the keys documented above. At minimum: `id`, `type`, `created`. Tasks should set `status: active`.
 4. **Body is free-form Markdown.** First line is the title shown in list views.
 
-To read what bt shows without parsing tables, append `--json` to any numbered entry view — the Focus Log, Tasks/Backlog/Notes/Journals/Calendar, tag filters, `due`, `tags`, `find`, and `like` (`bt --json`, `bt t -b --json`, `bt @home --json`, `bt find x --json`). It does not apply to `bt stats`/`bt streak` (their own reports), or to actions and captures (which still print Rich confirmations). The `n` field is the number you would pass to `bt <n> done`. Every view returns `{"view": ..., "entries": [...]}`; the one exception is `bt tags --json`, which returns a `tags` array of `{"tag", "count"}` objects instead of `entries` (tags are not numbered).
+To read what bt shows without parsing tables, append `--json` to any numbered entry view — the Focus Log, Tasks/Backlog/Notes/Journals/Calendar, tag filters, `due`, `tags`, `find`, and `like` (`bt --json`, `bt t -b --json`, `bt @home --json`, `bt find x --json`). It does not apply to `bt stats`/`bt streak` (their own reports), or to actions and captures (which still print Rich confirmations). The `n` field is the number you would pass to `bt <n> done`. Every view returns `{"view": ..., "entries": [...]}`; the one exception is `bt tags --json`, which returns a `tags` array of `{"tag", "count", "types"}` objects instead of `entries` (tags are not numbered); `types` maps each entry type with a non-zero count to that count, e.g. `{"task": 54, "note": 10}`.
 
 ### How reconciliation works
 
@@ -273,7 +273,7 @@ Full help: `bt -h`.
 | `bt` | Focus Log — today's focused tasks, due today, today's events/notes/journals |
 | `bt t` | today's tasks |
 | `bt t -w` / `bt t -b` | this week's active tasks / full Backlog |
-| `bt @tag` | filter across all types; `@a @b` = AND, `-@c` = NOT (matching is case-insensitive) |
+| `bt @tag` | filter across all types, shown as a tree grouped by type; `@a @b` = AND, `-@c` = NOT (matching is case-insensitive) |
 | `@@tag` | double duty tag at capture — keeps the word in the sentence *and* tags it: `bt j lunch with @@Elham` stores "lunch with Elham" tagged `elham` |
 | `bt find <q>` | keyword + tag search over full note bodies; matches partial words (prefix via FTS5, then a substring fallback) and shows the matching line |
 | `bt <view> --json` | numbered entry views as JSON (`bt`, `bt t`/`n`/`j`/`c`, `bt t -b`, `bt @tag`, `bt due`, `bt tags`, `bt find`, `bt like`) — same numbers as the table, so `bt 3 done` works from a script |

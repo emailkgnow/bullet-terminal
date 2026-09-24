@@ -1,6 +1,7 @@
 """Tests for view commands."""
 
 import json
+import re
 
 from bute.cli import main
 from bute.config import default_config, save_config
@@ -35,6 +36,103 @@ def test_tag_filter_empty(runner, tmp_config, populated_data):
     result = runner.invoke(main, ["@nonexistent"])
     assert result.exit_code == 0
     assert "No entries found" in result.output
+
+
+def _line_with(output, text):
+    return next(line for line in output.splitlines() if text in line)
+
+
+def test_tag_filter_tree_groups_by_type(runner, tmp_config, tmp_data):
+    """bt @tag renders a tree: root with count, then one branch per type, in bt order."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.JOURNAL, "excited about reno", tags=["home"]))
+    save_entry(Entry.create(EntryType.NOTE, "kitchen is 12x15", tags=["home"]))
+    save_entry(Entry.create(EntryType.TASK, "fix faucet", tags=["home"]))
+    save_entry(Entry.create(EntryType.TASK, "buy tiles", tags=["home"]))
+
+    result = runner.invoke(main, ["@home"])
+    assert result.exit_code == 0, result.output
+    out = result.output
+    assert "@home (4)" in out
+    order = [out.index(s) for s in (
+        ". tasks (2)", "fix faucet", "- notes (1)", "kitchen is 12x15",
+        "= journals (1)", "excited about reno",
+    )]
+    assert order == sorted(order)
+    assert "calendar (" not in out  # empty groups are skipped
+
+
+def test_tag_filter_tree_numbers_follow_tree_order(runner, tmp_config, tmp_data):
+    """Numbers run continuously down the tree and match the saved state, so bt <n> hits what you see."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    note = Entry.create(EntryType.NOTE, "kitchen is 12x15", tags=["home"])
+    task = Entry.create(EntryType.TASK, "fix faucet", tags=["home"])
+    save_entry(note)
+    save_entry(task)
+
+    result = runner.invoke(main, ["@home"])
+    assert result.exit_code == 0, result.output
+    assert re.search(r"\b1\s+fix faucet", result.output)
+    assert re.search(r"\b2\s+kitchen is 12x15", result.output)
+    state = json.loads(state_path().read_text())
+    assert state == {"view": "tag_filter", "entries": [task.id, note.id]}
+
+
+def test_tag_filter_tree_open_tasks_before_done(runner, tmp_config, tmp_data):
+    from bute.models import Entry, EntryType, TaskStatus
+    from bute.storage import save_entry
+
+    done = Entry.create(EntryType.TASK, "old chore", tags=["home"])
+    done.status = TaskStatus.DONE
+    save_entry(done)
+    save_entry(Entry.create(EntryType.TASK, "open chore", tags=["home"]))
+
+    result = runner.invoke(main, ["@home"])
+    assert result.exit_code == 0, result.output
+    assert result.output.index("open chore") < result.output.index("old chore")
+
+
+def test_tag_filter_tree_shows_other_tags_only(runner, tmp_config, tmp_data):
+    """Rows list the entry's other tags; the filtered tag is already in the root."""
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.NOTE, "tile quotes", tags=["home", "money"]))
+
+    result = runner.invoke(main, ["@home"])
+    assert result.exit_code == 0, result.output
+    row = _line_with(result.output, "tile quotes")
+    assert "@money" in row
+    assert "@home" not in row
+
+
+def test_tag_filter_tree_title_for_multi_and_exclude(runner, tmp_config, tmp_data):
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.NOTE, "keep", tags=["a", "b"]))
+    save_entry(Entry.create(EntryType.NOTE, "skip", tags=["a", "b", "c"]))
+
+    result = runner.invoke(main, ["@a", "@b", "-@c"])
+    assert result.exit_code == 0, result.output
+    assert "@a @b -@c (1)" in result.output
+    assert "keep" in result.output
+    assert "skip" not in result.output
+
+
+def test_tag_filter_tree_marks_important(runner, tmp_config, tmp_data):
+    from bute.models import Entry, EntryType
+    from bute.storage import save_entry
+
+    save_entry(Entry.create(EntryType.TASK, "urgent fix", tags=["home"], important=True))
+
+    result = runner.invoke(main, ["@home"])
+    assert result.exit_code == 0, result.output
+    assert re.search(r"1\s+!\s*urgent fix", result.output)
 
 
 def test_tasks_writes_state(runner, tmp_config, populated_data):

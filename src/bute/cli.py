@@ -324,7 +324,7 @@ def _print_help():
     t.add_row("bt overdue", "Past-due tasks only", "")
     t.add_row("bt streak", "Recurring task streaks + 30-day rate", "")
     t.add_row(r"bt stats [dim]\[week|month][/dim]", "Momentum dashboard — streaks, trends", "bt stats week, bt stats month")
-    t.add_row("bt tags", "All tags with counts", "")
+    t.add_row("bt tags", "All tags with counts per type (. - = o)", "")
     t.add_row("bt !", "Important entries", "bt t! for tasks only")
     t.add_row(r"bt @tag \[@tag2] \[-@ex]", "Filter by tags (AND + exclude)", "bt @backend -@done")
     t.add_row("bt find <text>", "Search full note contents — partial words", "bt find ntist finds dentist | -t -n -j -c")

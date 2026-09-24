@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
+from rich.tree import Tree
 from bute.models import Entry, EntryType, SYSTEM_TAGS, TaskStatus
 from bute.parser import format_time_display
 
@@ -434,6 +435,65 @@ def display_entry_list_grouped(entries: list[Entry], title: str = "") -> None:
 
     console.print()
     console.print(Align.center(table))
+
+
+_TREE_GROUP_LABEL = {
+    EntryType.TASK: "tasks",
+    EntryType.NOTE: "notes",
+    EntryType.JOURNAL: "journals",
+    EntryType.CALENDAR: "calendar",
+}
+
+
+def display_entry_tree(entries: list[Entry], title: str, hide_tags: set | None = None) -> None:
+    """Render entries as a tree: title root, one branch per entry type, numbered rows.
+
+    Types follow bt's order (task, note, journal, calendar) and empty ones are
+    skipped. Within a branch rows keep the usual order — important first,
+    done/dropped last. Numbers run continuously down the tree, and `entries`
+    is reordered in place to match, so the caller's saved state (and --json)
+    line up with what is on screen.
+    """
+    if not entries:
+        display_entry_list(entries, title)
+        return
+
+    groups = {et: [e for e in entries if e.type == et] for et in TYPE_STYLE}
+    for items in groups.values():
+        items.sort(key=_display_sort_key)
+    entries[:] = [e for items in groups.values() for e in items]
+
+    if json_mode():
+        emit_json(title, entries)
+        return
+
+    tree = Tree(Text(f"{title} ({len(entries)})", style="bold"), guide_style="dim")
+    # Two tree levels indent rows 8 cells; the number and ! marker take 7 more.
+    row_room = min(console.width, _MAX_WIDTH) - 15
+    n = 0
+    for et, items in groups.items():
+        if not items:
+            continue
+        style = TYPE_STYLE[et]
+        label = Text(style["icon"], style=style["color"])
+        label.append(f" {_TREE_GROUP_LABEL[et]} ({len(items)})", style="bold")
+        branch = tree.add(label)
+        for entry in items:
+            n += 1
+            _, _, body, meta = _build_entry_row(n, entry, hide_tags=hide_tags)
+            meta_text = Text.from_markup(meta, style="dim") if meta else Text()
+            room = max(20, row_room - (len(meta_text) + 2 if meta else 0))
+            body.truncate(room, overflow="ellipsis")
+            row = Text(f"{n:>3}  ", style="bold dim", no_wrap=True, overflow="ellipsis")
+            row.append("! " if entry.important else "  ", style="bold red")
+            row.append_text(body)
+            if meta:
+                row.append("  ")
+                row.append_text(meta_text)
+            branch.add(row)
+
+    console.print()
+    console.print(tree)
 
 
 def _truncate_body(body: str, max_len: int = 60) -> str:

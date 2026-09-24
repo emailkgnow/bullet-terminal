@@ -125,7 +125,7 @@ bt t! -b          # any scope, important only
 bt n / j / c      # notes / journals / calendar (grouped by date)
 bt -a             # Focus Log + hidden items (dropped, non-focus captures, past events)
 bt                # Focus Log (or daily plan if not done today)
-bt @tagname       # cross-dimension tag filter
+bt @tagname       # cross-dimension tag filter, as a tree grouped by type
 bt @bt @ai        # entries with both tags (AND)
 bt @bt -@done     # entries with @bt but not @done
 bt -@habit        # all entries excluding @habit
@@ -163,7 +163,7 @@ bt 3 undo         # undo last action on entry 3
 
 **Tags**:
 ```
-bt tags                           # list all tags with stage and count
+bt tags                           # all tags as a tree: total, then counts per type (. - = o)
 ```
 
 **Rituals**:
@@ -201,7 +201,7 @@ bt completion     # print the shell line that enables @tag tab completion
 - **`bt t` and `bt` share one definition of today** — `ritual_ops.get_today_tasks()` filters `get_daily_log()` to tasks, so the two views can't disagree about focus dates, overdue tasks or today's completions.
 - **Focus state as dates, not tags** — `focus_date` and `week_date` are proper `Optional[date]` fields on `Entry`. Set by `bt dp` / `bt wp` / `bt focus` / capture. `bt <n> weeklog` swaps `focus_date` for this week's `week_date` (a task picked in `dp` has no `week_date`, so clearing focus alone would silently drop it to the Backlog); `bt <n> backlog` clears both. Either prints a dim hint when `due:` or `date:` still keeps the task in the Focus Log. Old dates expire naturally — no clearing ritual needed. Replaces the former `@today` / `@thisweek` system tags.
 - **`bt wp`** includes task dump phase — add tasks before selecting for the week.
-- **Display**: notes/journals/calendar always group by date with a Date column (`display_entry_list_grouped`, keyed on `scheduled_date` else `created`). Among task scopes only `bt t -a` (the full task dimension) groups the same way; `bt t`, `bt t -w`, and `bt t -b` stay flat lists, since a short curated list needs no date spine.
+- **Display**: notes/journals/calendar always group by date with a Date column (`display_entry_list_grouped`, keyed on `scheduled_date` else `created`). Among task scopes only `bt t -a` (the full task dimension) groups the same way; `bt t`, `bt t -w`, and `bt t -b` stay flat lists, since a short curated list needs no date spine. `bt @tag` (the `tag_filter` command) is the one tree view (`display_entry_tree`): a branch per entry type in `. - = o` order, empty types skipped, numbers continuous down the tree, and the filtered tags hidden from each row since the root already names them. A tag cuts across dimensions, so type is its natural spine, not date.
 - **Scheduling is universal** — `date:` (scheduled_date) works on all entry types. Tasks: the day to work on it (the deadline is `due:`, tasks only). Calendar: event date. Notes/journals: resurface date. All surface in the Focus Log on the target date. Only tasks can be overdue (past-due tasks linger; missed note/journal reminders don't).
 - **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.
 - **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Input is `HH:MM`, 24-hour unless suffixed `am`/`pm`; minutes are always required, so `time:9` is an error pointing at `time:9:00`. There is exactly one way to write any given time.
