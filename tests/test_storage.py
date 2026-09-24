@@ -288,3 +288,26 @@ def test_load_entry_date_fields_with_a_time_become_dates(tmp_path):
     due = load_entry(path).due
     assert type(due) is date
     assert due == date(2026, 10, 2)
+
+
+def test_update_entry_keeps_file_in_place_after_type_edit(tmp_data):
+    """A type changed by hand must not fork the entry into a second file.
+
+    The path never changes after creation. Editing `type:` in $EDITOR (or by
+    an external agent) used to make the next update write a copy into the new
+    type's folder, leaving two files with one ID.
+    """
+    from bute.storage import update_entry
+
+    entry = Entry.create(EntryType.JOURNAL, "a thought")
+    original = save_entry(entry)
+
+    retyped = load_entry(original)
+    retyped.type = EntryType.NOTE
+    retyped.tags = ["idea"]
+    written = update_entry(retyped)
+
+    assert written == original
+    files = list((tmp_data / "entries").rglob(f"{entry.id}.md"))
+    assert files == [original]
+    assert load_entry(original).tags == ["idea"]

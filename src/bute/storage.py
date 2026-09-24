@@ -19,9 +19,13 @@ def entry_path(entry: Entry, config=None) -> Path:
     return month_dir / filename
 
 
-def save_entry(entry: Entry, config=None) -> Path:
-    """Write an entry to disk as a Markdown file with YAML frontmatter."""
-    path = entry_path(entry, config)
+def save_entry(entry: Entry, config=None, path: Path | None = None) -> Path:
+    """Write an entry to disk as a Markdown file with YAML frontmatter.
+
+    `path` defaults to the canonical location for the entry's type and month.
+    """
+    if path is None:
+        path = entry_path(entry, config)
     path.parent.mkdir(parents=True, exist_ok=True)
 
     post = frontmatter.Post(
@@ -102,8 +106,12 @@ def load_entry(path: Path) -> Entry:
 
 
 def update_entry(entry: Entry, config=None) -> Path:
-    """Re-save a modified entry to its existing path."""
-    return save_entry(entry, config)
+    """Re-save a modified entry to its existing path.
+
+    The path is looked up, not recomputed: a `type:` edited by hand would
+    otherwise send the write to another folder and leave two files with one ID.
+    """
+    return save_entry(entry, config, path=entry_path_from_id(entry.id, config))
 
 
 ENTRY_TYPE_DIRS = ["task", "note", "journal", "calendar"]
