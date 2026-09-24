@@ -1,3 +1,3 @@
-"""bt (Bullet Terminal) — CLI life management system based on the Bullet Journal method."""
+"""bt (Bullet Terminal) — a terminal life manager built on four bullets."""
 
 __version__ = "0.1.0"

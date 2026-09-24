@@ -446,7 +446,7 @@ def _run_interactive(ctx):
 @click.option("--json", "as_json", is_flag=True, help="Emit views as JSON (for scripts and agents)")
 @click.pass_context
 def main(ctx, interactive, demo, toggle_journal, show_all, as_json):
-    """bt (Bullet Terminal) — life management CLI based on Bullet Journal."""
+    """bt (Bullet Terminal) — a terminal life manager built on four bullets."""
     ctx.ensure_object(dict)
 
     from bute.display import set_json_mode

@@ -1,7 +1,7 @@
 [project]
 name = "bullet-terminal"
 version = "0.1.0"
-description = "A CLI life management system based on the Bullet Journal methodology"
+description = "A terminal life manager built on four bullets: tasks, notes, journals and events in plain Markdown"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

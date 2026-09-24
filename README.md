@@ -1,8 +1,8 @@
 # bt (Bullet Terminal)
 
-A CLI life management system based on the [Bullet Journal](https://bulletjournal.com/) methodology. Single user, local data, plain Markdown files. No cloud, no accounts, no network.
+A terminal life manager built on four bullets. Every entry is marked as a task `.`, note `-`, journal `=`, or event `o`, and captured by its letter: `bt t call dentist`. Single user, local data, plain Markdown files. No cloud, no accounts, no network.
 
-bt stays opinionated and lean. The goal is to capture fast, plan each morning, and keep the mental loop closed — in a terminal. The name mirrors BuJo (Bullet Journal): same family, different medium.
+bt stays opinionated and lean. The goal is to capture fast, plan each morning, and keep the mental loop closed — in a terminal. The name carries both senses of *bullet*: speed, and the four marks that sort every entry.
 
 ---
 
@@ -300,10 +300,12 @@ Core modules: `cli.py` dispatches, `parser.py` tokenizes capture input, `models.
 
 ## Design principles
 
-- **Stay BuJo, not Notion.** Every feature serves rapid logging, signifiers, rituals. If it needs explaining, it probably doesn't belong.
+- **Stay bullets, not Notion.** Every feature serves fast capture of the four bullet types and the Today → Weeklog → Backlog funnel. If it needs explaining, it probably doesn't belong.
 - **Plain-text first.** The .md files work without bt. bt works without any service.
 - **No AI inside.** AI belongs at the edge — you bring your own agent, point it at the folder.
 - **Prefer removal over sprawl.** When features overlap, cut one.
-- **Lean CLI grammar.** Number + action beats menus; signifier + text beats modals.
+- **Lean CLI grammar.** Number + action beats menus; letter + text beats modals.
 
 See `CLAUDE.md` for developer guidance and `docs/` for design notes and historical plans.
+
+The bullet notation borrows from Ryder Carroll's rapid logging.

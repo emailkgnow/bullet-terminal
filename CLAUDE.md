@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What is bt?
 
-bt (Bullet Terminal) is a CLI life management system based on the Bullet Journal methodology. Single user, local data, plain Markdown files. The name mirrors BuJo (Bullet Journal) — same family, different medium. The distribution is `bullet-terminal`; the Python import package is still `bute` (invisible to users, so it was never renamed).
+bt (Bullet Terminal) is a terminal life manager built on four bullets. Single user, local data, plain Markdown files. The name carries both senses of *bullet*: speed, and the four marks (`. - = o`) that type every entry. The distribution is `bullet-terminal`; the Python import package is still `bute` (invisible to users, so it was never renamed).
 
 ## Development Commands
 
@@ -207,6 +207,7 @@ bt completion     # print the shell line that enables @tag tab completion
 - **One spelling per key, one spelling per value** — `d:`/`t:`/`r:` and the legacy numeric formats (`0407`, `3/29`, `1430`) went first; then the value grammar itself was cut to one form each (dot dates, `next-<day>`, glued `jan15`, bare hours, dot times, and the `tod`/`tom`/`tmr`/`tmrw` aliases). Rationale: on 161 real tasks only 6 carried any date metadata (the dp/wp/Focus Log flow does the prioritising), and 72% of all usage was on calendar entries, so the full words cost ~137 keystrokes across 25 weeks of real use. Typing a removed key raises a pointer to its replacement (`parser.REMOVED_META_KEYS`) rather than silently landing in `extra_meta` or being misread as a tag.
 - **No built-in AI** — `bt chat` and the LLM layer were removed in favor of "bring your own AI." External agents (Claude Desktop + filesystem MCP, Claude Code, scripts) read/write `.md` files directly in `~/bullet-terminal/entries/`. bt's README is the schema contract; `db.reconcile_index()` picks up external writes on the next read. Semantic search is the agent's job too — see *No semantic search* below.
 - **No semantic search** — `bt like` (fastembed + sqlite-vec) was removed 2026-09-24. A small embedding model matches *topic*, not meaning: `bt like fun` returned "feeling down" because both are about mood, and with no distance cutoff it always showed 10 hits, mostly noise. It cost ~75 MB of onnxruntime, an 87 MB model cache, the `vec_entries` table and vector-sync code in storage/action/rebuild. `bt find` covers literal recall; fuzzy recall ("my fun days") belongs to a BYOAI agent. `bt like` raises a pointer to both, and `db.get_connection()` discards an old index that still has `vec_entries` (the vec0 table can't be dropped without its module) and rebuilds it from the .md files.
+- **No Bullet Journal lineage** — bt no longer describes itself as based on Bullet Journal (2026-09-24). It kept only the bullets: migration, the future/monthly/daily logs, collections and the index are all gone, and the Today → Weeklog → Backlog funnel is generic prioritisation. *Bullet* now means speed plus the four entry marks. The README ends with one credit line for the notation (`. - o` come from Ryder Carroll's rapid logging); keep it, and don't reintroduce "BuJo" framing in help, the tour, the data-folder guide or docstrings. Internal code names like `SIGNIFIER_MAP` stay — users never see them. `docs/superpowers/` is history and keeps its original wording.
 
 ## Backlog
 
@@ -240,5 +241,5 @@ bt completion     # print the shell line that enables @tag tab completion
 - ~~SQLite index for structured queries~~ In progress — see `docs/superpowers/specs/2026-04-02-sqlite-index-design.md`. Metadata + FTS5 in one DB, write-through sync, auto-rebuild.
 
 ### Design Guardrail
-- **Stay BuJo, not Notion.** As bt grows into a PKM, resist becoming a general-purpose notes app. Every feature should serve the BuJo methodology — signifiers, rapid logging, rituals, migration. The CLI constraint and opinionated simplicity are features, not limitations. If a feature requires explaining, it probably doesn't belong.
+- **Stay bullets, not Notion.** As bt grows into a PKM, resist becoming a general-purpose notes app. Every feature should serve fast capture of the four bullet types and the Today → Weeklog → Backlog funnel. The CLI constraint and opinionated simplicity are features, not limitations. If a feature requires explaining, it probably doesn't belong.
 

@@ -38,7 +38,7 @@ def _show_welcome() -> None:
     welcome = Text.from_markup(
         "[bold]Welcome to bt.[/bold]\n"
         "\n"
-        "A Bullet Journal in your terminal. Three steps to get you running:\n"
+        "Tasks, notes, journals and events, one bullet each. Three steps to get you running:\n"
         "\n"
         "  [bold]1.[/bold] Dump what's on your mind — tasks, ideas, anything.\n"
         "      Don't try to be comprehensive. You can always add more later.\n"
