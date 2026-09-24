@@ -226,32 +226,32 @@ class TestDoubleDutyTags:
     """@@word keeps the word in the body AND records it as a tag."""
 
     def test_double_tag_keeps_word_mid_sentence(self):
-        result = parse_capture_tokens(("/j", "i", "went", "with", "@@elham", "to", "lunch"))
-        assert result.body == "i went with elham to lunch"
-        assert result.tags == ["elham"]
+        result = parse_capture_tokens(("/j", "i", "went", "with", "@@sam", "to", "lunch"))
+        assert result.body == "i went with sam to lunch"
+        assert result.tags == ["sam"]
 
     def test_double_tag_preserves_typed_capitalization_in_body(self):
-        result = parse_capture_tokens(("/j", "lunch", "with", "@@Elham"))
-        assert result.body == "lunch with Elham"
+        result = parse_capture_tokens(("/j", "lunch", "with", "@@Sam"))
+        assert result.body == "lunch with Sam"
 
     def test_double_tag_lowercases_the_tag(self):
-        result = parse_capture_tokens(("/j", "lunch", "with", "@@Elham"))
-        assert result.tags == ["elham"]
+        result = parse_capture_tokens(("/j", "lunch", "with", "@@Sam"))
+        assert result.tags == ["sam"]
 
     def test_double_tag_with_trailing_punctuation(self):
-        result = parse_capture_tokens(("/j", "i", "love", "@@Elham,", "truly"))
-        assert result.body == "i love Elham, truly"
-        assert result.tags == ["elham"]
+        result = parse_capture_tokens(("/j", "i", "love", "@@Sam,", "truly"))
+        assert result.body == "i love Sam, truly"
+        assert result.tags == ["sam"]
 
     def test_double_tag_inside_quoted_token(self):
-        result = parse_capture_tokens(('/j', 'i said to @@Elham, "dont try"'))
-        assert result.body == 'i said to Elham, "dont try"'
-        assert result.tags == ["elham"]
+        result = parse_capture_tokens(('/j', 'i said to @@Sam, "dont try"'))
+        assert result.body == 'i said to Sam, "dont try"'
+        assert result.tags == ["sam"]
 
     def test_double_tag_mixed_with_plain_tag(self):
-        result = parse_capture_tokens(("/j", "movie", "with", "@@Elham", "@fav"))
-        assert result.body == "movie with Elham"
-        assert result.tags == ["elham", "fav"]
+        result = parse_capture_tokens(("/j", "movie", "with", "@@Sam", "@fav"))
+        assert result.body == "movie with Sam"
+        assert result.tags == ["sam", "fav"]
 
     def test_acronym_keeps_case_in_body_lowercase_in_tag(self):
         result = parse_capture_tokens(("/n", "read", "about", "@@AI", "today"))
@@ -259,8 +259,8 @@ class TestDoubleDutyTags:
         assert result.tags == ["ai"]
 
     def test_double_tag_appears_once_in_tags(self):
-        result = parse_capture_tokens(("/j", "@@elham", "and", "@@elham"))
-        assert result.tags == ["elham"]
+        result = parse_capture_tokens(("/j", "@@sam", "and", "@@sam"))
+        assert result.tags == ["sam"]
 
 
 class TestTagLowercasing:

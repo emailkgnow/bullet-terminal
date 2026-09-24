@@ -9,9 +9,10 @@ bt stays opinionated and lean. The goal is to capture fast, plan each morning, a
 ## Install
 
 ```bash
-uv tool install 'bullet-terminal @ git+https://github.com/emailkgnow/bullet-terminal'
+brew install emailkgnow/tap/bullet-terminal
 ```
 
+- Python users can install with [uv](https://docs.astral.sh/uv/) instead: `uv tool install 'bullet-terminal @ git+https://github.com/emailkgnow/bullet-terminal'`.
 - Run `bt init` once to create `~/.config/bt/config.toml` and `~/bullet-terminal/`.
 - Tab completion for `@tags` and command names: run `bt completion` and add the printed line to `~/.zshrc`.
 
@@ -282,7 +283,7 @@ Full help: `bt -h`.
 | `bt t` | today's tasks |
 | `bt t -w` / `bt t -b` | this week's active tasks / full Backlog |
 | `bt @tag` | filter across all types, shown as a tree grouped by type; `@a @b` = AND, `-@c` = NOT (matching is case-insensitive) |
-| `@@tag` | double duty tag at capture — keeps the word in the sentence *and* tags it: `bt j lunch with @@Elham` stores "lunch with Elham" tagged `elham` |
+| `@@tag` | double duty tag at capture — keeps the word in the sentence *and* tags it: `bt j lunch with @@Sam` stores "lunch with Sam" tagged `sam` |
 | `bt find <q>` | keyword + tag search over full note bodies; matches partial words (prefix via FTS5, then a substring fallback) and shows the matching line |
 | `bt <view> --json` | numbered entry views as JSON (`bt`, `bt t`/`n`/`j`/`c`, `bt t -b`, `bt @tag`, `bt due`, `bt tags`, `bt find`) — same numbers as the table, so `bt 3 done` works from a script |
 | `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `weeklog`, `focus`, `backlog`, `restore`) |

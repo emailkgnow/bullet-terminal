@@ -98,7 +98,7 @@ bt c meeting time:9:00                   # calendar: today at 9:00 AM
 bt c conference date:apr-15              # calendar: Apr 15, all day
 bt n check OAuth docs date:04-10         # note: resurfaces in Focus Log Apr 10
 bt t meditate repeat:daily               # recurring task (habit)
-bt j lunch with @@Elham                  # double duty tag: body keeps "Elham", tags @elham
+bt j lunch with @@Sam                  # double duty tag: body keeps "Sam", tags @sam
 ```
 
 **Date/time metadata:**
@@ -182,8 +182,8 @@ bt completion     # print the shell line that enables @tag tab completion
 ## Design Decisions
 
 - **No migrate** — removed. Tasks stay `active` until `done` or `dropped`. Daily plan handles yesterday's unfinished items.
-- **Double duty tags (`@@`)** — `@tag` files the entry and removes the word from the body (unchanged). `@@tag` keeps the word in the body *as typed* and records the lowercased tag: `bt j lunch with @@Elham` → body "lunch with Elham", tag `elham`. Only `@@` is scanned inside tokens, so it survives quoting and glued punctuation while single `@` keeps whole-token matching — that's what protects literal text like `@server.tool()` and quoted `@backend` in notes about bt.
-- **Tags are always lowercase** — normalized at creation (parser, `bt <n> @tag`, filters) *and* on every read in `storage._normalize_tags()`, so files written directly by external agents (BYOAI) can't split a tag into `Elham`/`elham`. Filtering is therefore case-insensitive: `bt @Elham` finds `elham`.
+- **Double duty tags (`@@`)** — `@tag` files the entry and removes the word from the body (unchanged). `@@tag` keeps the word in the body *as typed* and records the lowercased tag: `bt j lunch with @@Sam` → body "lunch with Sam", tag `sam`. Only `@@` is scanned inside tokens, so it survives quoting and glued punctuation while single `@` keeps whole-token matching — that's what protects literal text like `@server.tool()` and quoted `@backend` in notes about bt.
+- **Tags are always lowercase** — normalized at creation (parser, `bt <n> @tag`, filters) *and* on every read in `storage._normalize_tags()`, so files written directly by external agents (BYOAI) can't split a tag into `Sam`/`sam`. Filtering is therefore case-insensitive: `bt @Sam` finds `sam`.
 - **Tags are plain labels** — organize entries and power cross-dimension filters. The `+collection` syntax was removed — tags absorbed collections. A `tag_stages` SQLite table from the removed AI analyze feature still exists; harmless, may be pruned later.
 - **Logs are derived** — no stored files. The Focus Log (`bt`) and the task scopes query entries for their period. Tasks show status (done = strikethrough, dropped = strikethrough + label). `bt -a` expands the Focus Log to include dropped tasks, non-focus captures from today, and past-timed events — replaces the retired `bt d` and the old per-day/per-week logs.
 - **No Monthly Log, no event history** — `bt m` and the per-entry `events:` list were removed in `78c82dd` (2026-04-18): the list bloated frontmatter and existed almost only to power `bt m`'s day-by-day replay. Under BYOAI, retrospectives belong to external agents reading the date fields. `storage.py` still accepts a legacy `events` key and drops it on save. Don't rebuild `bt m` without revisiting that trade-off.

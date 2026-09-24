@@ -53,7 +53,7 @@ def _normalize_tags(raw: list) -> list[str]:
     Handles malformed frontmatter where a tag entry is a dict
     (e.g. ``- vacation: true``) instead of a bare scalar. Lowercasing here
     covers files written directly by external agents (BYOAI), so a tag can
-    never split into ``Elham``/``elham`` variants.
+    never split into ``Sam``/``sam`` variants.
     """
     result: list[str] = []
     for item in raw:
