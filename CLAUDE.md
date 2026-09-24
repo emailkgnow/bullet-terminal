@@ -31,9 +31,9 @@ uv build
 
 Custom Click group with 7-branch routing in `resolve_command()` (numbered 1–7 in the source):
 
-1. **Word signifier with text** — `task`/`note`/`journal`/`calendar` followed by text routes straight to capture, checked before the named-command lookup so `bt calendar meet mom` doesn't get swallowed by the `calendar` view.
+1. **Word signifier with text** — `task`/`note`/`jrnl`/`cal` followed by text routes straight to capture, checked before the named-command lookup so `bt cal meet mom` doesn't get swallowed by the `calendar` view. Ahead of this, the retired words `journal`/`calendar` raise a pointer to `jrnl`/`cal`.
 2. **Named commands** — standard Click lookup (dp, tasks, notes, tags, etc.), plus the `bt overdue` → `bt due overdue` alias.
-3. **Signifiers** — `t`, `n`, `j`, `c` (or full words: `task`, `note`, `journal`, `calendar`)
+3. **Signifiers** — `t`, `n`, `j`, `c` (or words: `task`, `note`, `jrnl`, `cal`)
    - With text → **capture** (`bt t call dentist`)
    - Without text (or only `@tag`/view flags) → **view** (`bt t` → today's tasks)
    - With a bare `!` suffix and no text → the important-filtered view
@@ -95,7 +95,7 @@ There is no built-in LLM. `bt chat` was removed in favor of BYOAI — the README
 **Capture** — signifier + text:
 ```
 bt t call dentist due:friday @backend    # single letter
-bt task call dentist due:friday @backend # full word
+bt task call dentist due:friday @backend # word form (also note, jrnl, cal)
 bt t! fix prod bug                       # important modifier
 bt c dentist time:14:30 date:03-30       # calendar: Mar 30 at 2:30 PM
 bt c meeting time:9:00                   # calendar: today at 9:00 AM
@@ -206,6 +206,7 @@ bt completion     # print the shell line that enables @tag tab completion
 - **Calendar sorting**: timed events first (chronologically), then untimed, then other entry types.
 - **Time format**: stored as `HH:MM` (24h), displayed as `h:MM AM/PM`. Input is `HH:MM`, 24-hour unless suffixed `am`/`pm`; minutes are always required, so `time:9` is an error pointing at `time:9:00`. There is exactly one way to write any given time.
 - **Date format**: five forms — `today`, `tomorrow`, weekday, `jan-23`, `01-23`, `2026-01-23`. The hyphen is the only separator and the dot is not a date character at all, which is what keeps `01-23` from colliding with a time. `01-23` is full ISO with the year dropped, so the month-day order is ISO's, not an American convention.
+- **Signifier words are 3–4 letters** — `task`, `note`, `jrnl`, `cal`, each starting with its letter. `journal` and `calendar` were retired as typed words because they were the two long outliers; each new word is its word's conventional short form (`jrnl` is the established CLI spelling, `cal` the Unix command). Only the typed word changed: the stored `type:` values, `entries/` folders, and view titles (`Journals`, `Calendar`) keep the full nouns, so no data migration and the BYOAI contract is untouched. Typing an old word raises a pointer (`parser.REMOVED_SIGNIFIER_WORDS`), caught before the named-command lookup so `bt calendar` can't reach the internal `calendar` view command.
 - **Reading is looser than typing** — `storage._normalize_time` does *not* call `resolve_time`. The input grammar is opinionated and has changed twice; files on disk are forever. It reads the canonical `'HH:MM'`, the retired spellings (`3pm`, `14.30`, `1430`), and the integer YAML produces from an *unquoted* `time: 14:30` (sexagesimal, 870). Anything unreadable returns `None` instead of raising, so one bad field can't hide an entry from every view.
 - **One spelling per key, one spelling per value** — `d:`/`t:`/`r:` and the legacy numeric formats (`0407`, `3/29`, `1430`) went first; then the value grammar itself was cut to one form each (dot dates, `next-<day>`, glued `jan15`, bare hours, dot times, and the `tod`/`tom`/`tmr`/`tmrw` aliases). Rationale: on 161 real tasks only 6 carried any date metadata (the dp/wp/Focus Log flow does the prioritising), and 72% of all usage was on calendar entries, so the full words cost ~137 keystrokes across 25 weeks of real use. Typing a removed key raises a pointer to its replacement (`parser.REMOVED_META_KEYS`) rather than silently landing in `extra_meta` or being misread as a tag.
 - **No built-in AI** — `bt chat` and the LLM layer were removed in favor of "bring your own AI." External agents (Claude Desktop + filesystem MCP, Claude Code, scripts) read/write `.md` files directly in `~/bullet-terminal/entries/`. bt's README is the schema contract; `db.reconcile_index()` picks up external writes on the next read. Local semantic search via `bt like` stays — it uses fastembed + sqlite-vec, no network.

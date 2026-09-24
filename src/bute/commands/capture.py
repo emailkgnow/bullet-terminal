@@ -64,8 +64,8 @@ def capture_cmd(ctx, week_only, backlog, tokens):
             "c": "event", "c!": "event (important)",
             "task": "task", "task!": "task (important)",
             "note": "note", "note!": "note (important)",
-            "journal": "journal", "journal!": "journal (important)",
-            "calendar": "event", "calendar!": "event (important)",
+            "jrnl": "journal", "jrnl!": "journal (important)",
+            "cal": "event", "cal!": "event (important)",
         }
         key = tokens[0].lstrip("/")
         label = type_labels.get(key, "entry")

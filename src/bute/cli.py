@@ -9,14 +9,14 @@ from bute import __version__
 
 # Short signifier pattern: t, /t, t!, /t!, n, j, c, etc.
 SIGNIFIER_PATTERN = re.compile(r"^/?[tnjc]!?$")
-# Full word capture: task, note, journal, calendar (with optional !)
-WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|journal|calendar)!?$")
+# Full word capture: task, note, jrnl, cal (with optional !)
+WORD_SIGNIFIER_PATTERN = re.compile(r"^(task|note|jrnl|cal)!?$")
 # Action selector: bare number or range like 1-4
 ACTION_NUMBER_PATTERN = re.compile(r"^\d+(-\d+)?$")
 
 # Short letter to view command mapping (when no text follows)
 SHORT_TO_VIEW = {"t": "tasks", "n": "notes", "j": "journals", "c": "calendar"}
-WORD_TO_VIEW = {"task": "tasks", "note": "notes", "journal": "journals", "calendar": "calendar"}
+WORD_TO_VIEW = {"task": "tasks", "note": "notes", "jrnl": "journals", "cal": "calendar"}
 
 # Flags that keep a signifier on the view path instead of routing to capture.
 # Scope flags (-w/-b) are task-only; the other dimensions reject them at Click.
@@ -82,8 +82,16 @@ class DwnGroup(click.Group):
         first = args[0]
         rest = args[1:]
 
+        # Retired words (journal → jrnl, calendar → cal) get a pointer. Checked
+        # first so `bt calendar` can't reach the internal `calendar` view command.
+        from bute.parser import REMOVED_SIGNIFIER_WORDS
+        old = first.rstrip("!")
+        if old in REMOVED_SIGNIFIER_WORDS:
+            new = REMOVED_SIGNIFIER_WORDS[old] + first[len(old):]
+            raise click.UsageError(f"'{first}' was renamed — use bt {new} (or bt {new[0]}{first[len(old):]})")
+
         # 1. Word signifier with text → capture (before named command check,
-        #    so "bt calendar meet mom" routes to capture, not the calendar view)
+        #    so "bt cal meet mom" routes to capture, not the calendar view)
         if rest and WORD_SIGNIFIER_PATTERN.match(first):
             if not all(r.startswith("@") or r in VIEW_FLAGS for r in rest):
                 if rest == ("open",) or rest == ["open"]:
@@ -105,7 +113,7 @@ class DwnGroup(click.Group):
         if cmd is not None:
             return cmd.name, cmd, rest
 
-        # 3. Signifier (short: t, /t | word: task, note, journal, calendar)
+        # 3. Signifier (short: t, /t | word: task, note, jrnl, cal)
         is_short = SIGNIFIER_PATTERN.match(first)
         is_word = WORD_SIGNIFIER_PATTERN.match(first)
 
@@ -332,7 +340,7 @@ def _print_help():
     console.print()
     console.print(t)
     console.print()
-    console.print("    [dim]Also:[/dim] [bold]bt task[/bold] / [bold]bt note[/bold] / [bold]bt journal[/bold] / [bold]bt calendar[/bold] — full words work everywhere [cyan]t[/cyan]/[yellow]n[/yellow]/[magenta]j[/magenta]/[green]c[/green] do")
+    console.print("    [dim]Also:[/dim] [bold]bt task[/bold] / [bold]bt note[/bold] / [bold]bt jrnl[/bold] / [bold]bt cal[/bold] — full words work everywhere [cyan]t[/cyan]/[yellow]n[/yellow]/[magenta]j[/magenta]/[green]c[/green] do")
     console.print("    [dim]Also:[/dim] [bold]bt t[/bold] today · [bold]bt t -w[/bold] Weeklog · [bold]bt t -b[/bold] Backlog · [bold]bt t -a[/bold] All · [bold]-w -a[/bold] adds done/dropped")
 
     # --- Actions ---

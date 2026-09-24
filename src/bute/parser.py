@@ -9,11 +9,15 @@ from bute.models import REPEAT_VALUES
 
 SIGNIFIER_RE = re.compile(r"^/?([tnjc])(!?)$")
 
-# Full word to signifier mapping
+# Full word to signifier mapping — every word is 3–4 letters and starts with its letter
 WORD_TO_SIGNIFIER = {
-    "task": "t", "note": "n", "journal": "j", "calendar": "c",
+    "task": "t", "note": "n", "jrnl": "j", "cal": "c",
 }
-WORD_SIGNIFIER_RE = re.compile(r"^(task|note|journal|calendar)(!?)$")
+WORD_SIGNIFIER_RE = re.compile(r"^(task|note|jrnl|cal)(!?)$")
+
+# Signifier words retired for shorter ones. Kept so typing the old word gets a
+# pointer instead of an unknown-command error or a silent capture.
+REMOVED_SIGNIFIER_WORDS = {"journal": "jrnl", "calendar": "cal"}
 # Key must start with a letter — prevents "1:1" from being parsed as key:value
 KV_RE = re.compile(r"^([a-zA-Z]\w*):(.+)$")
 TAG_RE = re.compile(r"^@([a-zA-Z0-9_-]+)$")
