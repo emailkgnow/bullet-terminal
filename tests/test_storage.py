@@ -1,6 +1,8 @@
 """Tests for Markdown file I/O."""
 
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
+
+import pytest
 
 from bute.models import Entry, EntryType, TaskStatus
 from bute.storage import entry_path_from_id, load_entries_by_date, load_entries_by_filter, load_entry, save_entry
@@ -246,3 +248,43 @@ def test_path_from_id_rolls_over_the_year(tmp_data):
     assert path.parent.name == "2027-01"
 
     assert entry_path_from_id(path.stem) == path
+
+
+# --- created/date fields that YAML already parsed (BYOAI files, unquoted) ---
+
+def _write_raw(tmp_path, created_line, extra=""):
+    path = tmp_path / "01RAWENTRY000000000000000A.md"
+    path.write_text(
+        f"---\nid: 01RAWENTRY000000000000000A\ntype: note\n{created_line}\n{extra}---\nbody\n"
+    )
+    return path
+
+
+@pytest.mark.parametrize("line, expected", [
+    ("created: '2026-09-24T09:15:00'", datetime(2026, 9, 24, 9, 15)),   # bt's own form
+    ("created: 2026-09-24T09:15:00", datetime(2026, 9, 24, 9, 15)),     # YAML → datetime
+    ("created: 2026-09-24 09:15:00", datetime(2026, 9, 24, 9, 15)),     # space separator
+    ("created: 2026-09-24", datetime(2026, 9, 24, 0, 0)),               # YAML → date
+])
+def test_load_entry_accepts_unquoted_created(tmp_path, line, expected):
+    assert load_entry(_write_raw(tmp_path, line)).created == expected
+
+
+@pytest.mark.parametrize("line", [
+    "created: 2026-09-24T09:15:00+03:00",      # YAML → aware datetime
+    "created: '2026-09-24T09:15:00+03:00'",    # string with offset
+])
+def test_load_entry_makes_aware_created_naive_local(tmp_path, line):
+    """bt compares/sorts naive datetimes, so an offset is converted to local time and dropped."""
+    created = load_entry(_write_raw(tmp_path, line)).created
+    assert created.tzinfo is None
+    aware = datetime(2026, 9, 24, 9, 15, tzinfo=timezone(timedelta(hours=3)))
+    assert created == aware.astimezone().replace(tzinfo=None)
+
+
+def test_load_entry_date_fields_with_a_time_become_dates(tmp_path):
+    """An unquoted `due: 2026-10-02T17:00:00` must be a date, or date comparisons raise."""
+    path = _write_raw(tmp_path, "created: '2026-09-24T09:15:00'", "due: 2026-10-02T17:00:00\n")
+    due = load_entry(path).due
+    assert type(due) is date
+    assert due == date(2026, 10, 2)

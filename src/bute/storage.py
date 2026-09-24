@@ -85,7 +85,7 @@ def load_entry(path: Path) -> Entry:
         id=post["id"],
         type=EntryType(post["type"]),
         body=post.content.strip(),
-        created=datetime.fromisoformat(post["created"]),
+        created=_parse_created(post["created"]),
         status=_parse_status(post.metadata.get("status")),
         important=post.metadata.get("important", False),
         due=_parse_date(post.metadata.get("due")),
@@ -277,12 +277,38 @@ def _parse_status(value) -> TaskStatus | None:
 
 
 def _parse_date(value) -> date | None:
-    """Parse a date from frontmatter — could be a date object or ISO string."""
+    """Parse a date from frontmatter — could be a date object or ISO string.
+
+    An unquoted value with a time (`due: 2026-10-02T17:00:00`) arrives from YAML
+    as a datetime, which is a date subclass that can't be compared with one, so
+    it is cut down to its date.
+    """
     if value is None:
         return None
+    if isinstance(value, datetime):
+        return value.date()
     if isinstance(value, date):
         return value
     return date.fromisoformat(str(value))
+
+
+def _parse_created(value) -> datetime:
+    """Parse `created` whichever form it arrives in.
+
+    bt writes a quoted ISO string, but a file written by an external agent may
+    leave it unquoted, and YAML then hands over a datetime (or a date, if there
+    is no time). An offset is converted to local time and dropped, since every
+    other `created` bt compares and sorts against is naive local time.
+    """
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, date):
+        parsed = datetime(value.year, value.month, value.day)
+    else:
+        parsed = datetime.fromisoformat(str(value))
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone().replace(tzinfo=None)
+    return parsed
 
 
 # ---------------------------------------------------------------------------
