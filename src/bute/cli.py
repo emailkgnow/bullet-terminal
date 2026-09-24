@@ -215,10 +215,8 @@ class DwnGroup(click.Group):
         # 6. Number-action — first token is a digit or range (e.g. 1-4)
         # (+collection routing was here — removed in tags-absorb-collections)
         if ACTION_NUMBER_PATTERN.match(first):
-            # Bare number/range (no action) — default to edit
-            if all(ACTION_NUMBER_PATTERN.match(tok) for tok in args):
-                args = list(args) + ["edit"]
-
+            # Bare number/range (no action) opens the viewer — action_cmd
+            # treats a missing action word as "view".
             cmd = self.get_command(ctx, "action")
             if cmd is not None:
                 return "action", cmd, args
@@ -349,14 +347,13 @@ def _print_help():
     t.add_column("Command", style="bold", no_wrap=True)
     t.add_column("What it does")
     t.add_column("Example", style="dim")
+    t.add_row("bt <n>", "Read entry (e edit in $EDITOR · n/p step · q quit)", "bt 1, bt 1 3")
     t.add_row("bt <n> done", "Mark task(s) complete", "bt 1-4 done")
     t.add_row("bt <n> drop", "Consciously delete", "bt 2 3 drop")
     t.add_row("bt <n> !", "Toggle important flag", "bt 1 !")
     t.add_row("bt <n> focus", "Into today's Focus Log (bt t)", "bt 3 focus")
     t.add_row("bt <n> weeklog", "Into the Weeklog (bt t -w) — off today", "bt 3 weeklog")
     t.add_row("bt <n> backlog", "Into the Backlog (bt t -b) — off today and this week", "bt 3 backlog")
-    t.add_row("bt <n> show", "Read entry in leaf (q to quit), else Rich", "bt 1 view")
-    t.add_row("bt <n> open", "Open in $EDITOR", "bt 1 open")
     t.add_row("bt <n> mod <text>", "Replace entry text", "bt 1 mod new text here")
     t.add_row("bt <n> @tag", "Add a tag", "bt 1-3 @backend")
     t.add_row("bt <n> due:<date>", "Set due date", "bt 1 due:friday")

@@ -194,20 +194,12 @@ def test_list_view_renders_literal_text_with_styling_markup_in_extra_meta(runner
     assert "key:[bold]x" in result.output
 
 
-def test_show_entry_safe_with_rich_markup_in_extra_meta(runner, tmp_config, tmp_data, monkeypatch):
-    """Verify bt <n> show (display_entry_full) doesn't crash with markup in extra_meta."""
+def test_show_entry_safe_with_rich_markup_in_extra_meta(runner, tmp_config, tmp_data):
+    """Verify bt <n> (display_entry_full) doesn't crash with markup in extra_meta."""
     from bute.models import Entry, EntryType
     from bute.storage import save_entry
     from bute.state import save_state
     from bute.cli import main
-
-    # Mock shutil.which to disable leaf, forcing Rich fallback
-    import shutil
-    real_which = shutil.which
-    monkeypatch.setattr(
-        shutil, "which",
-        lambda cmd, *a, **kw: None if cmd == "leaf" else real_which(cmd, *a, **kw),
-    )
 
     # Create entry and save it
     entry = Entry.create(EntryType.TASK, "call bank", extra_meta={"key": "[/]"})
@@ -215,7 +207,7 @@ def test_show_entry_safe_with_rich_markup_in_extra_meta(runner, tmp_config, tmp_
     # Set up state so entry is in the display list
     save_state("tasks", [entry.id])
     # Show the entry
-    result = runner.invoke(main, ["1", "show"])
+    result = runner.invoke(main, ["1"])
     assert result.exit_code == 0, result.output
     # Literal value should appear in the output
     assert "key:[/]" in result.output
@@ -238,7 +230,7 @@ def test_list_view_hides_underscore_prefixed_extra_meta(runner, tmp_config, tmp_
 
 
 def test_show_entry_hides_underscore_prefixed_extra_meta(runner, tmp_config, tmp_data):
-    """bt <n> show also omits private keys."""
+    """bt <n> also omits private keys."""
     from bute.models import Entry, EntryType
     from bute.storage import save_entry
     from bute.state import save_state
@@ -248,7 +240,7 @@ def test_show_entry_hides_underscore_prefixed_extra_meta(runner, tmp_config, tmp
     )
     save_entry(entry)
     save_state("calendar", [entry.id])
-    result = runner.invoke(main, ["1", "show"])
+    result = runner.invoke(main, ["1"])
     assert "_gcal_id" not in result.output
     assert "abc123" not in result.output
 

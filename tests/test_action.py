@@ -39,9 +39,8 @@ class TestParseActionTokens:
         with pytest.raises(InvalidActionError):
             parse_action_tokens(("done",))
 
-    def test_no_action_raises(self):
-        with pytest.raises(InvalidActionError):
-            parse_action_tokens(("2",))
+    def test_no_action_means_view(self):
+        assert parse_action_tokens(("2", "4")) == ([2, 4], "", [])
 
     def test_range_expands(self):
         nums, action, args = parse_action_tokens(("1-4", "done"))
@@ -499,144 +498,97 @@ def test_action_weeklog_clears_focus_date(runner, tmp_config, tmp_data):
     assert reloaded.focus_date is None
 
 
-def test_show_renders_markdown_body(runner, tmp_config, tmp_data, no_leaf):
-    """bt <n> show renders the body as formatted markdown without raw symbols."""
+def test_bare_number_prints_rich_render_off_a_terminal(runner, tmp_config, tmp_data):
+    """bt <n> piped (CliRunner is non-TTY) renders via Rich — never a full-screen app."""
     body = "# My Heading\n\nSome **bold** text and a list:\n\n- one\n- two\n"
     entry = Entry.create(EntryType.NOTE, body, tags=["retirement"])
     save_entry(entry)
     save_state("notes", [entry.id])
 
-    result = runner.invoke(main, ["1", "show"])
-    assert result.exit_code == 0
-    # Header surfaces type label, tag, and short id
+    result = runner.invoke(main, ["1"])
+    assert result.exit_code == 0, result.output
     assert "note" in result.output
     assert "@retirement" in result.output
     assert entry.id[:8] in result.output
-    # Rendered markdown contains the words but not the raw '#' / '**' symbols
     assert "My Heading" in result.output
     assert "bold" in result.output
-    assert "one" in result.output
-    assert "two" in result.output
     assert "**bold**" not in result.output
     assert "# My Heading" not in result.output
 
 
-def test_read_aliases_show(runner, tmp_config, tmp_data, no_leaf):
-    """`read` is an alias for `show`."""
-    entry = Entry.create(EntryType.NOTE, "# Hi\n\nbody text")
-    save_entry(entry)
-    save_state("notes", [entry.id])
+def test_bare_numbers_print_each_entry(runner, tmp_config, tmp_data):
+    first = Entry.create(EntryType.NOTE, "first body")
+    second = Entry.create(EntryType.NOTE, "second body")
+    save_entry(first)
+    save_entry(second)
+    save_state("notes", [first.id, second.id])
 
-    result = runner.invoke(main, ["1", "read"])
-    assert result.exit_code == 0
-    assert "Hi" in result.output
-    assert "body text" in result.output
-
-
-# --- leaf-backed show tests ---
-
-@pytest.fixture
-def no_leaf(monkeypatch):
-    """Force the Rich fallback path by making leaf undiscoverable."""
-    import shutil
-    real_which = shutil.which
-    monkeypatch.setattr(
-        shutil, "which",
-        lambda cmd, *a, **kw: None if cmd == "leaf" else real_which(cmd, *a, **kw),
-    )
+    result = runner.invoke(main, ["1", "2"])
+    assert result.exit_code == 0, result.output
+    assert "first body" in result.output
+    assert "second body" in result.output
 
 
-@pytest.fixture
-def fake_leaf(monkeypatch):
-    """Pretend leaf is installed and capture the argv it would be called with."""
-    import shutil
+def test_bare_number_opens_viewer_on_a_terminal(runner, tmp_config, tmp_data, monkeypatch):
+    """On a TTY, bt <n> hands the entries' .md paths to the Textual viewer."""
     from bute.commands import action as action_mod
+    import bute.viewer
 
-    real_which = shutil.which
-    monkeypatch.setattr(
-        shutil, "which",
-        lambda cmd, *a, **kw: "/opt/homebrew/bin/leaf" if cmd == "leaf" else real_which(cmd, *a, **kw),
-    )
+    first = Entry.create(EntryType.NOTE, "first")
+    second = Entry.create(EntryType.NOTE, "second")
+    save_entry(first)
+    save_entry(second)
+    save_state("notes", [first.id, second.id])
+
     calls = []
-    monkeypatch.setattr(action_mod.subprocess, "call", lambda argv, *a, **kw: calls.append(argv) or 0)
-    monkeypatch.delenv("EDITOR", raising=False)
-    return calls
+    monkeypatch.setattr(action_mod, "_stdout_is_tty", lambda: True)
+    monkeypatch.setattr(bute.viewer, "run_viewer", lambda paths, on_edit: calls.append(paths))
+
+    result = runner.invoke(main, ["1-2"])
+    assert result.exit_code == 0, result.output
+    assert calls == [[entry_path_from_id(first.id), entry_path_from_id(second.id)]]
 
 
-def test_show_renders_via_leaf_when_installed(runner, tmp_config, tmp_data, fake_leaf):
-    """bt <n> show hands the entry's .md file to leaf when leaf is on PATH."""
-    entry = Entry.create(EntryType.NOTE, "# Heading\n\nbody text")
+def test_viewer_edit_callback_reindexes(runner, tmp_config, tmp_data, monkeypatch):
+    """The viewer's on_edit re-indexes, so an edit made from inside it is searchable."""
+    from bute.commands import action as action_mod
+    import bute.viewer
+
+    entry = Entry.create(EntryType.NOTE, "old words")
     save_entry(entry)
     save_state("notes", [entry.id])
-
-    result = runner.invoke(main, ["1", "show"])
-    assert result.exit_code == 0
-    assert len(fake_leaf) == 1
-    assert fake_leaf[0] == ["leaf", str(entry_path_from_id(entry.id))]
-
-
-def test_show_passes_editor_to_leaf(runner, tmp_config, tmp_data, fake_leaf, monkeypatch):
-    """leaf ignores $EDITOR, so bt hands it over — ctrl+e opens the user's editor."""
-    monkeypatch.setenv("EDITOR", "nvim")
-    entry = Entry.create(EntryType.NOTE, "body text")
-    save_entry(entry)
-    save_state("notes", [entry.id])
-
-    result = runner.invoke(main, ["1", "show"])
-    assert result.exit_code == 0
-    assert fake_leaf[0] == ["leaf", "--editor", "nvim", str(entry_path_from_id(entry.id))]
-
-
-def test_show_omits_editor_flag_when_unset(runner, tmp_config, tmp_data, fake_leaf, monkeypatch):
-    """No $EDITOR — leaf keeps its own editor resolution (LEAF_EDITOR, config, nano)."""
-    monkeypatch.delenv("EDITOR", raising=False)
-    entry = Entry.create(EntryType.NOTE, "body text")
-    save_entry(entry)
-    save_state("notes", [entry.id])
-
-    result = runner.invoke(main, ["1", "show"])
-    assert result.exit_code == 0
-    assert fake_leaf[0] == ["leaf", str(entry_path_from_id(entry.id))]
-
-
-def test_show_falls_back_to_rich_when_leaf_missing(runner, tmp_config, tmp_data, no_leaf):
-    """Without leaf, bt <n> show keeps the Rich rendering with its metadata header."""
-    entry = Entry.create(EntryType.NOTE, "# Heading\n\nbody text", tags=["retirement"])
-    save_entry(entry)
-    save_state("notes", [entry.id])
-
-    result = runner.invoke(main, ["1", "show"])
-    assert result.exit_code == 0
-    assert "@retirement" in result.output
-    assert entry.id[:8] in result.output
-    assert "Heading" in result.output
-    assert "# Heading" not in result.output
-
-
-def test_show_hands_leaf_the_raw_file_so_frontmatter_shows(runner, tmp_config, tmp_data, fake_leaf):
-    """leaf gets the .md path untouched — it renders the frontmatter as a metadata table."""
-    entry = Entry.create(EntryType.NOTE, "\n".join(f"line {i}" for i in range(60)))
-    save_entry(entry)
-    save_state("notes", [entry.id])
-
-    result = runner.invoke(main, ["1", "show"])
-    assert result.exit_code == 0
     path = entry_path_from_id(entry.id)
-    assert fake_leaf[0] == ["leaf", str(path)]
-    # The file bt points leaf at still carries its YAML frontmatter.
-    assert path.read_text().startswith("---\n")
+
+    def fake_viewer(paths, on_edit):
+        path.write_text(path.read_text().replace("old words", "zanzibar"))
+        on_edit(path)
+
+    monkeypatch.setattr(action_mod, "_stdout_is_tty", lambda: True)
+    monkeypatch.setattr(bute.viewer, "run_viewer", fake_viewer)
+    runner.invoke(main, ["1"])
+
+    result = runner.invoke(main, ["find", "zanzibar"])
+    assert "zanzibar" in result.output
 
 
-def test_view_aliases_show(runner, tmp_config, tmp_data, fake_leaf):
-    """`view` is an alias for `show`."""
-    entry = Entry.create(EntryType.NOTE, "# Hi\n\nbody text")
+@pytest.mark.parametrize("word", ["open", "edit", "show", "read", "view"])
+def test_retired_open_words_point_at_bare_number(runner, tmp_config, tmp_data, word):
+    entry = Entry.create(EntryType.NOTE, "body")
     save_entry(entry)
     save_state("notes", [entry.id])
 
-    result = runner.invoke(main, ["1", "view"])
-    assert result.exit_code == 0
-    assert len(fake_leaf) == 1
-    assert fake_leaf[0][0] == "leaf"
+    result = runner.invoke(main, ["1", word])
+    assert result.exit_code != 0
+    assert f"'{word}' was folded into bt <n>" in result.output
+
+
+def test_bare_number_out_of_range_errors(runner, tmp_config, tmp_data):
+    entry = Entry.create(EntryType.NOTE, "body")
+    save_entry(entry)
+    save_state("notes", [entry.id])
+
+    result = runner.invoke(main, ["9"])
+    assert result.exit_code != 0
 
 
 # --- weeklog lands in this week; hint when the Focus Log still shows it ---

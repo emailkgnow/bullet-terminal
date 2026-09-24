@@ -1,8 +1,6 @@
 """Action command — handles number-based actions (done, drop, etc.)."""
 
-import os
-import shutil
-import subprocess
+import sys
 from datetime import date
 
 import click
@@ -58,6 +56,7 @@ def parse_action_tokens(
     Examples:
         ("1", "3", "done") → ([1, 3], "done", [])
         ("1-4", "12", "done") → ([1, 2, 3, 4, 12], "done", [])
+        ("1", "3") → ([1, 3], "", [])   — no action word: open the viewer
     """
     numbers = []
     rest = list(tokens)
@@ -74,7 +73,7 @@ def parse_action_tokens(
         raise InvalidActionError("No entry numbers provided.")
 
     if not rest:
-        raise InvalidActionError("No action specified.")
+        return numbers, "", []
 
     action = rest.pop(0)
     return numbers, action, rest
@@ -184,40 +183,23 @@ def _invalidate_vector(entry_id: str, config) -> None:
         pass
 
 
-def handle_edit(entry: Entry, args: list[str], config) -> None:
-    """Open entry in $EDITOR for full editing."""
-    path = entry_path_from_id(entry.id, config)
-    if path is None:
-        raise DwnError("Entry file not found.")
-    editor = os.environ.get("EDITOR", "nano")
-    subprocess.call([editor, str(path)])
-    _reindex_entry(path, config)
+def _stdout_is_tty() -> bool:
+    return sys.stdout.isatty()
 
 
-def handle_show(entry: Entry, args: list[str], config) -> None:
-    """Render the entry as markdown — via leaf when installed, Rich otherwise.
+def view_entries(entries: list[Entry], config) -> None:
+    """`bt <n>` — read entries in the Textual viewer; `e` there edits in $EDITOR.
 
-    leaf renders the YAML frontmatter as a metadata table above the body, so it
-    gets the file path directly and the entry's fields stay visible. leaf is a
-    TUI by default — scroll with j/k, search with /, quit with q — so reading an
-    entry is a real session rather than a dump into scrollback.
-
-    leaf ignores $EDITOR (its own order is --editor > $LEAF_EDITOR > its config
-    file > nano), so bt passes $EDITOR through explicitly — ctrl+e inside the
-    viewer then opens the same editor as `bt <n> edit`. Any edit made there is
-    re-indexed when leaf exits.
+    Off a terminal (pipes, scripts, agents) a full-screen app would hang, so the
+    entries print through Rich instead.
     """
-    path = entry_path_from_id(entry.id, config)
-    if path is not None and shutil.which("leaf"):
-        argv = ["leaf"]
-        editor = os.environ.get("EDITOR")
-        if editor:
-            argv += ["--editor", editor]
-        argv.append(str(path))
-        subprocess.call(argv)
-        _reindex_entry(path, config)
+    if not _stdout_is_tty():
+        for entry in entries:
+            display_entry_full(entry)
         return
-    display_entry_full(entry)
+    from bute.viewer import run_viewer
+    paths = [entry_path_from_id(e.id, config) for e in entries]
+    run_viewer(paths, on_edit=lambda path: _reindex_entry(path, config))
 
 
 def handle_add_tag(entry: Entry, tag: str, config) -> None:
@@ -575,18 +557,20 @@ ACTION_HANDLERS = {
     "!": handle_toggle_important,
     "mod": handle_mod,
     "modify": handle_mod,
-    "open": handle_edit,
-    "edit": handle_edit,
-    "show": handle_show,
-    "read": handle_show,
-    "view": handle_show,
     "weeklog": handle_weeklog,
     "focus": handle_focus,
     "backlog": handle_backlog,
 }
 
-# Renamed actions, so the old word gets a pointer instead of "Unknown action".
-REMOVED_ACTIONS = {"later": "weeklog"}
+# Retired actions, so the old word gets a pointer instead of "Unknown action".
+REMOVED_ACTIONS = {
+    "later": "was renamed — use bt <n> weeklog",
+    "open": "was folded into bt <n>, which opens the viewer — press e there to edit",
+    "edit": "was folded into bt <n>, which opens the viewer — press e there to edit",
+    "show": "was folded into bt <n> — just type the number",
+    "read": "was folded into bt <n> — just type the number",
+    "view": "was folded into bt <n> — just type the number",
+}
 
 
 @click.command("action", hidden=True, context_settings={"ignore_unknown_options": True})
@@ -597,6 +581,19 @@ def action_cmd(ctx, tokens):
     config = ctx.obj.get("config")
     numbers, action, args = parse_action_tokens(tokens)
     entry_ids = resolve_numbers(numbers, config)
+
+    # No action word: bt <n> reads the entries
+    if action == "":
+        entries = []
+        for entry_id in entry_ids:
+            path = entry_path_from_id(entry_id, config)
+            if path is None:
+                console.print(f"  [red]Entry {entry_id[:8]} not found.[/red]")
+                continue
+            entries.append(load_entry(path))
+        if entries:
+            view_entries(entries, config)
+        return
 
     # Handle undo: bt <n> undo
     if action == "undo":
@@ -691,9 +688,7 @@ def action_cmd(ctx, tokens):
     handler = ACTION_HANDLERS.get(action)
     if handler is None:
         if action in REMOVED_ACTIONS:
-            raise InvalidActionError(
-                f"'{action}' was renamed — use bt <n> {REMOVED_ACTIONS[action]}"
-            )
+            raise InvalidActionError(f"'{action}' {REMOVED_ACTIONS[action]}")
         raise InvalidActionError(f"Unknown action: '{action}'")
 
     for n, entry_id in zip(numbers, entry_ids):
@@ -704,8 +699,7 @@ def action_cmd(ctx, tokens):
         entry = load_entry(path)
         try:
             handler(entry, args, config)
-            if action not in ("edit", "open", "show", "read", "view"):
-                display_action_confirmation(entry, action)
+            display_action_confirmation(entry, action)
             if action in ("weeklog", "backlog"):
                 hint = _focus_log_hint(entry, n)
                 if hint:

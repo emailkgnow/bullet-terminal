@@ -153,8 +153,8 @@ bt 6 clear due    # clear due date
 bt 6 clear date   # clear scheduled date
 bt 6 clear time   # clear time
 bt 6 clear repeat # clear repeat
-bt 7 edit         # open in $EDITOR
-bt 3 show         # read entry in leaf viewer, q to quit (aliases: view, read)
+bt 3              # read entry 3 in the viewer: e edit in $EDITOR, q quit
+bt 3 5            # step through several with n/p
 bt 3 weeklog      # defer — off today, into this week's Weeklog (bt t -w)
 bt 3 backlog      # off today and this week — Backlog only (bt t -b)
 bt undo           # undo last action
@@ -195,6 +195,7 @@ bt completion     # print the shell line that enables @tag tab completion
 - **`bt` with no args** = planning entry point. On the trigger day (default Sunday, configurable via `core.wp_day`), runs weekly plan then daily plan. Other days, runs daily plan only. If all done, shows Focus Log.
 - **Focus Log (`bt`)** — what matters today: tasks with `focus_date == today`, tasks due today or overdue, today's calendar events, all today's journals and notes. Any entry with `date:` (scheduled_date) matching today also surfaces. Other tasks stay in the Backlog (`bt t -b`) or this week's Weeklog (`bt t -w`). Curated and active-only — `bt -a` expands to dropped tasks, captures from today that lack focus, and past-timed events.
 - **Task view titles share a root** — `Tasks — Today` / `Tasks — Weeklog` / `Tasks — Backlog` / `Tasks — All` (`bt t -a`), em dash, so the views read as one dimension at different zoom levels and rank correctly by size. `Notes`/`Journals`/`Calendar` stay bare nouns; tasks alone need the qualifier because they alone have multiple scopes.
+- **One way to open an entry** — bare `bt <n>` opens `viewer.py`, a Textual app (metadata strip, rendered body, key footer). Reading is ~90% of why an entry gets opened, so it reads; `e`/`ctrl+e` suspends the viewer, runs `$EDITOR` (fallback `nano`) on the real `.md`, then re-indexes and re-renders. `open`/`edit`/`show`/`read`/`view` were folded in and raise a pointer (`action.REMOVED_ACTIONS`). Textual is a hard dependency so the nice path needs no Homebrew step (it replaced the optional `leaf` viewer); it is imported lazily so other commands don't pay its startup. Off a TTY (pipes, agents) `bt <n>` prints via Rich `display_entry_full` instead. `bt t|n|j|c open` (long-form capture) is unrelated and unchanged.
 - **Weeklog, a coined noun** — the this-week scope is the *Weeklog*, built like *Backlog*, because an action names the place a task goes, not a time: `bt <n> focus` / `bt <n> weeklog` / `bt <n> backlog`, matching `Tasks — Today` / `Tasks — Weeklog` / `Tasks — Backlog` and the long flags `--weeklog` / `--backlog`. It replaced `bt <n> later` and `--week`; both raise a pointer to the new name (`action.REMOVED_ACTIONS`, the `--week` guard in `capture_cmd`), and `apply_undo` still accepts undo records saved as `later`.
 - **Task scope is a flag, not a command** — `bt t` is today, `-w` is this week, `-b` is the backlog, and the same flag spells the scope on capture (`bt t -b <text>`). `bt b` and `bt w` were removed along with their `backlog`/`week` long forms. `t`/`n`/`j`/`c` are dimensions again, with no scope letters beside them.
 - **Filters stack, scopes don't** — `@tag` and `!` compose on top of exactly one scope; `-w` and `-b` together is an error. On tasks, bare `-a` is itself the widest scope: `bt t -a` (and `bt t! -a`) is `Tasks — All`, every task in any status. It took over `bt t -b -a`, which still works as an alias. The old reading, today's tasks including done/dropped, was never documented and duplicated the task rows of `bt -a`. Anywhere else, `-a` widens status: `bt t -w -a`, `bt -a`, `bt n -a`.
@@ -217,7 +218,7 @@ bt completion     # print the shell line that enables @tag tab completion
 - ~~**Stale `@today`/`@thisweek` tag cleanup**~~ ✓ Done — replaced by `focus_date` and `week_date` date fields on `Entry`. Old dates expire naturally (a `focus_date` from last week simply doesn't match today's Focus Log), so no clearing ritual is needed. See `docs/superpowers/specs/2026-04-16-focus-date-fields-design.md`.
 - ~~`bt due`~~ ✓ Done — overdue + due today + next 7 days (rolling). `bt due all` for all tasks with due dates.
 - ~~`bt <n> untag @tag`~~ ✓ Done — replaced by `bt 1 clear @tag` (unified `clear` for all fields)
-- ~~`bt edit <n>`~~ ✓ Done — `bt <n> edit` opens entry in `$EDITOR` (falls back to `nano`)
+- ~~`bt edit <n>`~~ ✓ Done — now bare `bt <n>`: the viewer, `e` to edit in `$EDITOR`
 
 ### Commands — Medium Value
 - ~~`bt streak`~~ Done — 7-day grid, current streak count, 30-day completion rate.

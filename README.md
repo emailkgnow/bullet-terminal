@@ -42,7 +42,7 @@ bt 2 3 drop       # drop entries #2 and #3
 bt 1-4 done       # range — mark entries 1, 2, 3, 4 complete
 bt 1-3 7 done     # mix range + bare numbers
 bt 4 @urgent      # tag entry #4
-bt 5 edit         # open in $EDITOR
+bt 5              # read entry #5 — e edits it in $EDITOR, q quits
 ```
 
 Full command reference: `bt -h`. First-run onboarding triggers automatically.
@@ -97,7 +97,7 @@ All metadata lives in YAML frontmatter. Body text is the rest of the file.
 
 Any other frontmatter key is preserved as `extra_meta` — round-trips through reads/writes but doesn't affect behavior. bt shows these keys in the meta column of list views.
 
-**Private keys.** A key starting with `_` is bookkeeping that belongs to whoever wrote it — a sync script's remote event id, an agent's checksum. bt preserves it on every read and write and still emits it under `extra` in `--json`, but never renders it in `bt c`, `bt t`, `bt <n> show`, or any other human-facing view. Use it for anything you need to find your own entries again but the user should never have to read.
+**Private keys.** A key starting with `_` is bookkeeping that belongs to whoever wrote it — a sync script's remote event id, an agent's checksum. bt preserves it on every read and write and still emits it under `extra` in `--json`, but never renders it in `bt c`, `bt t`, `bt <n>`, or any other human-facing view. Use it for anything you need to find your own entries again but the user should never have to read.
 
 ### Example: a minimal task
 
@@ -278,7 +278,8 @@ Full help: `bt -h`.
 | `bt find <q>` | keyword + tag search over full note bodies; matches partial words (prefix via FTS5, then a substring fallback) and shows the matching line |
 | `bt <view> --json` | numbered entry views as JSON (`bt`, `bt t`/`n`/`j`/`c`, `bt t -b`, `bt @tag`, `bt due`, `bt tags`, `bt find`, `bt like`) — same numbers as the table, so `bt 3 done` works from a script |
 | `bt like <q>` | semantic search (local embeddings, no API key) |
-| `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `edit`, `weeklog`, `focus`, `backlog`, `restore`) |
+| `bt <n> done` | mark entry #n done (also `drop`, `delete`, `!`, `@tag`, `weeklog`, `focus`, `backlog`, `restore`) |
+| `bt <n>` | read entry #n in a full-screen viewer — `e` edits in `$EDITOR`, `n`/`p` step through several (`bt 1 3`), `q` quits; piped, it prints instead |
 | `bt <n> clear <field>` | clear tag, due, date, time, repeat, or `!` |
 | `bt <n> mod <text>` | replace entry body |
 | `bt dp` / `bt wp` | daily / weekly planning rituals |

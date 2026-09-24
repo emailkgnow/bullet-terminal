@@ -673,11 +673,35 @@ def display_search_results(
     console.print(Align.center(table))
 
 
+def entry_meta_parts(entry: Entry) -> list[str]:
+    """The metadata line under an entry's header, as plain (unescaped) strings.
+
+    Shared by the Rich render (`display_entry_full`) and the Textual viewer so
+    the two can't drift. Callers escape before printing as markup.
+    """
+    parts = []
+    if entry.due:
+        parts.append(f"due {entry.due}")
+    if entry.scheduled_date:
+        parts.append(f"on {entry.scheduled_date}")
+    if entry.scheduled_time:
+        parts.append(format_time_display(entry.scheduled_time))
+    if entry.repeat:
+        parts.append(f"repeat {entry.repeat}")
+    parts.extend(_extra_meta_parts(entry))
+    visible_tags = [t for t in entry.tags if t not in SYSTEM_TAGS]
+    if visible_tags:
+        parts.append(" ".join(f"@{t}" for t in visible_tags))
+    parts.append(entry.id[:8])
+    return parts
+
+
 def display_entry_full(entry: Entry) -> None:
     """Render an entry's body as formatted markdown with a clean header.
 
-    Used by `bt <n> show` — strips frontmatter symbols and renders the body
-    via Rich's Markdown (headings, bold, lists, code blocks, rules).
+    The non-interactive `bt <n>` — used when stdout isn't a terminal (pipes,
+    scripts). Strips frontmatter symbols and renders the body via Rich's
+    Markdown (headings, bold, lists, code blocks, rules).
     """
     style = TYPE_STYLE[entry.type]
     color = style["color"]
@@ -693,21 +717,8 @@ def display_entry_full(entry: Entry) -> None:
     elif entry.status == TaskStatus.DROPPED:
         header.append("  · dropped", style="dim")
 
-    meta_parts = []
-    if entry.due:
-        meta_parts.append(f"due {entry.due}")
-    if entry.scheduled_date:
-        meta_parts.append(f"on {entry.scheduled_date}")
-    if entry.scheduled_time:
-        meta_parts.append(format_time_display(entry.scheduled_time))
-    if entry.repeat:
-        meta_parts.append(f"repeat {entry.repeat}")
-    # Escape extra_meta values to prevent Rich markup interpretation when printed
-    meta_parts.extend(escape_markup(part) for part in _extra_meta_parts(entry))
-    visible_tags = [t for t in entry.tags if t not in SYSTEM_TAGS]
-    if visible_tags:
-        meta_parts.append(" ".join(f"@{t}" for t in visible_tags))
-    meta_parts.append(entry.id[:8])
+    # Escape so values like extra_meta "[red]" aren't read as Rich markup
+    meta_parts = [escape_markup(part) for part in entry_meta_parts(entry)]
 
     console.print()
     console.print(header)
