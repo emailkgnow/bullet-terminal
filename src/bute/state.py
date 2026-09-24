@@ -1,7 +1,7 @@
 """State management — bridges views (numbered lists) and actions (by number)."""
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from bute.config import get_data_dir
@@ -73,19 +73,47 @@ def is_dp_done_today(config=None) -> bool:
     return path.read_text().strip() == date.today().isoformat()
 
 
-def mark_wp_done(config=None) -> None:
-    """Record that weekly plan was completed this week."""
+def _wp_trigger_date(today: date, config=None) -> date:
+    """The core.wp_day inside the bt week (core.week_start) containing today."""
+    from bute.config import get_wp_day, week_bounds
+
+    start = week_bounds(today, config)[0]
+    return start + timedelta(days=(get_wp_day(config) - start.weekday()) % 7)
+
+
+def mark_wp_done(config=None, today: date | None = None) -> None:
+    """Record that weekly plan was completed this week (keyed by the bt week's first day)."""
+    from bute.config import week_bounds
+
     path = get_data_dir(config) / ".wp_date"
     path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(path, date.today().strftime("%G-W%V"))
+    atomic_write_text(path, week_bounds(today or date.today(), config)[0].isoformat())
 
 
-def is_wp_done_this_week(config=None) -> bool:
-    """Check if weekly plan was already completed this week."""
+def is_wp_done_this_week(config=None, today: date | None = None) -> bool:
+    """Check if weekly plan was already completed this bt week."""
+    from bute.config import week_bounds
+
+    today = today or date.today()
     path = get_data_dir(config) / ".wp_date"
     if not path.exists():
         return False
-    return path.read_text().strip() == date.today().strftime("%G-W%V")
+    marker = path.read_text().strip()
+    if "-W" in marker:
+        # Pre-fix marker, an ISO week: it covers the bt week whose trigger day it contains.
+        return marker == _wp_trigger_date(today, config).strftime("%G-W%V")
+    return marker == week_bounds(today, config)[0].isoformat()
+
+
+def is_wp_due(config=None, today: date | None = None) -> bool:
+    """True from this bt week's wp_day onward until the weekly plan is done.
+
+    Keyed on the bt week, not the ISO week, so a missed trigger day is caught
+    up the next time bt runs, and a mid-week manual `bt wp` can't count
+    toward a week that starts later.
+    """
+    today = today or date.today()
+    return today >= _wp_trigger_date(today, config) and not is_wp_done_this_week(config, today)
 
 
 

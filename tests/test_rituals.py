@@ -158,6 +158,67 @@ def test_get_wp_day_from_config(tmp_config, tmp_data):
     assert get_wp_day(config) == 0
 
 
+# --- is_wp_due: the weekly plan trigger, per bt week (core.week_start) ---
+
+
+def _wp_config(tmp_data, week_start, wp_day):
+    doc = default_config()
+    doc["core"]["data_dir"] = str(tmp_data)
+    doc["core"]["week_start"] = week_start
+    doc["core"]["wp_day"] = wp_day
+    return doc
+
+
+def test_wp_due_on_trigger_day(tmp_config, tmp_data):
+    from bute.state import is_wp_due
+
+    config = _wp_config(tmp_data, "sunday", "sunday")
+    assert is_wp_due(config, today=date(2026, 9, 27))  # Sun
+
+
+def test_wp_due_the_day_after_a_missed_trigger_day(tmp_config, tmp_data):
+    """Skipping Sunday must not leave the whole week unplanned."""
+    from bute.state import is_wp_due
+
+    config = _wp_config(tmp_data, "sunday", "sunday")
+    assert is_wp_due(config, today=date(2026, 9, 28))  # Mon
+
+
+def test_wp_not_due_before_trigger_day(tmp_config, tmp_data):
+    from bute.state import is_wp_due
+
+    config = _wp_config(tmp_data, "monday", "friday")
+    assert not is_wp_due(config, today=date(2026, 9, 23))  # Wed
+
+
+def test_wp_not_due_once_done_this_week(tmp_config, tmp_data):
+    from bute.state import is_wp_due, mark_wp_done
+
+    config = _wp_config(tmp_data, "sunday", "sunday")
+    mark_wp_done(config, today=date(2026, 9, 20))  # Sun
+    assert not is_wp_due(config, today=date(2026, 9, 24))  # Thu, same bt week
+
+
+def test_manual_midweek_wp_does_not_suppress_next_weeks_trigger(tmp_config, tmp_data):
+    """Mon 9-21 and Sun 9-27 share an ISO week but not a Sunday-start bt week."""
+    from bute.state import is_wp_due, mark_wp_done
+
+    config = _wp_config(tmp_data, "sunday", "sunday")
+    mark_wp_done(config, today=date(2026, 9, 21))  # Mon
+    assert is_wp_due(config, today=date(2026, 9, 27))  # Sun, new bt week
+
+
+def test_legacy_iso_week_marker_still_counts_for_its_trigger_day(tmp_config, tmp_data):
+    """A pre-fix `2026-W38` marker (wp run Sun 9-20) covers that bt week only."""
+    from bute.state import is_wp_due
+
+    config = _wp_config(tmp_data, "sunday", "sunday")
+    tmp_data.mkdir(parents=True, exist_ok=True)
+    (tmp_data / ".wp_date").write_text("2026-W38")
+    assert not is_wp_due(config, today=date(2026, 9, 24))  # Thu, same bt week
+    assert is_wp_due(config, today=date(2026, 9, 27))  # Sun, next bt week
+
+
 # --- bt (no args) wp trigger tests ---
 
 

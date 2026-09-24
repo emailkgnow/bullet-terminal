@@ -529,12 +529,10 @@ def main(ctx, interactive, demo, toggle_journal, show_all, as_json):
             return
 
         from datetime import date
-        from bute.config import get_wp_day
-        from bute.state import is_wp_done_this_week
+        from bute.state import is_wp_due
 
-        # Weekly plan trigger — on or after trigger day, if not done this week
-        wp_day = get_wp_day(config)
-        if date.today().weekday() >= wp_day and not is_wp_done_this_week(config):
+        # Weekly plan trigger — on or after this bt week's wp_day, until done
+        if is_wp_due(config):
             from bute.commands.rituals import wp_cmd as _wp_cmd
             ctx.invoke(_wp_cmd, non_interactive=False)
 
