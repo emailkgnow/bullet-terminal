@@ -396,11 +396,19 @@ def _print_help():
     console.print(t)
     console.print()
     try:
+        from pathlib import Path
         from bute.config import get_data_dir, load_config
-        entries_hint = str(get_data_dir(load_config()) / "entries") + "/"
+        entries = get_data_dir(load_config()) / "entries"
+        try:
+            entries_hint = f"~/{entries.relative_to(Path.home())}/"
+        except ValueError:
+            entries_hint = f"{entries}/"
     except Exception:
         entries_hint = "your bt entries/ folder"
-    console.print(f"  [bold]Bring your own AI.[/bold] [dim]Point any agent at[/dim] [bold]{entries_hint}[/bold] [dim]— bt auto-reconciles new .md files on next read. Schema: see README.md.[/dim]")
+    console.print("  [bold]Ask your AI.[/bold] [dim]Point any agent at[/dim]")
+    console.print(f"    [bold]{entries_hint}[/bold]")
+    console.print("  [dim]and have it read README.md there first.[/dim]")
+    console.print("  [dim]Files it writes show up in bt on your next command.[/dim]")
     console.print()
 
 

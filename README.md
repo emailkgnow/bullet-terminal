@@ -146,7 +146,7 @@ bt has no built-in LLM. If you want AI over your entries, point your own agent (
 
 ### Ask your AI
 
-Once a few weeks of entries exist, open your agent in the data folder and ask:
+Once a few weeks of entries exist, point your agent at the `entries/` folder in your data directory and ask:
 
 - "How often do I finish tasks after their due date?"
 - "What patterns show up in the tasks I drop?"

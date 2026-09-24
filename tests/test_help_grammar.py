@@ -144,3 +144,15 @@ def test_help_lists_the_widest_task_scope(runner):
     out = runner.invoke(main, ["-h"]).output
     assert "bt t -a" in out
     assert "Tasks — All" in out
+
+
+def test_help_ai_line_points_at_the_users_own_entries_folder(runner, tmp_config, tmp_data, monkeypatch):
+    """The path comes from the user's config, shortened to ~, and names the
+    on-disk guide (entries/README.md), not the repo README they don't have."""
+    monkeypatch.setenv("HOME", str(tmp_data.parent))
+    out = runner.invoke(main, ["-h"], env={"COLUMNS": "200"}).output
+    assert "Ask your AI." in out
+    assert f"~/{tmp_data.name}/entries/" in out
+    assert str(tmp_data) not in out
+    assert "read README.md there first" in out
+    assert "auto-reconciles" not in out
