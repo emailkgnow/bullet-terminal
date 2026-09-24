@@ -155,8 +155,8 @@ set, change, or clear it.
   daily plan (`bt dp`), by `bt <n> focus`, and by capturing a task with no
   scope flag (`bt t ...`). Unpicked tasks lose it at the next daily plan. It
   holds one date only: picking the task again overwrites it.
-- `week_date` — the first day of the week the task was picked for (the week
-  start is configurable, so it is not always a Monday). It is not a deadline.
+- `week_date` — the first day of the week the task was picked for (Sunday by
+  default; the week start is configurable). It is not a deadline.
   Set by the weekly plan (`bt wp`), by `bt <n> weeklog`, by `bt <n> focus`,
   and by capture without `-b`.
 - `due` — a deadline the user typed. Tasks only.

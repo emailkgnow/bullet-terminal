@@ -47,7 +47,7 @@ def default_config() -> tomlkit.TOMLDocument:
     core.add(tomlkit.comment("Day to trigger weekly plan: monday-sunday"))
     core.add("wp_day", "sunday")
     core.add(tomlkit.comment("First day of the week: monday-sunday"))
-    core.add("week_start", "monday")
+    core.add("week_start", "sunday")
     doc.add("core", core)
     doc.add(tomlkit.nl())
 
@@ -77,8 +77,8 @@ def get_week_start(config=None) -> int:
     """Return the weekday number (0=Mon, 6=Sun) for the first day of the week."""
     if config and "core" in config and "week_start" in config["core"]:
         day_name = config["core"]["week_start"].lower()
-        return DAY_NAMES.get(day_name, 0)
-    return 0  # default: Monday
+        return DAY_NAMES.get(day_name, 6)
+    return 6  # default: Sunday — matches wp_day, so a Sunday plan fills the week it opens
 
 
 def week_bounds(target, config=None):

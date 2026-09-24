@@ -121,7 +121,7 @@ def capture_cmd(ctx, week_only, backlog, tokens):
     )
 
     # Set focus dates on tasks based on flags:
-    #   default  → focus_date=today + week_date=monday (bt t)
+    #   default  → focus_date=today + week_date=week start (bt t)
     #   -w       → week_date only (bt t -w)
     #   -b       → no focus dates (bt t -b)
     config = ctx.obj.get("config")

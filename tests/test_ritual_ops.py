@@ -290,12 +290,12 @@ def test_week_anchor_honours_sunday_week_start():
     assert week_anchor(thursday, MONDAY_CONFIG) == date(2026, 9, 7)
 
 
-def test_week_anchor_defaults_to_monday_without_config():
-    """No config means ISO weeks — Monday, matching the previous behaviour."""
+def test_week_anchor_defaults_to_sunday_without_config():
+    """No config means Sunday weeks, matching the default wp_day."""
     from datetime import date
     from bute.ritual_ops import week_anchor
 
-    assert week_anchor(date(2026, 9, 10)) == date(2026, 9, 7)
+    assert week_anchor(date(2026, 9, 10)) == date(2026, 9, 6)
 
 
 def test_week_anchor_matches_week_bounds_start():

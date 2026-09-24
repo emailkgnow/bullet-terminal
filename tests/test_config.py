@@ -21,7 +21,16 @@ def test_default_config_core_defaults():
     doc = default_config()
     assert doc["core"]["data_dir"] == "~/bullet-terminal"
     assert doc["core"]["wp_day"] == "sunday"
-    assert doc["core"]["week_start"] == "monday"
+    assert doc["core"]["week_start"] == "sunday"
+
+
+def test_week_start_fallback_matches_wp_day_fallback():
+    """With no config the week starts on the day wp runs, so a Sunday plan
+    lands in the week that begins that day, not the one ending it."""
+    from bute.config import get_week_start, get_wp_day
+
+    assert get_week_start() == get_wp_day() == 6
+    assert get_week_start({"core": {}}) == 6
 
 
 def test_save_load_roundtrip(tmp_config):

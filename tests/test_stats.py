@@ -159,10 +159,10 @@ def test_get_period_ranges_default():
     today = date(2026, 4, 10)  # Friday
     ranges = get_period_ranges("default", today)
 
-    # This week starts Monday Apr 6
-    assert ranges["this_week"] == (date(2026, 4, 6), today)
-    # Last week Mon Mar 30 - Sun Apr 5
-    assert ranges["last_week"] == (date(2026, 3, 30), date(2026, 4, 5))
+    # This week starts Sunday Apr 5
+    assert ranges["this_week"] == (date(2026, 4, 5), today)
+    # Last week Sun Mar 29 - Sat Apr 4
+    assert ranges["last_week"] == (date(2026, 3, 29), date(2026, 4, 4))
     # This month starts Apr 1
     assert ranges["this_month"] == (date(2026, 4, 1), today)
     # Last month is full March
@@ -231,11 +231,11 @@ def test_get_period_ranges_honours_sunday_week_start():
     assert ranges["this_week"][0] == week_anchor(thursday, cfg)
 
 
-def test_get_period_ranges_defaults_to_monday():
-    """Without config the ranges stay ISO Monday-based."""
+def test_get_period_ranges_defaults_to_sunday():
+    """Without config the ranges are Sunday-based, matching the default wp_day."""
     from datetime import date
     from bute.commands.stats import get_period_ranges
 
     ranges = get_period_ranges("week", date(2026, 9, 10))
-    assert ranges["this_week"] == (date(2026, 9, 7), date(2026, 9, 10))
-    assert ranges["last_week"] == (date(2026, 8, 31), date(2026, 9, 6))
+    assert ranges["this_week"] == (date(2026, 9, 6), date(2026, 9, 10))
+    assert ranges["last_week"] == (date(2026, 8, 30), date(2026, 9, 5))

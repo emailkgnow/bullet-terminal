@@ -88,7 +88,7 @@ All metadata lives in YAML frontmatter. Body text is the rest of the file.
 | `time` | string | no | `HH:MM` 24h, for timed calendar events |
 | `repeat` | string | no | `daily` \| `weekly` \| `monthly` \| `yearly` — any other value is rejected |
 | `focus_date` | ISO date | no | day this task was picked for the Focus Log — set by `bt dp`, `bt <n> focus`, or plain capture; one date only, overwritten on re-pick; cleared on `done`/`drop` |
-| `week_date` | ISO date | no | first day of the week this task was picked for (per `core.week_start`, not always a Monday) — not a deadline; cleared on `done`/`drop` |
+| `week_date` | ISO date | no | first day of the week this task was picked for (per `core.week_start`, Sunday by default) — not a deadline; cleared on `done`/`drop` |
 | `completed_date` | ISO date | no | when a task became `done` **or** `dropped` — read `status` to tell them apart; never set on repeating tasks |
 | `tags` | list[string] | no | e.g. `['home', 'urgent']` — no `@` prefix in YAML, always lowercase |
 | `completions` | list[ISO date] | no | for repeating tasks, days marked done; consecutive days stored as a range (`2026-03-28..2026-03-30`) |

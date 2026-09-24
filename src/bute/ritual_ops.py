@@ -177,7 +177,7 @@ def get_today_tasks(config=None, include_all: bool = False) -> list[Entry]:
 def get_week_entries(target_date: date | None = None, config=None) -> list[Entry]:
     """All entries for the week containing target_date.
 
-    Week start is configurable via core.week_start (default Monday).
+    Week start is configurable via core.week_start (default Sunday).
     Includes all statuses (done, dropped, active) — the full picture.
     """
     from bute.config import week_bounds
