@@ -1,4 +1,4 @@
-"""Trash commands — bt trash (list), bt trash empty (purge)."""
+"""Trash commands — bt trash (list), bt trash purge (delete them all for good)."""
 
 import click
 from rich.console import Console
@@ -12,13 +12,17 @@ console = Console()
 
 @click.command("trash")
 @click.argument("subcommand", required=False, default=None)
-@click.option("-y", "--yes", is_flag=True, help="Skip confirmation for 'empty'.")
+@click.option("-y", "--yes", is_flag=True, help="Skip confirmation for 'purge'.")
 @click.pass_context
 def trash_cmd(ctx, subcommand, yes):
-    """Show trashed entries. 'bt trash empty' deletes them permanently."""
+    """Show trashed entries. 'bt trash purge' deletes them permanently."""
     config = ctx.obj.get("config")
 
+    # `purge` names both forms — `bt trash purge` (all) and `bt <n> purge` (some)
     if subcommand == "empty":
+        raise click.UsageError("'bt trash empty' is now 'bt trash purge' (one item: bt trash → bt <n> purge).")
+
+    if subcommand == "purge":
         paths = list(trash_dir(config).glob("*.md")) if trash_dir(config).exists() else []
         if not paths:
             console.print("  [dim]Trash is empty.[/dim]")
@@ -28,11 +32,11 @@ def trash_cmd(ctx, subcommand, yes):
             return
         for p in paths:
             p.unlink()
-        console.print(f"  [green]Emptied trash ({len(paths)} entries).[/green]")
+        console.print(f"  [green]Purged trash ({len(paths)} entries).[/green]")
         return
 
     if subcommand is not None:
-        raise click.UsageError(f"Unknown trash subcommand: {subcommand}. Use 'bt trash' or 'bt trash empty'.")
+        raise click.UsageError(f"Unknown trash subcommand: {subcommand}. Use 'bt trash' or 'bt trash purge'.")
 
     entries = list_trash(config)
     if not entries:

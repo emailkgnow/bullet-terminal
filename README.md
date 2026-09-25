@@ -292,7 +292,7 @@ Full help: `bt -h`.
 | `bt <n> mod <text>` | replace entry body |
 | `bt dp` / `bt wp` | daily / weekly planning rituals |
 | `bt due` / `bt overdue` | deadline views |
-| `bt trash` / `bt trash empty` | list trashed entries (restore with `bt <n> restore`) / purge them |
+| `bt trash` / `bt trash purge` | list trashed entries (`bt <n> restore` or `bt <n> purge` one) / purge them all |
 | `bt streak` / `bt habit <name>` | habit tracking |
 | `bt stats` | personal analytics (week/month/streaks) |
 | `bt export` | zip backup of all .md files to cwd |

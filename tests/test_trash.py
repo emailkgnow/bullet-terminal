@@ -223,22 +223,73 @@ def test_undo_after_delete_restores_from_trash(runner, tmp_config, tmp_data):
     assert list_trash() == []
 
 
-def test_trash_empty_with_yes_deletes_files(runner, tmp_config, tmp_data):
+def test_trash_purge_with_yes_deletes_files(runner, tmp_config, tmp_data):
     e = Entry.create(EntryType.TASK, "gone for good")
     save_entry(e)
     trash_entry(e.id)
 
-    result = runner.invoke(main, ["trash", "empty", "-y"])
+    result = runner.invoke(main, ["trash", "purge", "-y"])
     assert result.exit_code == 0, result.output
     assert list_trash() == []
     assert not (trash_dir() / f"{e.id}.md").exists()
 
 
-def test_trash_empty_prompts_and_aborts_on_no(runner, tmp_config, tmp_data):
+def test_trash_purge_prompts_and_aborts_on_no(runner, tmp_config, tmp_data):
     e = Entry.create(EntryType.TASK, "keep me")
     save_entry(e)
     trash_entry(e.id)
 
-    result = runner.invoke(main, ["trash", "empty"], input="n\n")
+    result = runner.invoke(main, ["trash", "purge"], input="n\n")
     assert result.exit_code == 0
     assert (trash_dir() / f"{e.id}.md").exists()
+
+
+def test_trash_empty_points_to_purge(runner, tmp_config, tmp_data):
+    e = Entry.create(EntryType.TASK, "not yet")
+    save_entry(e)
+    trash_entry(e.id)
+
+    result = runner.invoke(main, ["trash", "empty", "-y"])
+    assert result.exit_code != 0
+    assert "bt trash purge" in result.output
+    assert (trash_dir() / f"{e.id}.md").exists()
+
+
+def _trash_two():
+    a = Entry.create(EntryType.TASK, "first")
+    save_entry(a)
+    time.sleep(0.002)
+    b = Entry.create(EntryType.NOTE, "second")
+    save_entry(b)
+    trash_entry(a.id)
+    trash_entry(b.id)
+    return a, b
+
+
+def test_purge_action_deletes_only_selected(runner, tmp_config, tmp_data):
+    _trash_two()
+    runner.invoke(main, ["trash"])
+    ids = json.loads(state_path().read_text())["entries"]
+
+    result = runner.invoke(main, ["1", "purge", "-y"])
+    assert result.exit_code == 0, result.output
+    assert not (trash_dir() / f"{ids[0]}.md").exists()
+    assert (trash_dir() / f"{ids[1]}.md").exists()
+
+
+def test_purge_action_prompts_and_aborts_on_no(runner, tmp_config, tmp_data):
+    a, b = _trash_two()
+    runner.invoke(main, ["trash"])
+
+    result = runner.invoke(main, ["1-2", "purge"], input="n\n")
+    assert result.exit_code == 0, result.output
+    assert len(list_trash()) == 2
+
+
+def test_purge_action_outside_trash_view_errors(runner, tmp_config, tmp_data):
+    e = Entry.create(EntryType.TASK, "live one")
+    save_entry(e)
+    runner.invoke(main, ["t", "-b"])
+    result = runner.invoke(main, ["1", "purge", "-y"])
+    assert "not in the trash" in result.output
+    assert entry_path_from_id(e.id) is not None

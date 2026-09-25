@@ -138,8 +138,9 @@ bt 2 3 drop       # consciously delete (space-separated)
 bt 1-4 done       # range — marks 1, 2, 3, 4 done
 bt 1-3 7 done     # mix range + bare numbers
 bt 4 delete       # move to .trash/ (recoverable)
-bt trash          # list trashed entries; bt trash empty -y to purge
+bt trash          # list trashed entries; bt trash purge -y deletes them all for good
 bt 2 restore      # restore entry 2 from the trash view
+bt 2 purge        # delete entry 2 for good, from the trash view (-y skips the prompt)
 bt 5 !            # toggle important
 bt 6 @tag         # add tag
 bt 6 clear @tag   # remove tag

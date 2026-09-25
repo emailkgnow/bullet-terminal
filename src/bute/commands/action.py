@@ -609,6 +609,27 @@ def action_cmd(ctx, tokens):
             display_action_confirmation(entry, "restore")
         return
 
+    # Handle purge: bt <n> purge — permanent, and only from the bt trash view
+    if action == "purge":
+        from bute.state import load_state
+        from bute.storage import trash_dir
+        if load_state(config).get("view") != "trash":
+            console.print("  [red]Those numbers are not in the trash. Run [bold]bt trash[/bold] first.[/red]")
+            return
+        paths = [trash_dir(config) / f"{entry_id}.md" for entry_id in entry_ids]
+        paths = [p for p in paths if p.exists()]
+        if not paths:
+            console.print("  [dim]Nothing to purge — already gone.[/dim]")
+            return
+        yes = "-y" in args or "--yes" in args
+        if not yes and not click.confirm(f"  Permanently delete {len(paths)} trashed entries?", default=False):
+            console.print("  [dim]Cancelled.[/dim]")
+            return
+        for p in paths:
+            p.unlink()
+        console.print(f"  [green]Purged {len(paths)} from trash.[/green]")
+        return
+
     # Handle @tag action — collect all @tags from action + args
     if action.startswith("@") and len(action) > 1:
         tags = [action[1:]] + [a[1:] for a in args if a.startswith("@") and len(a) > 1]
