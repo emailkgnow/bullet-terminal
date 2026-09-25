@@ -1,6 +1,6 @@
 [project]
 name = "bullet-terminal"
-version = "0.1.0"
+version = "0.2.0"
 description = "A terminal life manager built on four bullets: tasks, notes, journals and events in plain Markdown"
 readme = "README.md"
 requires-python = ">=3.11"
