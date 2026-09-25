@@ -1,12 +1,13 @@
 """Tests for CLI entry point and command routing."""
 
+from bute import __version__
 from bute.cli import main
 
 
 def test_version(runner):
     result = runner.invoke(main, ["--version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert __version__ in result.output
 
 
 def test_help(runner):
